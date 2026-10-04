@@ -1,0 +1,133 @@
+diff --git a/src/things/pokemon-code-red/player.ts b/src/things/pokemon-code-red/player.ts
+index be53e05..4cef2ed 100644
+--- a/src/things/pokemon-code-red/player.ts
++++ b/src/things/pokemon-code-red/player.ts
+@@ -1,7 +1,8 @@
+ import { BASE_SHA1, MOD_SHA1, ROM_SIZE, sha1 } from './patch'
+ import { bindGameKeyboard, type GameInput } from './keyboard'
+ import { applyCopyPatch } from './copy-patch'
+-import { readLocal, writeLocal, ROM_KEY, STATE_KEY } from './storage'
++import { restoreRom } from './rom-cache'
++import { readLocal, writeLocal, ROM_KEY, SOURCE_KEY, STATE_KEY } from './storage'
+ 
+ type EmulatorWindow = Window & {
+   EJS_player?: string
+@@ -121,37 +122,51 @@ export function mount(root: HTMLElement) {
+       }
+       let bytes = new Uint8Array(await file.arrayBuffer())
+       const digest = await sha1(bytes)
++      let sourceRemembered = false
+       if (digest === BASE_SHA1) {
+-        const response = await fetch('/code-red-mailbox.copy.bin')
+-        if (!response.ok) throw new Error('The patch could not load. Reload and try again.')
+-        const compressed = await response.arrayBuffer()
+-        const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'))
+-        const patch = new Uint8Array(await new Response(stream).arrayBuffer())
+-        bytes = applyCopyPatch(bytes, patch)
+-        if (await sha1(bytes) !== MOD_SHA1) throw new Error('Patch verification failed. Reload and try again.')
++        // Retain the verified original even if fetching/applying this build fails.
++        try { await writeLocal(SOURCE_KEY, bytes); sourceRemembered = true } catch { /* Play can continue without storage. */ }
++        bytes = await patchSource(bytes)
+       } else if (digest !== MOD_SHA1) {
+         throw new Error('Choose the original FireRed USA English v1.0 file or this mailbox build. Earlier Code Red builds and their emulator states cannot be resumed with this version.')
+       }
+-      try { await writeLocal(ROM_KEY, bytes); remembered = true } catch { remembered = false }
++      try { await writeLocal(ROM_KEY, bytes); remembered = true } catch { remembered = sourceRemembered }
+       await start(bytes)
+     } catch (problem) {
+       input.disabled = false
++      input.value = ''
+       status.textContent = ''
+       error.textContent = problem instanceof Error ? problem.message : 'Could not open this file.'
+       error.hidden = false
+     }
+   })
+ 
++  async function patchSource(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
++    const response = await fetch('/code-red-mailbox.copy.bin')
++    if (!response.ok) throw new Error('The patch could not load. Reload and try again.')
++    const compressed = await response.arrayBuffer()
++    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'))
++    const patch = new Uint8Array(await new Response(stream).arrayBuffer())
++    const patched = applyCopyPatch(bytes, patch)
++    if (await sha1(patched) !== MOD_SHA1) throw new Error('Patch verification failed. Reload and try again.')
++    return patched
++  }
++
++  // Avoid a chooser/cache startup race while IndexedDB and hashing are pending.
++  input.disabled = true
+   void (async () => {
+     try {
+-      const stored = await readLocal(ROM_KEY)
+-      if (stored && stored.byteLength === ROM_SIZE && await sha1(new Uint8Array(stored)) === MOD_SHA1) {
+-        remembered = true
+-        await start(new Uint8Array(stored))
++      const restored = await restoreRom({ read: readLocal, write: writeLocal, patch: patchSource })
++      if (restored) {
++        remembered = restored.remembered
++        await start(restored.bytes)
+         return
+       }
+-    } catch { /* First-run file choice also works when storage is blocked. */ }
++      status.textContent = 'Choose your original FireRed file once to remember it for future updates. Earlier builds and their saved states remain stored separately.'
++    } catch (problem) {
++      status.textContent = problem instanceof Error ? problem.message : 'Could not restore the game. Reload to try again.'
++    }
++    input.disabled = false
+     chooser.hidden = false
+-    status.textContent = 'This version needs your original FireRed file again. Previous builds and their saved states remain stored separately.'
+   })()
+ }
+diff --git a/src/things/pokemon-code-red/rom-cache.ts b/src/things/pokemon-code-red/rom-cache.ts
+new file mode 100644
+index 0000000..c141c2f
+--- /dev/null
++++ b/src/things/pokemon-code-red/rom-cache.ts
+@@ -0,0 +1,33 @@
++import { BASE_SHA1, MOD_SHA1, ROM_SIZE, sha1 } from './patch.ts'
++import { ROM_KEY, SOURCE_KEY } from './storage.ts'
++
++type Cache = {
++  read(key: string): Promise<ArrayBuffer | undefined>
++  write(key: string, bytes: Uint8Array): Promise<void>
++  patch(source: Uint8Array): Promise<Uint8Array>
++}
++
++// Existing patched caches remain usable. Never mistake an old patched ROM for
++// the original or migrate save states: only an independently verified source
++// can produce a new build. Missing/corrupt/evicted entries fall back to choice.
++export async function restoreRom(cache: Cache, digest = sha1) {
++  async function verified(key: string, expected: string) {
++    try {
++      const stored = await cache.read(key)
++      if (stored instanceof ArrayBuffer && stored.byteLength === ROM_SIZE) {
++        const bytes = new Uint8Array(stored)
++        if (await digest(bytes) === expected) return bytes
++      }
++    } catch { /* Storage can be unavailable independently of patch loading. */ }
++  }
++  const current = await verified(ROM_KEY, MOD_SHA1)
++  if (current) return { bytes: current, remembered: true }
++  const source = await verified(SOURCE_KEY, BASE_SHA1)
++  if (!source) return undefined
++  const bytes = await cache.patch(source)
++  if (bytes.byteLength !== ROM_SIZE || await digest(bytes) !== MOD_SHA1) {
++    throw new Error('Patch verification failed. Reload and try again.')
++  }
++  try { await cache.write(ROM_KEY, bytes) } catch { /* Source remains cached for the next reload. */ }
++  return { bytes, remembered: true }
++}
+diff --git a/src/things/pokemon-code-red/storage.ts b/src/things/pokemon-code-red/storage.ts
+index 5a1511e..31ec3cb 100644
+--- a/src/things/pokemon-code-red/storage.ts
++++ b/src/things/pokemon-code-red/storage.ts
+@@ -1,6 +1,8 @@
+ // Private to this browser/origin. No upload, account, or server-side save storage.
+-import { MOD_SHA1 } from './patch'
++import { BASE_SHA1, MOD_SHA1 } from './patch.ts'
+ 
++// Source identity is independent of the patched ROM and emulator/core versions.
++export const SOURCE_KEY = `source:${BASE_SHA1}`
+ export const ROM_KEY = `rom:${MOD_SHA1}`
+ export const STATE_KEY = `state:${MOD_SHA1}:emulatorjs-4.2.3:mailbox-core-v2`
+ 

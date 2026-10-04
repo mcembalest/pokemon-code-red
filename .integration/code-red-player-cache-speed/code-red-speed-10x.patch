@@ -1,0 +1,26 @@
+diff --git a/src/pages/pokemon-code-red.astro b/src/pages/pokemon-code-red.astro
+index e66b7e8..9d582b6 100644
+--- a/src/pages/pokemon-code-red.astro
++++ b/src/pages/pokemon-code-red.astro
+@@ -12,7 +12,7 @@ import '../things/pokemon-code-red/player.css'
+     </div>
+     <p class="code-red-status" data-status role="status" aria-live="polite">Loading…</p>
+     <p class="code-red-error" data-error role="alert" hidden></p>
+-    <p class="muted">Click the game to use arrows. Hold Space for 3× speed; release to return to normal. Click outside to use page keys.</p>
++    <p class="muted">Click the game to use arrows. Hold Space for 10× speed; release to return to normal. Click outside to use page keys.</p>
+     <div id="code-red-game" class="code-red-game" data-game hidden aria-label="Code Red game player"></div>
+     <div class="code-red-save" data-save-bar hidden>
+       <button class="code-red-button" data-save type="button" disabled>Save</button>
+diff --git a/src/things/pokemon-code-red/keyboard.ts b/src/things/pokemon-code-red/keyboard.ts
+index ee049a0..9cdb8a5 100644
+--- a/src/things/pokemon-code-red/keyboard.ts
++++ b/src/things/pokemon-code-red/keyboard.ts
+@@ -48,7 +48,7 @@ export function bindGameKeyboard(game: HTMLElement, gm: GameInput, menuOpen: ()
+     event.stopImmediatePropagation()
+     if (event.code === 'Space') {
+       if (event.type === 'keyup') { if (speeding) gm.functions.toggleFastForward(0); speeding = false }
+-      else if (!event.repeat && !speeding) { gm.functions.setFastForwardRatio(3); gm.functions.toggleFastForward(1); speeding = true }
++      else if (!event.repeat && !speeding) { gm.functions.setFastForwardRatio(10); gm.functions.toggleFastForward(1); speeding = true }
+     } else if (event.type === 'keyup') gm.simulateInput(0, index, 0)
+     else if (!event.repeat) gm.simulateInput(0, index, 1)
+   }

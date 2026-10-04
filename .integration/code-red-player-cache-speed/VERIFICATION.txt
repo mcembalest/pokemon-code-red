@@ -1,0 +1,70 @@
+Code Red player cache and 10x Space integration handoff
+
+Target repository: mcembalest/maxcembalest.com
+Exact target base: 17473765b8e571bb1a81232a792223da69e2484e
+Tested local implementation commit: 57fee1ac5a7711f4e8b479aa78d88b69594817e7
+Local implementation branch: fix/code-red-source-cache-10x
+The site branch was not pushed. These files are source diffs and test notes only.
+No ROM bytes, assets, or saves are included.
+
+Patch order:
+1. code-red-source-cache.patch
+2. code-red-speed-10x.patch
+3. code-red-cache-speed-tests.patch
+
+Apply to the SITE repository, not the game repository hosting this handoff:
+git apply --check /path/to/code-red-source-cache.patch /path/to/code-red-speed-10x.patch /path/to/code-red-cache-speed-tests.patch
+git apply /path/to/code-red-source-cache.patch /path/to/code-red-speed-10x.patch /path/to/code-red-cache-speed-tests.patch
+
+Ownership and integration:
+- storage.ts gains SOURCE_KEY based on BASE_SHA1, independently of patch/core.
+- New rom-cache.ts restores a validated current ROM or patches validated source.
+- player.ts changes only imports and chooser/cache startup/patching code.
+- keyboard.ts changes only setFastForwardRatio(3) to setFastForwardRatio(10).
+- pokemon-code-red.astro changes only the speed instruction.
+- New rom-cache.test.ts and browser rom-cache.py; existing keyboard.py expects 10x.
+- Preserve the REPL owner's player.ts/keyboard.ts wiring when merging overlapping
+  import/context hunks. These are minimal unified diffs, not whole-file replacements.
+- No game ROM/core/REPL transport changes are included.
+
+Behavior:
+- Newly selected originals are verified and retained before patch fetching.
+- Reload uses the valid current patched cache without refetching.
+- A new MOD_SHA1 generates a fresh patched cache from the retained original.
+- SOURCE_KEY follows BASE_SHA1; ROM_KEY and STATE_KEY retain build isolation.
+- Existing current patched-only caches continue working. They cannot reconstruct
+  the original; their next upgrade requires choosing the original one more time.
+- Wrong-sized, corrupt, missing, evicted, or inaccessible storage falls back to
+  an enabled chooser; patch failures preserve the original for reload retry.
+- Derived-cache write failure permits play from a retained source.
+- Old ROM caches and emulator state slots are never migrated or deleted.
+- Browser data eviction or a different origin/browser still requires selection.
+- Space release, blur/hide, epoch reset, menus, focus restoration, repeat behavior,
+  and arrow scroll prevention are preserved.
+
+Verification performed:
+- npm test: 48 tests passed, 0 failed.
+- ASTRO_TELEMETRY_DISABLED=1 XDG_CONFIG_HOME=/tmp/code-red-config npm run build:
+  Astro check: 0 errors, 0 warnings, 0 hints; static build completed (14 pages).
+- node --test src/things/pokemon-code-red/*.test.ts: 10 tests passed, 0 failed.
+- python3 tools/code-red-core/tests/rom-cache.py: Chromium passed original retention
+  after failed first patch, reload, regeneration/upgrade path, unchanged old saves,
+  patch failure retry, chooser recovery, and no uploads (all requests GET).
+- python3 tools/code-red-core/tests/keyboard.py: Chromium passed 10x ratio, release
+  to normal, repeat handling, focused scroll prevention, outside scroll/typing,
+  blur/hide/epoch release, window/tab/bfcache restoration, popup and cleanup.
+- git diff --check passed.
+- All three patches together passed git apply --check in a clean worktree at the
+  exact site base commit above.
+
+Test limitations:
+Browser cache tests use synthetic 16 MiB fixtures with test-only digest stubbing
+and an emulator loader stub. Production size/SHA-1 validation is unchanged.
+The keyboard test verifies the requested ratio/API and focus/release behavior;
+actual gameplay throughput at 10x was not measured. No real ROM was used/uploaded.
+
+Environment setup:
+Site checkout succeeded via git clone. npm used a writable cache under /tmp.
+Astro telemetry/config needed the environment flags above. No setup blockers remain.
+Library handoff failed before creating files due to a network error; it was not
+retried. This isolated game branch is the explicitly authorized transfer route.

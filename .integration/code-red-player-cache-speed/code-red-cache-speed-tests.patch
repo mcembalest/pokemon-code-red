@@ -1,0 +1,188 @@
+diff --git a/src/things/pokemon-code-red/rom-cache.test.ts b/src/things/pokemon-code-red/rom-cache.test.ts
+new file mode 100644
+index 0000000..b4f5636
+--- /dev/null
++++ b/src/things/pokemon-code-red/rom-cache.test.ts
+@@ -0,0 +1,55 @@
++import assert from 'node:assert/strict'
++import { test } from 'node:test'
++import { restoreRom } from './rom-cache.ts'
++import { BASE_SHA1, MOD_SHA1, ROM_SIZE } from './patch.ts'
++import { ROM_KEY, SOURCE_KEY, STATE_KEY } from './storage.ts'
++
++const bytes = (tag: number) => { const result = new Uint8Array(ROM_SIZE); result[0] = tag; return result }
++const digest = async (value: Uint8Array) => value[0] === 1 ? BASE_SHA1 : value[0] === 2 ? MOD_SHA1 : 'invalid'
++function fixture(entries: [string, ArrayBuffer][] = []) {
++  const files = new Map(entries)
++  let patches = 0
++  const cache = {
++    read: async (key: string) => files.get(key),
++    write: async (key: string, value: Uint8Array) => { files.set(key, value.slice().buffer) },
++    patch: async (source: Uint8Array) => { assert.equal(source[0], 1); patches++; return bytes(2) },
++  }
++  return { files, cache, patches: () => patches }
++}
++test('reload reuses existing current patched cache without changing saves', async () => {
++  const state = new ArrayBuffer(4)
++  const f = fixture([[ROM_KEY, bytes(2).buffer], [STATE_KEY, state]])
++  assert.equal((await restoreRom(f.cache, digest))?.bytes[0], 2)
++  assert.equal(f.patches(), 0); assert.equal(f.files.get(STATE_KEY), state)
++  assert.equal(f.files.has(SOURCE_KEY), false)
++})
++test('patch upgrade rebuilds from stable source, caches current build and leaves old ROM/state untouched', async () => {
++  const old = bytes(3).buffer, state = new ArrayBuffer(4), source = bytes(1).buffer
++  const f = fixture([[SOURCE_KEY, source], ['rom:old-build', old], ['state:old-build:old-core', state]])
++  assert.equal((await restoreRom(f.cache, digest))?.remembered, true)
++  assert.equal(f.patches(), 1); assert.equal(f.files.get(SOURCE_KEY), source)
++  assert.equal(f.files.get('rom:old-build'), old); assert.equal(f.files.get('state:old-build:old-core'), state)
++  await restoreRom(f.cache, digest); assert.equal(f.patches(), 1)
++})
++test('missing, evicted, wrong-sized and corrupt data prompt for source; corrupt current falls back to source', async () => {
++  for (const entries of [[], [[SOURCE_KEY, new ArrayBuffer(1)]], [[SOURCE_KEY, bytes(3).buffer]], [['rom:old-build', bytes(2).buffer]]] as [string, ArrayBuffer][][]) {
++    const f = fixture(entries); assert.equal(await restoreRom(f.cache, digest), undefined); assert.equal(f.patches(), 0)
++  }
++  const f = fixture([[ROM_KEY, bytes(3).buffer], [SOURCE_KEY, bytes(1).buffer]])
++  assert.equal((await restoreRom(f.cache, digest))?.bytes[0], 2)
++})
++test('storage rejection allows choice; derived-cache write rejection still plays from retained source', async () => {
++  const f = fixture([[SOURCE_KEY, bytes(1).buffer]])
++  f.cache.write = async () => { throw new Error('quota') }
++  assert.equal((await restoreRom(f.cache, digest))?.remembered, true)
++  f.cache.read = async () => { throw new Error('blocked') }
++  assert.equal(await restoreRom(f.cache, digest), undefined)
++})
++test('patch failures and invalid output preserve source for reload retry', async () => {
++  const source = bytes(1).buffer, f = fixture([[SOURCE_KEY, source]])
++  f.cache.patch = async () => { throw new Error('offline') }
++  await assert.rejects(restoreRom(f.cache, digest), /offline/)
++  f.cache.patch = async () => bytes(3)
++  await assert.rejects(restoreRom(f.cache, digest), /verification/)
++  assert.equal(f.files.get(SOURCE_KEY), source); assert.equal(f.files.has(ROM_KEY), false)
++})
+diff --git a/tools/code-red-core/tests/keyboard.py b/tools/code-red-core/tests/keyboard.py
+index 459e0f1..27c1d46 100644
+--- a/tools/code-red-core/tests/keyboard.py
++++ b/tools/code-red-core/tests/keyboard.py
+@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory() as temp:
+   y=page.evaluate('scrollY');page.keyboard.down('ArrowDown');page.keyboard.down('Space');page.keyboard.down('Space');page.wait_for_timeout(150)
+   assert page.evaluate('scrollY')==y
+   assert page.evaluate('calls.filter(c=>c[0]==="speed"&&c[1]===1).length')==1
+-  assert page.evaluate('calls.some(c=>c[0]==="ratio"&&c[1]===3)')
++  assert page.evaluate('calls.some(c=>c[0]==="ratio"&&c[1]===10)')
+   page.keyboard.up('Space');page.keyboard.up('ArrowDown');assert page.evaluate('calls.some(c=>c[0]==="speed"&&c[1]===0)')
+   page.keyboard.down('Space');page.keyboard.down('ArrowLeft');page.locator('#outside').click()
+   assert page.evaluate('calls.at(-1)')==['input',0,6,0]
+@@ -33,5 +33,5 @@ with tempfile.TemporaryDirectory() as temp:
+    game.click(position={'x':250,'y':80});page.evaluate(trigger);assert page.evaluate('document.activeElement.id')=='game';before=page.evaluate('calls.filter(c=>c[0]==="speed"&&c[1]===1).length');page.keyboard.down('Space');assert page.evaluate('calls.filter(c=>c[0]==="speed"&&c[1]===1).length')==before+1;page.keyboard.up('Space')
+   # Model the upstream bubble listener: menus must receive capture-bypassed keys.
+   game.click(position={'x':250,'y':80});page.keyboard.down('ArrowLeft');page.evaluate('window.menuOpen=true;window.upstream=[];document.querySelector("#game").addEventListener("keydown",e=>upstream.push([e.code,e.defaultPrevented]))');before=page.evaluate('calls.length');page.keyboard.press('ArrowDown');page.keyboard.press('Space');assert page.evaluate('upstream')==[['ArrowDown',False],['Space',False]];assert page.evaluate('calls.slice('+str(before)+')')==[['input',0,6,0]];page.keyboard.up('ArrowLeft');page.evaluate('menuOpen=false')
+-  page.evaluate('binding.dispose();binding.dispose()');print(json.dumps({'holdSpace3x':True,'releaseNormal':True,'keyRepeatNoToggle':True,'focusedKeysNoScroll':True,'outsideRestoresScroll':True,'outsideAndInsideTypingPreserved':True,'blurHideResetReleases':True,'idempotentDispose':True,'windowAndTabRefocus':True,'persistedPageFocusRestored':True,'popupKeysReachUpstream':True},indent=2));b.close()
++  page.evaluate('binding.dispose();binding.dispose()');print(json.dumps({'holdSpace10x':True,'releaseNormal':True,'keyRepeatNoToggle':True,'focusedKeysNoScroll':True,'outsideRestoresScroll':True,'outsideAndInsideTypingPreserved':True,'blurHideResetReleases':True,'idempotentDispose':True,'windowAndTabRefocus':True,'persistedPageFocusRestored':True,'popupKeysReachUpstream':True},indent=2));b.close()
+  server.shutdown()
+diff --git a/tools/code-red-core/tests/rom-cache.py b/tools/code-red-core/tests/rom-cache.py
+new file mode 100644
+index 0000000..78c310c
+--- /dev/null
++++ b/tools/code-red-core/tests/rom-cache.py
+@@ -0,0 +1,101 @@
++"""Chromium player/IndexedDB regressions using synthetic bytes, never a real ROM.
++
++Stub SHA-1 only for these 16 MB fixtures; production hashing remains unchanged.
++Exercise the actual chooser, patch fetch, source persistence and reload path.
++"""
++from pathlib import Path
++import functools, gzip, http.server, json, struct, subprocess, tempfile, threading
++from playwright.sync_api import sync_playwright
++
++root = Path(__file__).resolve().parents[3]
++with tempfile.TemporaryDirectory() as temp:
++    out = Path(temp)
++    entry = out / 'entry.ts'
++    entry.write_text(f'''import {{mount}} from '{root}/src/things/pokemon-code-red/player.ts';
++import {{readLocal, writeLocal, SOURCE_KEY, ROM_KEY, STATE_KEY}} from '{root}/src/things/pokemon-code-red/storage.ts';
++import {{BASE_SHA1, MOD_SHA1, ROM_SIZE}} from '{root}/src/things/pokemon-code-red/patch.ts';
++const nativeDigest = crypto.subtle.digest.bind(crypto.subtle);
++crypto.subtle.digest = async (algorithm, buffer) => {{
++  const bytes = new Uint8Array(buffer);
++  if (bytes.length !== ROM_SIZE) return nativeDigest(algorithm, buffer);
++  const hash = bytes[0] === 1 ? BASE_SHA1 : bytes[0] === 2 ? MOD_SHA1 : '0'.repeat(40);
++  return new Uint8Array(hash.match(/../g).map(pair => parseInt(pair, 16))).buffer;
++}};
++Object.assign(window, {{readLocal, writeLocal, SOURCE_KEY, ROM_KEY, STATE_KEY}});
++mount(document.querySelector('[data-code-red]'));
++''')
++    subprocess.run([root / 'node_modules/.bin/esbuild', entry, '--bundle', '--format=esm', '--outfile=' + str(out / 'player.js')], check=True)
++    (out / 'index.html').write_text('''<section data-code-red>
++<div data-open hidden><button data-choose>Choose</button><input data-file type="file"></div>
++<p data-status></p><p data-error hidden></p><div id="code-red-game" data-game hidden></div>
++<div data-save-bar hidden><button data-save disabled>Save</button></div></section>
++<script type="module" src="/player.js"></script>''')
++    # Copy-only patch fixture: produces tag 2 from source tag 1, without ROM bytes.
++    patch = gzip.compress(b'CRCP1' + struct.pack('<II', 16 * 1024 * 1024, 2) + struct.pack('<IIII', 1, 1, 0, 16 * 1024 * 1024 - 1))
++    class Quiet(http.server.SimpleHTTPRequestHandler):
++        def log_message(self, *_): pass
++    server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Quiet, directory=temp))
++    threading.Thread(target=server.serve_forever, daemon=True).start()
++    with sync_playwright() as p:
++        browser = p.chromium.launch(executable_path='/usr/bin/chromium', args=['--no-sandbox'])
++        page = browser.new_page()
++        requests = []
++        page.on('request', lambda request: requests.append((request.method, request.url)))
++        page.route('**/code-red-emulator/loader.js', lambda route: route.fulfill(body='window.fixtureStarted = true', content_type='text/javascript'))
++        page.route('**/code-red-mailbox.copy.bin', lambda route: route.fulfill(body=patch, content_type='application/octet-stream'))
++        url = f'http://127.0.0.1:{server.server_port}'
++        page.goto(url)
++        page.wait_for_function('!document.querySelector("[data-file]").disabled')
++        fixture = bytearray(16 * 1024 * 1024); fixture[0:2] = b'\x01\x02'
++        payload = {'name': 'synthetic-source.gba', 'mimeType': 'application/octet-stream', 'buffer': bytes(fixture)}
++        # The original survives even if the first patch request fails.
++        page.route('**/code-red-mailbox.copy.bin', lambda route: route.fulfill(status=503, body='offline'))
++        page.locator('[data-file]').set_input_files(payload)
++        page.wait_for_function('!document.querySelector("[data-error]").hidden')
++        assert page.evaluate('readLocal(SOURCE_KEY).then(b => new Uint8Array(b)[0])') == 1
++        assert page.locator('[data-file]').input_value() == ''
++        page.unroute('**/code-red-mailbox.copy.bin')
++        page.route('**/code-red-mailbox.copy.bin', lambda route: route.fulfill(body=patch))
++        page.reload(); page.wait_for_function('window.fixtureStarted')
++        assert page.evaluate('readLocal(SOURCE_KEY).then(b => new Uint8Array(b)[0])') == 1
++        assert page.evaluate('readLocal(ROM_KEY).then(b => new Uint8Array(b)[0])') == 2
++        patch_count = lambda: len([r for r in requests if r[1].endswith('code-red-mailbox.copy.bin')])
++        assert patch_count() == 2
++        page.reload(); page.wait_for_function('window.fixtureStarted')
++        assert patch_count() == 2  # Current cache avoids another patch fetch.
++        page.evaluate('''async () => {
++          await writeLocal('rom:old-build', new Uint8Array([7]));
++          await writeLocal('state:old-build:old-core', new Uint8Array([8]));
++          await writeLocal(STATE_KEY, new Uint8Array([9]));
++          await writeLocal(ROM_KEY, new Uint8Array([0]));
++        }''')
++        page.reload(); page.wait_for_function('window.fixtureStarted')
++        assert patch_count() == 3  # Missing/invalid current build is regenerated.
++        for key, tag in [('rom:old-build', 7), ('state:old-build:old-core', 8)]:
++            assert page.evaluate('(key) => readLocal(key).then(b => new Uint8Array(b)[0])', key) == tag
++        assert page.evaluate('readLocal(STATE_KEY).then(b => new Uint8Array(b)[0])') == 9
++        # Fail a new patch attempt, keep the original, and retry on reload.
++        page.evaluate('writeLocal(ROM_KEY, new Uint8Array([0]))')
++        page.route('**/code-red-mailbox.copy.bin', lambda route: route.fulfill(status=503, body='offline'))
++        page.reload(); page.wait_for_function('!document.querySelector("[data-file]").disabled')
++        assert 'patch could not load' in page.locator('[data-status]').inner_text()
++        assert page.evaluate('readLocal(SOURCE_KEY).then(b => new Uint8Array(b)[0])') == 1
++        page.unroute('**/code-red-mailbox.copy.bin')
++        page.route('**/code-red-mailbox.copy.bin', lambda route: route.fulfill(body=patch))
++        page.reload(); page.wait_for_function('window.fixtureStarted')
++        # Eviction/corruption leaves an enabled chooser; a fresh selection recovers.
++        page.evaluate('''async () => {
++          await writeLocal(ROM_KEY, new Uint8Array([0]));
++          await writeLocal(SOURCE_KEY, new Uint8Array([0]));
++        }''')
++        page.reload(); page.wait_for_function('!document.querySelector("[data-file]").disabled')
++        assert page.locator('[data-open]').is_visible()
++        page.locator('[data-file]').set_input_files(payload)
++        page.wait_for_function('window.fixtureStarted')
++        assert all(method == 'GET' for method, _ in requests)
++        print(json.dumps({'originalRetained': True, 'reloadUsesCurrentCache': True,
++                          'upgradeRepatchesLocalSource': True, 'oldSavesUnchanged': True,
++                          'patchFailureRetry': True, 'evictionChooserRecovery': True,
++                          'noRomUpload': True}, indent=2))
++        browser.close()
++    server.shutdown()
