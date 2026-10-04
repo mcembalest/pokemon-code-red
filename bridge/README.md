@@ -14,6 +14,8 @@ The bedroom NES now starts one asynchronous calculation. Press A while facing th
 
 The **WebAssembly/browser round trip is not verified or published**. No Emscripten compiler is installed here. Upstream's documented SDK 3.1.74 installation failed with a network proxy `403 Forbidden` for `https://storage.googleapis.com/webassembly/emscripten-releases-builds/deps/node-v24.19.0-linux-x64.tar.xz`. No restriction bypass was attempted. `core-sources.lock.json` records fetched source revisions, not a claim that they produced the stock npm 4.2.3 binary, whose report does not identify source commits.
 
+See [exact blocker, authorized build instructions and native architecture](BROWSER_BUILD.md).
+
 ## Reproduce independent checks
 
 ```sh
