@@ -1,0 +1,12 @@
+diff --git a/data/text/new_game_intro.inc b/data/text/new_game_intro.inc
+index e667b68..a6be392 100644
+--- a/data/text/new_game_intro.inc
++++ b/data/text/new_game_intro.inc
+@@ -189,6 +189,6 @@ gPikachuIntro_Text_Page3::
+ gOakSpeech_Text_WelcomeToTheWorld::
+     .string "Hello, there!\n"
+-    .string "Glad to meet you!\p"
++    .string "CODE RED dev build!\p"
+     .string "Welcome to the world of POKéMON!\p"
+     .string "My name is OAK.\p"
+     .string "People affectionately refer to me\n"

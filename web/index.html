@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Code Red · Playtest</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui;background:#10141e;color:#eff1f7}body{margin:0;padding:20px;max-width:760px;margin:auto}h1{font-size:26px;margin-bottom:4px}p{color:#bcc5d7;line-height:1.5}button,a{font:inherit}button{background:#dc394c;border:0;border-radius:10px;color:white;padding:14px 18px;min-height:48px;cursor:pointer}a{color:#a9c9ff}#game{width:100%;height:min(72vh,600px);margin-top:20px;background:#050609;border-radius:12px}#status{font-size:14px;overflow-wrap:anywhere}input{max-width:100%;margin:10px 0}#error{color:#ffa2a2}
+</style>
+<h1>Code Red</h1>
+<p>Private FireRed development playtest. Start a new game to see “CODE RED dev build!” in Oak’s introduction.</p>
+<p id="status">Checking the latest build…</p>
+<button id="play" disabled>Play latest build</button>
+<p>Or choose a local .gba file: <input id="rom" type="file" accept=".gba"></p>
+<p><a href="/game.gba" download="code-red.gba">Download this build</a> · <a href="/manifest.json">Build details</a> · <a href="/">Reload after rebuild</a></p>
+<p>Touch controls appear on phones. Use the emulator menu to export saves before switching devices or builds. The emulator runs locally from pinned packages; no third-party CDN is contacted during play.</p>
+<p id="error" role="alert"></p><div id="game"></div>
+<script>
+const status = document.querySelector('#status');
+const play = document.querySelector('#play');
+fetch('/manifest.json', {cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Run make build in the cloud terminal first.');return r.json()}).then(m=>{status.textContent=`Build ${m.sha1.slice(0,12)} · ${m.bytes.toLocaleString()} bytes`;play.disabled=false}).catch(e=>status.textContent=e.message);
+function start(url) {
+  play.disabled=true; document.querySelector('#rom').disabled=true;
+  window.EJS_player='#game'; window.EJS_core='gba'; window.EJS_gameUrl=url;
+  window.EJS_gameName='Pokemon Code Red'; window.EJS_startOnLoaded=true;
+  window.EJS_pathtodata='/emulator/'; window.EJS_DEBUG_XX=true;
+  window.EJS_disableDatabases=true;
+  window.EJS_defaultOptions={'virtual-gamepad':navigator.maxTouchPoints>0?'enabled':'disabled'};
+  window.EJS_onGameStart=()=>document.querySelector('#game').scrollIntoView({behavior:'smooth',block:'start'});
+  const script=document.createElement('script'); script.src=EJS_pathtodata+'loader.js';
+  script.onerror=()=>document.querySelector('#error').textContent='Local emulator files are missing. Run make browser-setup in the cloud terminal, then reload.';
+  document.body.appendChild(script);
+}
+play.onclick=()=>start('/game.gba?build='+Date.now());
+document.querySelector('#rom').onchange=e=>{const file=e.target.files[0];if(file)start(URL.createObjectURL(file))};
+</script>
+</html>

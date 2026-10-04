@@ -1,0 +1,9 @@
+.cache/
+build/
+local/
+*.gba
+*.sav
+*.srm
+*.ss*
+*.deb
+__pycache__/
