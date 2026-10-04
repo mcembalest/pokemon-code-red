@@ -15,16 +15,28 @@ if '#include "code_red_adapter.inc"' not in text:
  text+='\n#include "code_red_adapter.inc"\n'
  p.write_text(text)
 link=source/'link.T'
-link.write_text(link.read_text().replace('global: retro_*;', 'global: retro_*; ejs_code_red_epoch; ejs_code_red_snapshot; ejs_code_red_reply;'))
+exports='global: retro_*; ejs_code_red_epoch; ejs_code_red_snapshot; ejs_code_red_reply; ejs_code_red_text_snapshot; ejs_code_red_text_write;'
+old_exports='global: retro_*; ejs_code_red_epoch; ejs_code_red_snapshot; ejs_code_red_reply;'
+linktext=link.read_text()
+if exports not in linktext:
+ link.write_text(linktext.replace(old_exports,exports) if old_exports in linktext else linktext.replace('global: retro_*;',exports))
 folder=p.parent
-for name,filename in [('mailbox.h','code_red_mailbox.h'),('mailbox.c','code_red_mailbox.c'),('core-adapter.inc','code_red_adapter.inc')]:
- text=(root/'bridge'/name).read_text().replace('#include "mailbox.h"','#include "code_red_mailbox.h"')
+for name,filename in [('mailbox.h','code_red_mailbox.h'),('mailbox.c','code_red_mailbox.c'),('core-adapter.inc','code_red_adapter.inc'),('naming-transport.h','code_red_naming_transport.h'),('naming-transport.c','code_red_naming_transport.c')]:
+ adapt=lambda value:value.replace('#include "mailbox.h"','#include "code_red_mailbox.h"').replace('#include "naming-transport.h"','#include "code_red_naming_transport.h"')
+ text=adapt((root/'bridge'/name).read_text())
  target=folder/filename
  if target.exists() and target.read_text()!=text:
-  raise SystemExit(f'Preserve edited core file {target}; reconcile manually.')
+  previous=subprocess.run(['git','-C',root,'show',f'HEAD:bridge/{name}'],capture_output=True,text=True)
+  if previous.returncode or target.read_text()!=adapt(previous.stdout):
+   raise SystemExit(f'Preserve edited core file {target}; reconcile manually.')
  target.write_text(text)
 maptext=(root/'.cache/pokefirered/pokefirered.map').read_text()
 address=re.search(r'(0x[0-9a-f]+)\s+gCodeRedMailbox',maptext).group(1)
 assert 0x02000000<=int(address,16)<=0x02040000-36
-(folder/'code_red_address.h').write_text(f'#define CODE_RED_MAILBOX_ADDRESS {address}\n')
-print(f'Prepared custom-core source at {revision}, mailbox {address}; NOT BUILT.')
+naming=re.search(r'(0x[0-9a-f]+)\s+gCodeRedNamingMailbox',maptext)
+assert naming,'Build the naming ROM before preparing its fixed-address core.'
+naming_address=naming.group(1)
+assert 0x02000000<=int(naming_address,16)<=0x02040000-60
+assert int(address,16)+36<=int(naming_address,16) or int(naming_address,16)+60<=int(address,16),'Mailbox ranges overlap.'
+(folder/'code_red_address.h').write_text(f'#define CODE_RED_MAILBOX_ADDRESS {address}\n#define CODE_RED_NAMING_MAILBOX_ADDRESS {naming_address}\n')
+print(f'Prepared custom-core source at {revision}, mailbox {address}, naming {naming_address}; NOT BUILT.')

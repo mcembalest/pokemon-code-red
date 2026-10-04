@@ -1,0 +1,204 @@
+diff --git a/src/naming_screen.c b/src/naming_screen.c
+index deef705..f49a4e0 100644
+--- a/src/naming_screen.c
++++ b/src/naming_screen.c
+@@ -1,6 +1,7 @@
+ #include "global.h"
+ #include "gflib.h"
+ #include "data.h"
++#include "characters.h"
+ #include "keyboard_text.h"
+ #include "event_data.h"
+ #include "event_object_movement.h"
+@@ -408,8 +409,158 @@ static const u8 sPageColumnXPos[KBPAGE_COUNT][KBCOL_COUNT] = {
+     [KEYBOARD_SYMBOLS]       = {0, 22, 44, 66, 88, 110}
+ };
+ 
++// Fixed-size host text transport. No guest pointers or script entry points.
++struct CodeRedNamingMailbox
++{
++    u32 magic;
++    u16 version;
++    u8 active;
++    u8 maxLength;
++    u32 session;
++    u32 requestSession;
++    u32 sequence;
++    u32 ackSequence;
++    u8 action;
++    u8 length;
++    u8 status;
++    u8 currentLength;
++    u8 current[16];
++    u8 input[16];
++};
++STATIC_ASSERT(sizeof(struct CodeRedNamingMailbox) == 60, CodeRedNamingMailboxSize);
++EWRAM_DATA volatile struct CodeRedNamingMailbox gCodeRedNamingMailbox = {0};
++static EWRAM_DATA u32 sCodeRedNamingSession = 0;
++
++static u8 CodeRedAsciiToNative(u8 ch)
++{
++    if (ch >= 'A' && ch <= 'Z') return CHAR_A + ch - 'A';
++    if (ch >= 'a' && ch <= 'z') return CHAR_a + ch - 'a';
++    if (ch >= '0' && ch <= '9') return CHAR_0 + ch - '0';
++    switch (ch)
++    {
++    case ' ': return CHAR_SPACE;
++    case '.': return CHAR_PERIOD;
++    case ',': return CHAR_COMMA;
++    case '!': return CHAR_EXCL_MARK;
++    case '?': return CHAR_QUESTION_MARK;
++    case '/': return CHAR_SLASH;
++    case '-': return CHAR_HYPHEN;
++    case '\'': return CHAR_SGL_QUOTE_RIGHT;
++    case '"': return CHAR_DBL_QUOTE_RIGHT;
++    default: return EOS;
++    }
++}
++
++static u8 CodeRedNativeToAscii(u8 ch)
++{
++    u8 ascii;
++    for (ascii = 32; ascii < 127; ascii++)
++        if (CodeRedAsciiToNative(ascii) == ch)
++            return ascii;
++    // Existing non-ASCII names remain intact unless explicitly replaced.
++    return '?';
++}
++
++static void CodeRedNamingPublish(void)
++{
++    u8 i;
++    u8 length = 0;
++    bool8 active = sNamingScreen != NULL && sNamingScreen->state == STATE_HANDLE_INPUT;
++    gCodeRedNamingMailbox.magic = 0x314E5243;
++    gCodeRedNamingMailbox.version = 1;
++    gCodeRedNamingMailbox.active = FALSE;
++    if (sNamingScreen != NULL)
++    {
++        gCodeRedNamingMailbox.maxLength = sNamingScreen->template->maxChars;
++        for (i = 0; i < 15 && i < sNamingScreen->template->maxChars; i++)
++        {
++            if (sNamingScreen->textBuffer[i] == EOS)
++                break;
++            gCodeRedNamingMailbox.current[length++] = CodeRedNativeToAscii(sNamingScreen->textBuffer[i]);
++        }
++    }
++    else
++        gCodeRedNamingMailbox.maxLength = 0;
++    for (i = length; i < 16; i++)
++        gCodeRedNamingMailbox.current[i] = 0;
++    gCodeRedNamingMailbox.currentLength = length;
++    if (!active && gCodeRedNamingMailbox.action != 0)
++    {
++        gCodeRedNamingMailbox.status = 1;
++        gCodeRedNamingMailbox.ackSequence = gCodeRedNamingMailbox.sequence;
++        gCodeRedNamingMailbox.action = 0;
++    }
++    gCodeRedNamingMailbox.active = active;
++}
++
++// A replacement includes the full ASCII name, so Backspace is a shorter replace.
++static bool8 CodeRedNamingConsume(void)
++{
++    u8 action = gCodeRedNamingMailbox.action;
++    u8 length = gCodeRedNamingMailbox.length;
++    u8 encoded[16];
++    u8 i;
++    u32 sequence = gCodeRedNamingMailbox.sequence;
++    if (action == 0)
++        return FALSE;
++    gCodeRedNamingMailbox.action = 0;
++    if (gCodeRedNamingMailbox.requestSession != gCodeRedNamingMailbox.session
++        || sequence <= gCodeRedNamingMailbox.ackSequence)
++    {
++        gCodeRedNamingMailbox.status = 1;
++        return TRUE;
++    }
++    gCodeRedNamingMailbox.ackSequence = sequence;
++    gCodeRedNamingMailbox.status = 2;
++    if (action == 1)
++    {
++        if (length > sNamingScreen->template->maxChars || length > 15
++            || gCodeRedNamingMailbox.input[length] != 0)
++            return TRUE;
++        for (i = 0; i < length; i++)
++        {
++            encoded[i] = CodeRedAsciiToNative(gCodeRedNamingMailbox.input[i]);
++            if (encoded[i] == EOS)
++                return TRUE;
++        }
++        for (i = length; i < sizeof(encoded); i++)
++            encoded[i] = EOS;
++        for (i = 0; i < sizeof(encoded); i++)
++            sNamingScreen->textBuffer[i] = encoded[i];
++        DrawTextEntry();
++        CopyBgTilemapBufferToVram(3);
++    }
++    else if (action == 2)
++    {
++        PlaySE(SE_SELECT);
++        sNamingScreen->state = STATE_PRESSED_OK;
++    }
++    else
++        return TRUE;
++    gCodeRedNamingMailbox.status = 0;
++    return TRUE;
++}
++
+ void DoNamingScreen(u8 templateNum, u8 *destBuffer, u16 monSpecies, u16 monGender, u32 monPersonality, MainCallback returnCallback)
+ {
++    gCodeRedNamingMailbox.active = FALSE;
++    gCodeRedNamingMailbox.action = 0;
++    gCodeRedNamingMailbox.session = ++sCodeRedNamingSession;
++    gCodeRedNamingMailbox.ackSequence = 0;
++    gCodeRedNamingMailbox.status = 0;
++    gCodeRedNamingMailbox.requestSession = 0;
++    gCodeRedNamingMailbox.sequence = 0;
++    gCodeRedNamingMailbox.length = 0;
++    gCodeRedNamingMailbox.currentLength = 0;
++    gCodeRedNamingMailbox.maxLength = 0;
++    {
++        u8 i;
++        for (i = 0; i < 16; i++)
++        {
++            gCodeRedNamingMailbox.input[i] = 0;
++            gCodeRedNamingMailbox.current[i] = 0;
++        }
++    }
+     sNamingScreen = Alloc(sizeof(struct NamingScreenData));
+     if (!sNamingScreen)
+     {
+@@ -593,6 +744,7 @@ static void Task_NamingScreen(u8 taskId)
+         MainState_Exit();
+         break;
+     }
++    CodeRedNamingPublish();
+ }
+ 
+ // Which gfx/pal to load for the swap page button
+@@ -665,6 +817,8 @@ static bool8 MainState_WaitFadeIn(void)
+ 
+ static bool8 MainState_HandleInput(void)
+ {
++    if (CodeRedNamingConsume())
++        return FALSE;
+     return HandleKeyboardEvent();
+ }
+ 
+@@ -724,6 +878,15 @@ static bool8 MainState_Exit(void)
+         DestroyTask(FindTaskIdByFunc(Task_NamingScreen));
+         FreeAllWindowBuffers();
+         FREE_AND_SET_NULL(sNamingScreen);
++        gCodeRedNamingMailbox.active = FALSE;
++        gCodeRedNamingMailbox.action = 0;
++        gCodeRedNamingMailbox.requestSession = 0;
++        gCodeRedNamingMailbox.length = 0;
++        {
++            u8 i;
++            for (i = 0; i < 16; i++)
++                gCodeRedNamingMailbox.input[i] = 0;
++        }
+         RestoreHelpContext();
+     }
+     return FALSE;

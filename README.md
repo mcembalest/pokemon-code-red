@@ -4,7 +4,7 @@ A minimal FireRed mod development loop: coding agents as Pokémon, tools/skills 
 
 An independent [isolated JavaScript fixture runner](runner/README.md) now executes bounded code in a disposable QuickJS/WASM Worker using a small Serebii Gen III stats fixture. It is not connected to the ROM or live battles. Start with its own setup/test instructions; the existing FireRed loop is unchanged.
 
-The [ROM mailbox milestone](bridge/README.md) adds a Code calculation to home and Pokémon Center PCs, with bounded QuickJS requests. The NES keeps its original dialogue. Browser controls and PC integration are prepared for local verification and a separate site PR; this repository does not deploy the site.
+The [ROM mailbox milestone](bridge/README.md) now opens a keyboard-driven JavaScript scratchpad from PC Code, with a fresh bounded QuickJS VM per submission. Native naming screens accept laptop/phone text through a fixed transport. The NES keeps its original dialogue. Tested site changes remain on a separate development PR; this repository does not deploy the site.
 
 ## Quick start (Linux / cloud)
 

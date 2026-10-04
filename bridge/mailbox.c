@@ -14,7 +14,7 @@ static int valid(struct CodeRedBridge *b) {
 }
 int code_red_snapshot(struct CodeRedBridge *b, uint8_t out[CODE_RED_BYTES]) {
     unsigned i;
-    if(!valid(b)||read_n(b,6,2)!=1||read_n(b,16,2)!=1) return 0;
+    if(!valid(b)||read_n(b,6,2)!=1||(read_n(b,16,2)!=1 && read_n(b,16,2)!=2)) return 0;
     if(!b->epoch) b->epoch=1;
     if(read_n(b,12,4)==0) write_n(b,12,4,b->epoch);
     if(read_n(b,12,4)!=b->epoch) return 0;
@@ -23,7 +23,7 @@ int code_red_snapshot(struct CodeRedBridge *b, uint8_t out[CODE_RED_BYTES]) {
     return 1;
 }
 int code_red_reply(struct CodeRedBridge *b,uint32_t epoch,uint32_t request,uint16_t status,uint32_t result) {
-    if(!valid(b)||read_n(b,6,2)!=1||read_n(b,16,2)!=1||epoch!=b->epoch
+    if(!valid(b)||read_n(b,6,2)!=1||(read_n(b,16,2)!=1 && read_n(b,16,2)!=2)||epoch!=b->epoch
       ||read_n(b,12,4)!=epoch||read_n(b,8,4)!=request||status>2||result>1530) return 0;
     write_n(b,18,2,status); write_n(b,32,4,result); write_n(b,6,2,2);
     return 1;

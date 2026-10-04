@@ -11,10 +11,10 @@ index d880bf6..f21c934 100644
  gSpecialsEnd::
 diff --git a/src/code_red.c b/src/code_red.c
 new file mode 100644
-index 0000000..8c9fd96
+index 0000000..baaebc7
 --- /dev/null
 +++ b/src/code_red.c
-@@ -0,0 +1,78 @@
+@@ -0,0 +1,81 @@
 +#include "global.h"
 +#include "gflib.h"
 +#include "task.h"
@@ -42,6 +42,7 @@ index 0000000..8c9fd96
 +static EWRAM_DATA u32 sRequestId = 0;
 +static const u8 sTimeout[] = _("Timed out");
 +static const u8 sCancelled[] = _("Cancelled");
++static const u8 sConsoleClosed[] = _("Console closed");
 +static const u8 sFailed[] = _("Runner error");
 +
 +static void Task_CodeRedWait(u8 taskId)
@@ -53,7 +54,9 @@ index 0000000..8c9fd96
 +        gCodeRedMailbox.state = 4;
 +        StringCopy(gStringVar1, sTimeout);
 +    } else if (gCodeRedMailbox.state == 2) {
-+        if (gCodeRedMailbox.status == 0 && gCodeRedMailbox.result <= 1530)
++        if (gCodeRedMailbox.operation == 2 && gCodeRedMailbox.status == 2)
++            StringCopy(gStringVar1, sConsoleClosed);
++        else if (gCodeRedMailbox.status == 0 && gCodeRedMailbox.result <= 1530)
 +            ConvertIntToDecimalStringN(gStringVar1, gCodeRedMailbox.result, STR_CONV_MODE_LEFT_ALIGN, 4);
 +        else
 +            StringCopy(gStringVar1, sFailed);
@@ -76,7 +79,7 @@ index 0000000..8c9fd96
 +    gCodeRedMailbox.version = 1;
 +    gCodeRedMailbox.requestId = ++sRequestId;
 +    gCodeRedMailbox.epoch = 0;
-+    gCodeRedMailbox.operation = 1;
++    gCodeRedMailbox.operation = 2;
 +    gCodeRedMailbox.status = 0;
 +    for (i = 0; i < 6; i++) gCodeRedMailbox.stats[i] = stats[i];
 +    gCodeRedMailbox.result = 0;

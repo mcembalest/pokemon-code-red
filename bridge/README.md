@@ -1,3 +1,19 @@
+# JavaScript scratchpad and native naming update
+
+ROM SHA1 `0d16f8e90c320b5b737e39ed6c4f2aeafd1da622`; custom core SHA256 `d06d71a9353378f04237db5f095f83fddf660f6a13e63c8ef35a75676d161b0d`. Calculation mailbox is fixed at `0x0203f4a8` (36 bytes); naming mailbox `0x02039990` (60 bytes). Remaining EWRAM budget is 1000 bytes; save structs are unchanged.
+
+PC Code opens a focused JavaScript scratchpad. Expression and function-body/return modes use the same bounded runner, with a fresh disposable VM on every Run. Editable source remains between runs; variables do not. Transcript/source reset on reopening and are not stored. Enter runs, Shift+Enter adds a line, Escape/Close cancels pending work and returns to the game; a last successful integer 0..1530 can be displayed in-game. Cancel run terminates its worker while leaving the editor open. The game pauses while the scratchpad is open; runner wall/CPU limits remain unchanged. Host load/reset/rewind commands cancel and release this pause before the deferred emulator command executes.
+
+Normal naming screens use a fixed allowlisted ASCII transport for letters, numbers, spaces and supported punctuation, preserving their native length/confirmation/default/controller behavior. Enter waits for the latest replacement acknowledgement; Escape returns to game controls and cancels queued confirmation. Desktop focus and mobile tap-to-type use a real native text input. Epoch/session/sequence validation rejects stale edits; load/reset clears queued input. No general guest memory address, script invocation or host capability is introduced.
+
+The exact site patch against PR 6 head `17473765b8e571bb1a81232a792223da69e2484e` also integrates the separate source-cache/10x changes from game integration commit `8b214810e33807d59cb68f837f631bda1948566a`. A verified original is retained independently of build identity and can generate future patched builds locally. Current/old ROM and emulator-state records remain isolated; existing patched-only caches require selecting the original once on their next upgrade. Missing/corrupt/evicted browser data still falls back to the chooser.
+
+Verification: native naming through ordinary intro inputs; ASAN/UBSAN naming transport; actual Chromium naming bounds/epoch/session/confirmation; actual site player/rival typing, PC open/pause, edits/expressions/statements, fresh globals, host names absent, infinite-run Cancel, visible in-game 318, natural menu return/reopen, and load/reset/hide stale rejection. All 12 scratchpad workers terminated with zero external requests/page errors. Site 48 tests/build pass; runner 43 tests pass; scratchpad 11, naming UI 15, keyboard 11 (10x), real BFCache navigation 6 and source-cache browser checks pass. Cache tests use synthetic 16 MiB fixtures; production SHA1 checks are unchanged.
+
+Physical iOS/Android keyboard behavior and achieved 10x throughput are not benchmarked. Common naming templates share the tested handler; player/rival are played end to end. Professor/intro artwork is unchanged by this release.
+
+## Prior PC and NES evidence
+
 # ROM calculation mailbox: browser round trip verified
 
 Home and Pokémon Center PCs now offer **Code**. The bounded demo sends six Bulbasaur base stats to a disposable QuickJS worker, then displays `JS result: 318`. B cancels waiting. Existing storage, mailbox, healing, dialogue and progression remain available; the bedroom NES has its original flavor text. Bill's teleporter and favorite-Pokémon list finish before the Code offer.
