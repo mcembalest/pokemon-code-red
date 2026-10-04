@@ -20,10 +20,10 @@ def environment():
     sysroot = CACHE / 'sysroot'
     env['PATH'] = f'{sysroot}/usr/bin:' + env['PATH']
     lib = str(sysroot / 'usr/lib/x86_64-linux-gnu')
-    env['LD_LIBRARY_PATH'] = lib + ':' + env.get('LD_LIBRARY_PATH', '')
-    env['CPATH'] = str(sysroot / 'usr/include') + ':' + env.get('CPATH', '')
-    env['LIBRARY_PATH'] = lib + ':' + env.get('LIBRARY_PATH', '')
-    env['PKG_CONFIG_PATH'] = lib + '/pkgconfig:' + env.get('PKG_CONFIG_PATH', '')
+    env['LD_LIBRARY_PATH'] = os.pathsep.join(filter(None, (lib, env.get('LD_LIBRARY_PATH'))))
+    env['CPATH'] = os.pathsep.join(filter(None, (str(sysroot / 'usr/include'), env.get('CPATH'))))
+    env['LIBRARY_PATH'] = os.pathsep.join(filter(None, (lib, env.get('LIBRARY_PATH'))))
+    env['PKG_CONFIG_PATH'] = os.pathsep.join(filter(None, (lib + '/pkgconfig', env.get('PKG_CONFIG_PATH'))))
     env['PKG_CONFIG_SYSROOT_DIR'] = str(sysroot) if sysroot.exists() else env.get('PKG_CONFIG_SYSROOT_DIR', '/')
     return env
 

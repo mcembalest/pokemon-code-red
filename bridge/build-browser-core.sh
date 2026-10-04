@@ -35,9 +35,10 @@ core=next(c for c in cores if c['name']=='mgba')
 (temp/'core.json').write_text(json.dumps(core))
 (temp/'license.txt').write_text((root/'.cache/core-mgba/LICENSE').read_text())
 manifest=json.loads((root/'build/manifest.json').read_text())
-(temp/'build.json').write_text(json.dumps({'sources':json.loads((root/'bridge/core-sources.lock.json').read_text()),'rom':manifest,'status':'built; browser validation still required'},indent=2))
+(temp/'build.json').write_text((root/'.cache/core-build/build.json').read_text())
+(temp/'code-red.json').write_text(json.dumps({'sources':json.loads((root/'bridge/core-sources.lock.json').read_text()),'rom':manifest,'status':'built; browser validation still required'},indent=2))
 PY
-(cd .cache/mailbox-package && 7z a -t7z ../EmulatorJS/data/cores/mgba-wasm.data core.json license.txt build.json)
+(cd .cache/mailbox-package && 7z a -t7z ../EmulatorJS/data/cores/mgba-wasm.data core.json license.txt build.json code-red.json)
 mkdir -p build/browser-core
 cp .cache/EmulatorJS/data/cores/mgba-wasm.data build/browser-core/
 sha256sum build/browser-core/mgba-wasm.data

@@ -1,4 +1,4 @@
-# ROM calculation mailbox: native milestone, browser blocked
+# ROM calculation mailbox: native milestone, browser compatibility blocked
 
 The bedroom NES now starts one asynchronous calculation. Press A while facing the NES directly above the starting position after a new game. The ROM publishes six Gen III Bulbasaur base stats ([Serebii](https://www.serebii.net/pokedex-rs/001.shtml)); a disposable QuickJS worker sums them; the ROM displays `JS result: 318`. B cancels waiting. An ordinary emulator without the bridge times out; the phone/site player has not been updated for this patch.
 
@@ -12,7 +12,7 @@ The bedroom NES now starts one asynchronous calculation. Press A while facing th
 - Prepared pinned mGBA source compiles with native `Makefile.libretro`. Its three custom exports are present in the shared library.
 - `python3 bridge/test-core.py`: uses those actual exports in the pinned native libretro build. Real ROM input produces a request, QuickJS returns 318, and the ROM's encoded display string is verified. Loading a pending state through `retro_unserialize` changes epoch and cancels the ROM request. Reset changes epoch and rejects the pending reply.
 
-The **WebAssembly/browser round trip is not verified or published**. No Emscripten compiler is installed here. Upstream's documented SDK 3.1.74 installation failed with a network proxy `403 Forbidden` for `https://storage.googleapis.com/webassembly/emscripten-releases-builds/deps/node-v24.19.0-linux-x64.tar.xz`. No restriction bypass was attempted. `core-sources.lock.json` records fetched source revisions, not a claim that they produced the stock npm 4.2.3 binary, whose report does not identify source commits.
+The **WebAssembly/browser round trip is not verified or published**. Emscripten 3.1.74 is now installed and the pinned custom browser core compiled successfully, but its required frontend is 4.3.0 while this project pins 4.2.3. The real browser loader rejects that mismatch; see BROWSER_BUILD.md. The following SDK rejection is historical. Upstream's documented SDK 3.1.74 installation failed with a network proxy `403 Forbidden` for `https://storage.googleapis.com/webassembly/emscripten-releases-builds/deps/node-v24.19.0-linux-x64.tar.xz`. No restriction bypass was attempted. `core-sources.lock.json` records fetched source revisions, not a claim that they produced the stock npm 4.2.3 binary, whose report does not identify source commits.
 
 See [exact blocker, authorized build instructions and native architecture](BROWSER_BUILD.md).
 
