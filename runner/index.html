@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Code Red isolated runner fixture</title>
+<style>body{font:16px system-ui;max-width:650px;margin:2rem auto;padding:1rem}textarea{width:100%;min-height:110px}button{padding:12px}pre{white-space:pre-wrap}</style>
+<h1>Isolated code fixture</h1><p>Gen III Bulbasaur data. Separate from live battles. <a href="https://www.serebii.net/pokedex-rs/001.shtml">Serebii source</a>.</p>
+<textarea id="source" aria-label="JavaScript function body">return {total: Object.values(input.baseStats).reduce((a,b) => a+b, 0)};</textarea>
+<p><button id="run">Run</button> <button id="cancel">Cancel</button></p><pre id="result" role="status"></pre>
+<script type="module">
+import {Runner} from './client.js';
+const runner=new Runner();const fixture=await (await fetch('./fixture.json')).text();
+document.querySelector('#run').onclick=async()=>{const result=await runner.run(document.querySelector('#source').value,fixture);document.querySelector('#result').textContent=JSON.stringify(result,null,2)};
+document.querySelector('#cancel').onclick=()=>runner.cancel();
+</script>

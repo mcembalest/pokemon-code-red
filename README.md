@@ -2,6 +2,8 @@
 
 A minimal FireRed mod development loop: coding agents as Pokémon, tools/skills as moves. The 18-type mapping and broader game design are deliberately undecided. The first change is only a visible development marker in Oak's new-game introduction: **CODE RED dev build!**
 
+An independent [isolated JavaScript fixture runner](runner/README.md) now executes bounded code in a disposable QuickJS/WASM Worker using a small Serebii Gen III stats fixture. It is not connected to the ROM or live battles. Start with its own setup/test instructions; the existing FireRed loop is unchanged.
+
 ## Quick start (Linux / cloud)
 
 Prerequisites: `git`, `python3`, `make`, `gcc`, `g++`, `binutils-arm-none-eabi`, `libpng-dev`; `libmgba-dev` for the headless boot check. On Debian/Ubuntu:
@@ -37,7 +39,7 @@ Do not use `make baseline` after editing the source: it intentionally refuses a 
 
 ## Continue and play from a phone
 
-**Coding from your phone:** continue the same cloud Codex conversation or open the branch in a Codespace. Uncommitted working-tree changes belong to the current session; do not start a fresh session and expect it to contain them. Capture source edits as patches before leaving. The starter tooling, patch, and docs were approved for commit/push on 2026-10-04; further commits/pushes require explicit approval. Merges and public deployment are not authorized.
+**Coding from your phone:** continue the same cloud Codex conversation or open the branch in a Codespace. Uncommitted working-tree changes belong to the current session; do not start a fresh session and expect it to contain them. Capture source edits as patches before leaving. The user has authorized implementation, commits and pushes to development branches in this repository. This exception does not apply to other repositories. Merges and public deployment are not authorized.
 
 **Exact supported phone route:**
 

@@ -1,0 +1,19 @@
+{
+  "name": "code-red-isolated-runner",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "npm run build && python3 tests/browser.py"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "esbuild": "0.28.2",
+    "quickjs-emscripten": "0.32.0"
+  },
+  "private": true
+}

@@ -1,7 +1,7 @@
 # Code Red working instructions
 
 - Scope: fast FireRed edit/build/play loop. Pokémon represent coding agents; moves represent tools/skills. Type mapping remains undecided. Do not invent a whole-mod design.
-- Ask the user before any GitHub commit. No local commits, pushes, PRs, merges, or public deployment without explicit approval.
+- The user has authorized implementation, commits and pushes to development branches in mcembalest/pokemon-code-red. Keep main untouched. This exception does not apply to other repositories; merges and public deployment still require explicit approval.
 - Keep work on an isolated branch; do not discard source edits.
 - Use pinned upstream revisions from `upstream.lock.json`; `.cache/pokefirered` is a private ignored build checkout, not a second deliverable repository.
 - Capture source edits in scoped `patches/*.patch` files before ending a session. Only patches and development tooling belong in the project Git tree.
