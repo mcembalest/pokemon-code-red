@@ -7,14 +7,20 @@ import mimetypes
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
-ROUTES = {'/': ('web/index.html', 'text/html; charset=utf-8'),
+ROUTES = {'/bridge/test': ('bridge/browser-test.html', 'text/html; charset=utf-8'),
+          '/': ('web/index.html', 'text/html; charset=utf-8'),
           '/game.gba': ('build/code-red.gba', 'application/octet-stream'),
-          '/manifest.json': ('build/manifest.json', 'application/json')}
+          '/manifest.json': ('build/manifest.json', 'application/json'),
+          '/bridge/browser-controller.js': ('bridge/browser-controller.js', 'text/javascript'),
+          '/custom/mgba-wasm.data': ('build/browser-core/mgba-wasm.data', 'application/octet-stream')}
+RUNNER_FILES = {'client.js', 'worker.js', 'emscripten-module.wasm'}
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = unquote(urlsplit(self.path).path)
         route = ROUTES.get(path)
+        if path.startswith('/runner/') and path.removeprefix('/runner/') in RUNNER_FILES:
+            route = ('runner/dist/' + path.removeprefix('/runner/'), mimetypes.guess_type(path)[0] or 'application/octet-stream')
         if path.startswith('/emulator/'):
             directory = (ROOT / '.cache/browser/data').resolve()
             file = (directory / path.removeprefix('/emulator/')).resolve()

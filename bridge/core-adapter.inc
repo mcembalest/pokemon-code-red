@@ -1,5 +1,5 @@
 /* Included by the pinned mGBA libretro.c, which owns static `core`.
- * Not browser-build verified: requires the blocked Emscripten SDK.
+ * Verified with the compatible pinned browser build; see BROWSER_BUILD.md.
  */
 #include "code_red_mailbox.h"
 #include "code_red_address.h"
