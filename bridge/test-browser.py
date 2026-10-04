@@ -2,7 +2,7 @@
 
 Run with --pcs-only for actual bedroom and Pokemon Center Code -> 318.
 The default suite uses an explicitly private pre-action PC-menu state for
-lifecycle isolation; native-pc-navigation covers natural menu return/repeat.
+lifecycle isolation; test-pc-native.py covers natural menu return/repeat.
 Boot caches are private, ignored, optional, and keyed by the actual ROM SHA1.
 """
 from pathlib import Path
