@@ -1,0 +1,66 @@
+diff --git a/data/maps/CeladonCity_Condominiums_3F/scripts.inc b/data/maps/CeladonCity_Condominiums_3F/scripts.inc
+index 866138a..17c9947 100644
+--- a/data/maps/CeladonCity_Condominiums_3F/scripts.inc
++++ b/data/maps/CeladonCity_Condominiums_3F/scripts.inc
+@@ -41,13 +41,25 @@ CeladonCity_Condominiums_3F_EventScript_DevelopmentRoomSign::
+ 	end
+ 
+ CeladonCity_Condominiums_3F_EventScript_Computer1::
+-	msgbox CeladonCity_Condominiums_3F_Text_ItsTheGameProgram, MSGBOX_SIGN
++	goto_if_questlog EventScript_ReleaseEnd
++	lockall
++	msgbox CeladonCity_Condominiums_3F_Text_ItsTheGameProgram, MSGBOX_DEFAULT
++	call CodeRed_EventScript_OfferCode
++	releaseall
+ 	end
+ 
+ CeladonCity_Condominiums_3F_EventScript_Computer2::
+-	msgbox CeladonCity_Condominiums_3F_Text_SomeonesPlayingGame, MSGBOX_SIGN
++	goto_if_questlog EventScript_ReleaseEnd
++	lockall
++	msgbox CeladonCity_Condominiums_3F_Text_SomeonesPlayingGame, MSGBOX_DEFAULT
++	call CodeRed_EventScript_OfferCode
++	releaseall
+ 	end
+ 
+ CeladonCity_Condominiums_3F_EventScript_Computer3::
+-	msgbox CeladonCity_Condominiums_3F_Text_ItsScriptBetterNotLookAtEnding, MSGBOX_SIGN
++	goto_if_questlog EventScript_ReleaseEnd
++	lockall
++	msgbox CeladonCity_Condominiums_3F_Text_ItsScriptBetterNotLookAtEnding, MSGBOX_DEFAULT
++	call CodeRed_EventScript_OfferCode
++	releaseall
+ 	end
+diff --git a/data/maps/Route25_SeaCottage/scripts.inc b/data/maps/Route25_SeaCottage/scripts.inc
+index b4eb77a..8fef4a0 100644
+--- a/data/maps/Route25_SeaCottage/scripts.inc
++++ b/data/maps/Route25_SeaCottage/scripts.inc
+@@ -142,10 +142,12 @@ Route25_SeaCottage_Movement_BillEnterTeleporter::
+ 	step_end
+ 
+ Route25_SeaCottage_EventScript_Computer::
++	goto_if_questlog EventScript_ReleaseEnd
+ 	lockall
+ 	goto_if_set RETURN_AFTER_SS_TICKET, Route25_SeaCottage_EventScript_OpenBillsMonList
+ 	goto_if_set BILL_IN_TELEPORTER, Route25_SeaCottage_EventScript_RunCellSeparator
+ 	msgbox Route25_SeaCottage_Text_TeleporterIsDisplayed
++	call CodeRed_EventScript_OfferCode
+ 	releaseall
+ 	end
+ 
+@@ -199,6 +201,7 @@ Route25_SeaCottage_EventScript_RunCellSeparator::
+ 	applymovement LOCALID_BILL_HUMAN, Route25_SeaCottage_Movement_BillWalkToMiddleOfRoom
+ 	waitmovement 0
+ 	special RemoveCameraObject
++	call CodeRed_EventScript_OfferCode
+ 	releaseall
+ 	end
+ 
+@@ -279,6 +282,7 @@ Route25_SeaCottage_EventScript_ViewVaporeon::
+ 	end
+ 
+ Route25_SeaCottage_EventScript_ExitBillsMonList::
++	call CodeRed_EventScript_OfferCode
+ 	releaseall
+ 	end
+ 

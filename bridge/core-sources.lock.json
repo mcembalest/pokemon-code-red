@@ -16,12 +16,10 @@
     "revision": "96c657fc60920d2a6a82318aa50e0abf82749604",
     "sdk": "3.1.74"
   },
-  "status": "custom browser core tested in Chromium: NES/QuickJS/318, repeat/error/timeout/cancel/load/rewind/reset/hide/touch",
   "compatibility": {
     "frontend": "4.2.3",
     "minimumEJSVersion": "4.2.2",
     "coreVersion": "2.0.2",
     "selection": "RetroArch first-parent revision before official 4.2.2 core report buildStart 2025-06-14T18:10:32+00:00; build repo revision preceding that build. mGBA pin unchanged."
-  },
-  "verifiedArtifactSHA256": "4a0744b88a8c74c026dc57c35b97d0c45adb275a31601b455c9678688368cbf4"
+  }
 }

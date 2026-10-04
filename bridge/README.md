@@ -1,6 +1,8 @@
 # ROM calculation mailbox: browser round trip verified
 
-The bedroom NES now starts one asynchronous calculation. Press A while facing the NES directly above the starting position after a new game. The ROM publishes six Gen III Bulbasaur base stats ([Serebii](https://www.serebii.net/pokedex-rs/001.shtml)); a disposable QuickJS worker sums them; the ROM displays `JS result: 318`. B cancels waiting. An ordinary emulator without the bridge times out; the site integration is prepared and tested locally, but has not been published.
+Home and Pokémon Center PCs now offer **Code**. The bounded demo sends six Bulbasaur base stats to a disposable QuickJS worker, then displays `JS result: 318`. B cancels waiting. Existing storage, mailbox, healing, dialogue and progression remain available; the bedroom NES has its original flavor text. Bill's teleporter and favorite-Pokémon list finish before the Code offer.
+
+Current ROM SHA1 is `26aabc43b16c1da4c0f5eed8b102948289d82639`; the fixed mailbox remains `0x0203f468`. The checks below describe the previous NES milestone unless explicitly identified as PC checks. Old native NES navigation drivers require adaptation for the PC menu; they are not evidence for the current ROM.
 
 ## Verified here
 
@@ -47,4 +49,4 @@ The ROM waits for at most 600 emulated frames, independently of the runner's 250
 
 The QuickJS guest has the existing runner's bounded JSON interface and no host functions/module loader. `calculate.mjs`/`node-worker.mjs` are trusted local test adapters and expose none of Node's APIs to the guest. These controls are a prototype boundary, not an absolute safety guarantee or a total browser-memory quota.
 
-The ROM currently uses 261,080 of 262,144 EWRAM bytes, leaving 1,064 bytes; further additions need a RAM budget. Save structures were not changed, but old emulator states must not be loaded across differing ROM builds. The NES interaction replaces only its original flavor text; bedroom PC and the broader game remain intact.
+The ROM currently uses 261,080 of 262,144 EWRAM bytes, leaving 1,064 bytes; further additions need a RAM budget. Save structures were not changed, but old emulator states must not be loaded across differing ROM builds. The NES flavor text is restored. PC additions preserve existing services and save structures.

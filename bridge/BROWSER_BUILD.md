@@ -1,3 +1,11 @@
+# Current PC-menu update
+
+The ROM builds with SHA1 `26aabc43b16c1da4c0f5eed8b102948289d82639` and mailbox `0x0203f468`. The core was compiled against the same bounded adapter/address, then repackaged with current ROM provenance; final archive SHA256 is `d294346470e1543875778c07400841a81ee232bb53939e2957cdaafb7b672175`.
+
+The site patch targets fresh PR 6 head `704f7db7b7ffe1b492928a27d6e7a210fa2db937`. It uses the official pinned 4.2.3 frontend, focused arrows and held Space 3x, and a new ROM/core-v2 local save key. Older local records remain stored; do not import older-ROM emulator states. Build and eleven focused keyboard checks pass. Actual PC browser evidence is recorded separately below when complete. No site merge/deployment is performed here.
+
+## Previous NES milestone evidence
+
 # Authorized browser-core build environment
 
 ## Current result (2026-10-04)

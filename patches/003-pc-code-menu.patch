@@ -1,0 +1,225 @@
+diff --git a/data/maps/PalletTown_PlayersHouse_2F/scripts.inc b/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
+index edc6ac3..ebb9176 100644
+--- a/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
++++ b/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
+@@ -24,6 +24,14 @@ PalletTown_PlayersHouse_2F_EventScript_NES::
+ 	msgbox PalletTown_PlayersHouse_2F_Text_PlayedWithNES, MSGBOX_SIGN
+ 	end
+ 
++CodeRed_EventScript_BedroomPC::
++	call CodeRed_EventScript_Calculate
++	special BedroomPC
++	waitstate
++	special SetHelpContextForMap
++	releaseall
++	end
++
+ PalletTown_PlayersHouse_2F_EventScript_Sign::
+ 	msgbox PalletTown_PlayersHouse_2F_Text_PressLRForHelp, MSGBOX_SIGN
+ 	end
+diff --git a/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc b/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc
+index 12f8ada..2d0af2d 100644
+--- a/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc
++++ b/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc
+@@ -39,7 +39,11 @@ SaffronCity_CopycatsHouse_2F_EventScript_MimicPlayerFemale::
+ 	return
+ 
+ SaffronCity_CopycatsHouse_2F_EventScript_Computer::
+-	msgbox SaffronCity_CopycatsHouse_2F_Text_MySecrets, MSGBOX_SIGN
++	goto_if_questlog EventScript_ReleaseEnd
++	lockall
++	msgbox SaffronCity_CopycatsHouse_2F_Text_MySecrets, MSGBOX_DEFAULT
++	call CodeRed_EventScript_OfferCode
++	releaseall
+ 	end
+ 
+ SaffronCity_CopycatsHouse_2F_EventScript_Game::
+diff --git a/data/scripts/flavor_text.inc b/data/scripts/flavor_text.inc
+index ec0f622..a6579d6 100644
+--- a/data/scripts/flavor_text.inc
++++ b/data/scripts/flavor_text.inc
+@@ -17,7 +17,11 @@ EventScript_VideoGame::
+ 	end
+ 
+ EventScript_Computer::
+-	msgbox Text_Computer, MSGBOX_SIGN
++	goto_if_questlog EventScript_ReleaseEnd
++	lockall
++	msgbox Text_Computer, MSGBOX_DEFAULT
++	call CodeRed_EventScript_OfferCode
++	releaseall
+ 	end
+ 
+ EventScript_ImpressiveMachine::
+diff --git a/data/scripts/pc.inc b/data/scripts/pc.inc
+index 77cf55e..6c346d5 100644
+--- a/data/scripts/pc.inc
++++ b/data/scripts/pc.inc
+@@ -14,6 +14,7 @@ EventScript_PC::
+ @ For when the player first arrives on One Island
+ EventScript_PCDisabled::
+ 	msgbox OneIsland_PokemonCenter_1F_Text_UsualPCServicesUnavailable
++	call CodeRed_EventScript_OfferCode
+ 	releaseall
+ 	end
+ 
+@@ -22,6 +23,7 @@ EventScript_PCMainMenu::
+ 	waitmessage
+ 	special CreatePCMenu
+ 	waitstate
++	special CodeRedMapPCChoice
+ 	goto EventScript_ChoosePCMenu
+ 	end
+ 
+@@ -32,6 +34,7 @@ EventScript_ChoosePCMenu::
+ 	case 2, EventScript_AccessProfOaksPC
+ 	case 3, EventScript_AccessHallOfFame
+ 	case 4, EventScript_TurnOffPC
++	case 5, CodeRed_EventScript_ServicePC
+ 	case SCR_MENU_CANCEL, EventScript_TurnOffPC
+ 	end
+ 
+@@ -99,3 +102,27 @@ EventScript_ExitOaksPC::
+ 	msgbox Text_ClosedLinkToProfOaksPC
+ 	goto EventScript_PCMainMenu
+ 	end
++
++CodeRed_EventScript_ServicePC::
++	call CodeRed_EventScript_Calculate
++	goto EventScript_PCMainMenu
++	end
++
++CodeRed_EventScript_OfferCode::
++	multichoice 0, 0, MULTICHOICE_CODE_RED, FALSE
++	switch VAR_RESULT
++	case 0, CodeRed_EventScript_Calculate
++	return
++
++CodeRed_EventScript_Calculate::
++	msgbox CodeRed_Text_Request, MSGBOX_DEFAULT
++	special CodeRedRunCalculation
++	waitstate
++	msgbox CodeRed_Text_Result, MSGBOX_DEFAULT
++	return
++
++CodeRed_Text_Request:
++	.string "Run JS stats calculation.\nPress B to cancel while waiting.$"
++
++CodeRed_Text_Result:
++	.string "JS result: {STR_VAR_1}$"
+diff --git a/include/constants/menu.h b/include/constants/menu.h
+index 7c36f36..78c317c 100644
+--- a/include/constants/menu.h
++++ b/include/constants/menu.h
+@@ -70,6 +70,8 @@
+ #define MULTICHOICE_JOIN_OR_LEAD                               63
+ #define MULTICHOICE_TRAINER_TOWER_MODE                         64
+ 
++#define MULTICHOICE_CODE_RED                                  65
++
+ #define MULTICHOICE_NONE                                      255
+ 
+ #define LISTMENU_BADGES                    0
+diff --git a/src/player_pc.c b/src/player_pc.c
+index d482820..683141b 100644
+--- a/src/player_pc.c
++++ b/src/player_pc.c
+@@ -44,6 +44,9 @@ static void Task_TopMenuHandleInput(u8 taskId);
+ static void Task_PlayerPcItemStorage(u8 taskId);
+ static void Task_PlayerPcMailbox(u8 taskId);
+ static void Task_PlayerPcTurnOff(u8 taskId);
++static void Task_CodeRedBedroomPC(u8 taskId);
++extern const u8 CodeRed_EventScript_BedroomPC[];
++static const u8 sText_CodeRedCode[] = _("Code");
+ static void Task_CreateItemStorageSubmenu(u8 taskId, u8 cursorPos);
+ static void PrintStringOnWindow0WithDialogueFrame(const u8 *str);
+ static void Task_TopMenu_ItemStorageSubmenu_HandleInput(u8 taskId);
+@@ -85,10 +88,11 @@ static const u8 *const sItemStorageActionDescriptionPtrs[] = {
+ static const struct MenuAction sMenuActions_TopMenu[] = {
+     {gText_ItemStorage, Task_PlayerPcItemStorage},
+     {gText_Mailbox, Task_PlayerPcMailbox},
+-    {gText_TurnOff, Task_PlayerPcTurnOff}
++    {gText_TurnOff, Task_PlayerPcTurnOff},
++    {sText_CodeRedCode, Task_CodeRedBedroomPC}
+ };
+ 
+-static const u8 sItemOrder_BedroomPC[] = { 0, 1, 2 };
++static const u8 sItemOrder_BedroomPC[] = { 0, 1, 3, 2 };
+ static const u8 sItemOrder_PlayerPC[] = { 0, 1, 2 };
+ 
+ static const struct MenuAction sMenuActions_ItemPc[] = {
+@@ -155,7 +159,7 @@ void BedroomPC(void)
+     gPlayerPcMenuManager.notInRoom = FALSE;
+     BackupHelpContext();
+     sItemOrder = sItemOrder_BedroomPC;
+-    sTopMenuItemCount = 3;
++    sTopMenuItemCount = 4;
+     taskId = CreateTask(TaskDummy, 0);
+     DisplayItemMessageOnField(taskId, FONT_NORMAL, gText_WhatWouldYouLikeToDo, Task_DrawPlayerPcTopMenu);
+ }
+@@ -254,6 +258,13 @@ static void Task_PlayerPcMailbox(u8 taskId)
+     }
+ }
+ 
++static void Task_CodeRedBedroomPC(u8 taskId)
++{
++    RestoreHelpContext();
++    ScriptContext_SetupScript(CodeRed_EventScript_BedroomPC);
++    DestroyTask(taskId);
++}
++
+ static void Task_PlayerPcTurnOff(u8 taskId)
+ {
+     if (gPlayerPcMenuManager.notInRoom == FALSE)
+diff --git a/src/script_menu.c b/src/script_menu.c
+index 41eebd8..9d8708d 100644
+--- a/src/script_menu.c
++++ b/src/script_menu.c
+@@ -502,7 +502,14 @@ static const struct MenuAction sMultichoiceList_Exit[] = {
+     { gOtherText_Exit }
+ };
+ 
++static const u8 sText_CodeRedCode[] = _("Code");
++static const struct MenuAction sMultichoiceList_CodeRed[] = {
++    { sText_CodeRedCode },
++    { gOtherText_Exit }
++};
++
+ static const struct MultichoiceListStruct sMultichoiceLists[] = {
++    [MULTICHOICE_CODE_RED] = MULTICHOICE(sMultichoiceList_CodeRed),
+     [MULTICHOICE_YES_NO]                                     = MULTICHOICE(sMultichoiceList_YesNo),
+     [MULTICHOICE_EEVEELUTIONS]                               = MULTICHOICE(sMultichoiceList_Eeveelutions),
+     [MULTICHOICE_TRAINER_CARD_ICON_TINT]                     = MULTICHOICE(sMultichoiceList_TrainerCardIconTint),
+@@ -1005,25 +1012,26 @@ static void CreatePCMenuWindow(void)
+     }
+     if (FlagGet(FLAG_SYS_GAME_CLEAR))
+     {
+-        numItems = 5;
+-        windowId = CreateWindowFromRect(0, 0, windowWidth, 10);
++        numItems = 6;
++        windowId = CreateWindowFromRect(0, 0, windowWidth, 12);
+         SetStdWindowBorderStyle(windowId, FALSE);
+         AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_ProfOakSPc, cursorWidth, 34, TEXT_SKIP_DRAW, NULL);
+         AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_HallOfFame_2, cursorWidth, 50, TEXT_SKIP_DRAW, NULL);
+-        AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_LogOff, cursorWidth, 66, TEXT_SKIP_DRAW, NULL);
++        AddTextPrinterParameterized(windowId, FONT_NORMAL, sText_CodeRedCode, cursorWidth, 66, TEXT_SKIP_DRAW, NULL);
+     }
+     else
+     {
+         if (FlagGet(FLAG_SYS_POKEDEX_GET))
+-            numItems = 4;
++            numItems = 5;
+         else
+-            numItems = 3;
++            numItems = 4;
+         windowId = CreateWindowFromRect(0, 0, windowWidth, numItems * 2);
+         SetStdWindowBorderStyle(windowId, FALSE);
+         if (FlagGet(FLAG_SYS_POKEDEX_GET))
+             AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_ProfOakSPc, cursorWidth, 34, TEXT_SKIP_DRAW, NULL);
+-        AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_LogOff, cursorWidth, 2 + 16 * (numItems - 1), TEXT_SKIP_DRAW, NULL);
++        AddTextPrinterParameterized(windowId, FONT_NORMAL, sText_CodeRedCode, cursorWidth, 2 + 16 * (numItems - 2), TEXT_SKIP_DRAW, NULL);
+     }
++    AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_LogOff, cursorWidth, 2 + 16 * (numItems - 1), TEXT_SKIP_DRAW, NULL);
+     if (FlagGet(FLAG_SYS_NOT_SOMEONES_PC))
+         AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_BillSPc, cursorWidth, 2 , TEXT_SKIP_DRAW, NULL);
+     else
