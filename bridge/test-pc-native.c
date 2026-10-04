@@ -1,0 +1,11 @@
+/* Native PC gameplay checks: actual inputs, location fixture only. */
+#include <mgba/core/core.h>
+#include <mgba/core/log.h>
+#include <stdio.h>
+#include <stdlib.h>
+static void quiet(struct mLogger*l,int c,enum mLogLevel v,const char*f,va_list a){(void)l;(void)c;(void)v;(void)f;(void)a;}
+static struct mCore*c;static color_t*p;
+static unsigned savePtr, mainAddr, loadMap, mailbox;static const char*out;
+static void frames(int n,int keys){c->setKeys(c,keys);while(n--)c->runFrame(c);c->setKeys(c,0);}
+static void pic(char*name){char path[1024];sprintf(path,"%s/native-pc-%s.ppm",out,name);FILE*f=fopen(path,"wb");fprintf(f,"P6\n240 160\n255\n");for(int i=0;i<240*160;i++){unsigned char b[]={p[i]&255,p[i]>>8,p[i]>>16};fwrite(b,1,3,f);}fclose(f);unsigned s=c->busRead32(c,savePtr);printf("%s save=%x x=%d y=%d group=%d map=%d callback=%x mailbox=%d\n",name,s,c->busRead16(c,s),c->busRead16(c,s+2),c->busRead8(c,s+4),c->busRead8(c,s+5),c->busRead32(c,mainAddr+4),c->busRead16(c,mailbox+6));fflush(stdout);}
+int main(int argc,char**argv){if(argc!=7)return 2;out=argv[2];savePtr=strtoul(argv[3],0,0);mainAddr=strtoul(argv[4],0,0);loadMap=strtoul(argv[5],0,0);mailbox=strtoul(argv[6],0,0);struct mLogger l={.log=quiet};mLogSetDefaultLogger(&l);c=mCoreFind(argv[1]);c->init(c);mCoreInitConfig(c,0);c->opts.useBios=0;p=calloc(240*160,sizeof(color_t));c->setVideoBuffer(c,p,240);mCoreLoadFile(c,argv[1]);c->reset(c);for(int f=0;f<7900;f++)frames(1,f==600?8:(f>630&&f%60<5?1:0));frames(40,0);pic("boot");int key,n;char name[80];while(scanf("%d %d %79s",&key,&n,name)==3){if(key==1024){unsigned s=c->busRead32(c,savePtr);c->busWrite16(c,s,13);c->busWrite16(c,s+2,3);c->busWrite8(c,s+4,5);c->busWrite8(c,s+5,4);c->busWrite8(c,s+6,255);c->busWrite16(c,s+8,13);c->busWrite16(c,s+10,3);c->busWrite32(c,mainAddr+4,loadMap|1);c->busWrite8(c,mainAddr+0x438,0);frames(n,0);}else if(key==2048){if(c->busRead16(c,mailbox+6)!=1){fprintf(stderr,"Reply requires pending request\n");return 9;}c->busWrite32(c,mailbox+32,318);c->busWrite16(c,mailbox+18,0);c->busWrite16(c,mailbox+6,2);frames(n,0);}else frames(n,key);frames(30,0);pic(name);}mCoreConfigDeinit(&c->config);c->deinit(c);free(p);return 0;}

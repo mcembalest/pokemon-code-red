@@ -2,7 +2,7 @@
 
 Home and Pokémon Center PCs now offer **Code**. The bounded demo sends six Bulbasaur base stats to a disposable QuickJS worker, then displays `JS result: 318`. B cancels waiting. Existing storage, mailbox, healing, dialogue and progression remain available; the bedroom NES has its original flavor text. Bill's teleporter and favorite-Pokémon list finish before the Code offer.
 
-Current ROM SHA1 is `26aabc43b16c1da4c0f5eed8b102948289d82639`; the fixed mailbox remains `0x0203f468`. The checks below describe the previous NES milestone unless explicitly identified as PC checks. Old native NES navigation drivers require adaptation for the PC menu; they are not evidence for the current ROM.
+Current ROM SHA1 is `26aabc43b16c1da4c0f5eed8b102948289d82639`; the fixed mailbox remains `0x0203f468`. Current PC checks are `python3 bridge/test-pc-native.py` and `python3 bridge/test-browser.py`; both pass, with test fixture details and limits in BROWSER_BUILD.md. The checks below describe the previous NES milestone unless explicitly identified as PC checks. Old native NES navigation drivers require adaptation for the PC menu; they are not evidence for the current ROM.
 
 ## Verified here
 
