@@ -1,0 +1,107 @@
+diff --git a/data/maps/PalletTown_PlayersHouse_2F/scripts.inc b/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
+index edc6ac3..2c7672a 100644
+--- a/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
++++ b/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
+@@ -21,9 +21,20 @@ PalletTown_PlayersHouse_2F_FirstWarpIn::
+ 	end
+ 
+ PalletTown_PlayersHouse_2F_EventScript_NES::
+-	msgbox PalletTown_PlayersHouse_2F_Text_PlayedWithNES, MSGBOX_SIGN
++	lockall
++	msgbox CodeRed_Text_Request, MSGBOX_DEFAULT
++	special CodeRedRunCalculation
++	waitstate
++	msgbox CodeRed_Text_Result, MSGBOX_DEFAULT
++	releaseall
+ 	end
+ 
++CodeRed_Text_Request:
++	.string "Run JS stats calculation.\nPress B to cancel while waiting.$"
++
++CodeRed_Text_Result:
++	.string "JS result: {STR_VAR_1}$"
++
+ PalletTown_PlayersHouse_2F_EventScript_Sign::
+ 	msgbox PalletTown_PlayersHouse_2F_Text_PressLRForHelp, MSGBOX_SIGN
+ 	end
+diff --git a/data/specials.inc b/data/specials.inc
+index d880bf6..e0bf2ca 100644
+--- a/data/specials.inc
++++ b/data/specials.inc
+@@ -452,4 +452,5 @@ gSpecials::
+ 	def_special UpdateLoreleiDollCollection
+ 	def_special LoopWingFlapSound
+ 	def_special CreateEnemyEventMon
++	def_special CodeRedRunCalculation
+ gSpecialsEnd::
+diff --git a/src/code_red.c b/src/code_red.c
+new file mode 100644
+index 0000000..1034a7f
+--- /dev/null
++++ b/src/code_red.c
+@@ -0,0 +1,65 @@
++#include "global.h"
++#include "gflib.h"
++#include "task.h"
++#include "script.h"
++#include "string_util.h"
++#include "strings.h"
++
++// Fixed 36-byte transport. No pointers, guest code or general emulator commands.
++struct CodeRedMailbox {
++    u32 magic;
++    u16 version;
++    u16 state;
++    u32 requestId;
++    u32 epoch;
++    u16 operation;
++    u16 status;
++    u16 stats[6];
++    u32 result;
++};
++STATIC_ASSERT(sizeof(struct CodeRedMailbox) == 36, CodeRedMailboxSize);
++EWRAM_DATA volatile struct CodeRedMailbox gCodeRedMailbox = {0};
++static EWRAM_DATA u32 sRequestId = 0;
++static const u8 sTimeout[] = _("Timed out");
++static const u8 sCancelled[] = _("Cancelled");
++static const u8 sFailed[] = _("Runner error");
++
++static void Task_CodeRedWait(u8 taskId)
++{
++    if (gMain.newKeys & B_BUTTON) {
++        gCodeRedMailbox.state = 4;
++        StringCopy(gStringVar1, sCancelled);
++    } else if (++gTasks[taskId].data[0] >= 600) {
++        gCodeRedMailbox.state = 4;
++        StringCopy(gStringVar1, sTimeout);
++    } else if (gCodeRedMailbox.state == 2) {
++        if (gCodeRedMailbox.status == 0 && gCodeRedMailbox.result <= 1530)
++            ConvertIntToDecimalStringN(gStringVar1, gCodeRedMailbox.result, STR_CONV_MODE_LEFT_ALIGN, 4);
++        else
++            StringCopy(gStringVar1, sFailed);
++    } else if (gCodeRedMailbox.state == 4) {
++        StringCopy(gStringVar1, sCancelled);
++    } else {
++        return;
++    }
++    gCodeRedMailbox.state = 0;
++    DestroyTask(taskId);
++    ScriptContext_Enable();
++}
++
++void CodeRedRunCalculation(void)
++{
++    static const u16 stats[6] = {45, 49, 49, 65, 65, 45};
++    u8 i;
++    gCodeRedMailbox.state = 0;
++    gCodeRedMailbox.magic = 0x31445243;
++    gCodeRedMailbox.version = 1;
++    gCodeRedMailbox.requestId = ++sRequestId;
++    gCodeRedMailbox.epoch = 0;
++    gCodeRedMailbox.operation = 1;
++    gCodeRedMailbox.status = 0;
++    for (i = 0; i < 6; i++) gCodeRedMailbox.stats[i] = stats[i];
++    gCodeRedMailbox.result = 0;
++    gCodeRedMailbox.state = 1;
++    CreateTask(Task_CodeRedWait, 8);
++}

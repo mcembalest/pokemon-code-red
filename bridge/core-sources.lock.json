@@ -1,0 +1,7 @@
+{
+  "mgba": {"url":"https://github.com/EmulatorJS/mgba.git","revision":"db6592a591523ef9c45d129ed1ec792c71566d18"},
+  "retroarch": {"url":"https://github.com/EmulatorJS/RetroArch.git","revision":"1eb5edf2b3becf0a7b29520a34545628db0c5416"},
+  "build": {"url":"https://github.com/EmulatorJS/build.git","revision":"7f4d2d7354d7b25766bf5229f8a5c4b121515a68"},
+  "emsdk": {"url":"https://github.com/emscripten-core/emsdk.git","revision":"96c657fc60920d2a6a82318aa50e0abf82749604","sdk":"3.1.74"},
+  "status":"source provenance only; custom browser core not built or verified"
+}
