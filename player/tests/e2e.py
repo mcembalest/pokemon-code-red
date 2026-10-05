@@ -52,6 +52,7 @@ def main():
         results['bridge_error'] = page.evaluate('document.querySelector("[data-error]").hidden ? null : document.querySelector("[data-error]").textContent')
         assert results['core_abi'] == 1 and results['bridge_error'] is None, results
         print('boot ok', flush=True)
+        step = lambda name: print(f'::notice title=e2e step::{name}' if __import__('os').environ.get('GITHUB_ACTIONS') else name, flush=True)
 
         if args.phase == 'boot':
             # Intro -> player naming screen; typed name via DOM -> rival naming.
@@ -64,11 +65,11 @@ def main():
             drive_to_naming()
             name.fill('Claude'); name.press('Enter')
             page.wait_for_function('document.querySelector(".code-red-text-entry").hidden', timeout=30000)
-            print('player named', flush=True)
+            step('player named')
             drive_to_naming()
             name.fill('Gary'); name.press('Enter')
             page.wait_for_function('document.querySelector(".code-red-text-entry").hidden', timeout=30000)
-            print('rival named', flush=True)
+            step('rival named')
             results['naming'] = True
             page.wait_for_timeout(1000)
             page.locator('canvas').screenshot(path=str(OUT / 'after-naming.png'))
@@ -90,7 +91,7 @@ def main():
             page.wait_for_function('o => new DataView(ewram().buffer, ewram().byteOffset).getUint16(o + 6, true) === 2', arg=calc, timeout=15000)
             results['calc_op1'] = page.evaluate('o => { const v = new DataView(ewram().buffer, ewram().byteOffset); return { status: v.getUint16(o + 18, true), result: v.getUint32(o + 32, true) } }', calc)
             assert results['calc_op1'] == {'status': 0, 'result': 318}, results['calc_op1']
-            print('calc op1 ok', flush=True)
+            step('calc op1 ok')
             page.evaluate('o => { const v = new DataView(ewram().buffer, ewram().byteOffset); v.setUint16(o + 6, 0, true) }', calc)
 
             # Op 2: scratchpad dialog opens, game pauses, code runs in QuickJS, result returns on close.
@@ -113,7 +114,7 @@ def main():
             assert results['calc_op2'] == {'status': 0, 'result': 318}, results['calc_op2']
             assert not page.evaluate('EJS_emulator.paused'), 'game should resume after scratchpad closes'
             page.evaluate('o => { const v = new DataView(ewram().buffer, ewram().byteOffset); v.setUint16(o + 6, 0, true) }', calc)
-            print('calc op2 (scratchpad) ok', flush=True)
+            step('calc op2 (scratchpad) ok')
 
             # Stale-epoch protection: a request stamped before a reset is cancelled, not answered.
             page.evaluate('''o => { const v = new DataView(ewram().buffer, ewram().byteOffset);
@@ -121,7 +122,7 @@ def main():
             page.wait_for_function('o => new DataView(ewram().buffer, ewram().byteOffset).getUint16(o + 6, true) === 4', arg=calc, timeout=15000)
             page.evaluate('o => { const v = new DataView(ewram().buffer, ewram().byteOffset); v.setUint16(o + 6, 0, true) }', calc)
             results['calc_stale_cancelled'] = True
-            print('stale request cancelled ok', flush=True)
+            step('stale request cancelled ok')
 
             # In-game save: Start -> menu screenshot (navigate after looking).
             page.evaluate('press(3, 6, 40)')
@@ -185,7 +186,7 @@ def main():
             before = json.loads((OUT / 'sav-fingerprint.json').read_text())['written']
             assert results['sav_written'] == before, (results['sav_written'], before)
             results['restored_from_backup'] = True
-            print('backup restore ok', flush=True)
+            step('backup restore ok')
 
         results['external_requests'] = external
         results['errors'] = errors
@@ -196,4 +197,15 @@ def main():
         sys.exit('FAIL: external requests or page errors')
 
 if __name__ == '__main__':
-    main()
+    import os, traceback
+    try:
+        main()
+    except BaseException as problem:
+        failed = not (isinstance(problem, SystemExit) and problem.code in (0, None))
+        if failed and os.environ.get('GITHUB_ACTIONS'):
+            frames = traceback.extract_tb(problem.__traceback__) if problem.__traceback__ else []
+            mine = [f for f in frames if f.filename.endswith('e2e.py')]
+            where = f' at e2e.py:{mine[-1].lineno}' if mine else ''
+            message = f'{type(problem).__name__}: {problem}'.replace('\n', ' ')[:800]
+            print(f'::error title=e2e::{message}{where}', flush=True)
+        raise

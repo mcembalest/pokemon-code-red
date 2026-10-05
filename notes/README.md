@@ -8,6 +8,7 @@ Working notes. Outline + links + quotes. Not docs.
 | [fragility-audit.md](fragility-audit.md) | weak points in browser / runtime / dev cycle, with evidence |
 | [memory-budget.md](memory-budget.md) | measured RAM / ROM / save numbers from vanilla build |
 | [foundation-plan.md](foundation-plan.md) | proposed order of work to make the foundation robust |
+| [foundation-2026-10-04.md](foundation-2026-10-04.md) | what was done + verified for that plan |
 | [bridge-v2.md](bridge-v2.md) | sketch: general game <-> browser channel |
 | [sources.md](sources.md) | external links |
 

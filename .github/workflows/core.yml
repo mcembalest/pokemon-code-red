@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
   push:
-    paths: [core/**, .github/workflows/core.yml]
+    paths: [core/**, '!core/release.json', .github/workflows/core.yml]
 permissions:
   contents: write
 jobs:
