@@ -1,0 +1,64 @@
+name: ci
+# Full loop on every push: build base + Code Red ROMs from pinned decomp source,
+# make the player bundle, run unit / native / browser tests. On main, publish
+# the player bundle (no ROM bytes) as release player-<rom>-<commit>.
+on:
+  push:
+  pull_request:
+permissions:
+  contents: write
+jobs:
+  ci:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: System packages
+        run: sudo apt-get update && sudo apt-get install -y build-essential binutils-arm-none-eabi libpng-dev libmgba-dev
+      - name: Cache pinned decomp + compiler
+        uses: actions/cache@v4
+        with:
+          path: .cache/agbcc
+          key: agbcc-${{ hashFiles('upstream.lock.json') }}
+      - name: Setup (pinned sources, emulator packages, npm deps)
+        run: make setup
+      - name: Base ROM from source (must equal FireRed USA v1.0)
+        run: |
+          python3 scripts/dev.py baseline
+          mkdir -p local && cp build/baseline.gba local/baserom.gba
+      - name: Code Red ROM + bundle
+        run: make rom-bundle
+      - name: Player
+        run: make player
+      - name: Unit tests
+        run: make test
+      - name: ROM tests (headless mGBA)
+        run: |
+          python3 scripts/smoke.py
+          python3 tests/native/naming.py
+          python3 tests/native/pc.py
+      - name: Browser end-to-end (Chromium)
+        run: |
+          pip install --break-system-packages playwright==1.56.0
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/serve_player.py & sleep 1
+          python3 player/tests/e2e.py --phase boot
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e
+          path: build/e2e/*.png
+      - name: Publish player bundle (main only)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ROM=$(python3 -c "import json;print(json.load(open('build/rom/rom.json'))['rom_sha1'][:12])")
+          TAG="player-$ROM-${GITHUB_SHA::7}"
+          tar -C player/dist -czf code-red-player.tar.gz --exclude='*.map' .
+          sha256sum code-red-player.tar.gz | tee code-red-player.tar.gz.sha256
+          gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --title "Code Red player $TAG" \
+            --notes "player/dist for ROM $ROM at $GITHUB_SHA. Contains no ROM bytes: players supply FireRed USA v1.0." \
+            code-red-player.tar.gz code-red-player.tar.gz.sha256

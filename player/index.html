@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pokémon Code Red</title>
+<link rel="stylesheet" href="code-red.css">
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #1b1b1b; --muted: #6b6b6b; --link: #c8323c; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #121212; --fg: #eee; --muted: #9a9a9a; --link: #ff6b74; } }
+  body { margin: 0 auto; padding: 16px; max-width: 760px; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  h1 { font-size: 1.6rem; margin: 0.5rem 0; }
+  footer { font-size: 0.75rem; color: var(--muted); margin-top: 1rem; }
+  footer a { color: inherit; }
+</style>
+<h1>Pokémon Code Red</h1>
+<div id="code-red"></div>
+<footer>
+  <a href="emulator/SOURCES.txt">EmulatorJS</a> · <a href="emulator/LICENSE">License</a> ·
+  <a href="emulator/code-red-core.json">Core build</a> · <span id="build"></span>
+</footer>
+<script type="module">
+  import { mount } from './code-red.js'
+  mount(document.getElementById('code-red'), { assets: './' })
+  fetch('rom/rom.json').then(r => r.json()).then(r => { document.getElementById('build').textContent = 'build ' + r.rom_sha1.slice(0, 10) }).catch(() => {})
+</script>
+</html>

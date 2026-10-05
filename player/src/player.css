@@ -1,0 +1,18 @@
+.code-red { max-width: 760px; }
+.code-red-button { min-height: 44px; padding: 0.55rem 1.1rem; border: 0; border-radius: 8px; background: var(--link, #c8323c); color: var(--bg, #fff); cursor: pointer; font-weight: 600; }
+.code-red-button:disabled { opacity: 0.5; cursor: default; }
+.code-red-status { color: var(--muted, #777); min-height: 1.65em; margin-block: 0.65rem; font-size: 0.9rem; }
+.code-red-error { color: #b82727; overflow-wrap: anywhere; }
+.code-red-game > div { width: 100%; height: 100%; }
+.code-red-muted { color: var(--muted, #777); }
+.code-red-help { font-size: 0.85rem; }
+.code-red-game { width: 100%; height: min(78dvh, 650px); min-height: 450px; background: #080808; border-radius: 10px; overflow: hidden; scroll-margin-top: 12px; }
+.code-red [hidden] { display: none; }
+.code-red-game .b_speed_fast, .code-red-game .b_speed_slow { display: none; }
+.code-red-credit { font-size: 0.7rem; margin-block: 0.65rem; }
+@media (min-width: 700px) { .code-red-game { min-height: 500px; } }
+.code-red-text-entry { display: flex; flex-wrap: wrap; align-items: end; gap: .6rem; margin-block: 1rem; }
+.code-red-text-entry[hidden] { display: none; }
+.code-red-text-entry label { display: grid; gap: .25rem; }
+.code-red-text-entry input { max-width: 100%; font-size: 16px; padding: .5rem; }
+.code-red-text-entry small { flex-basis: 100%; }

@@ -7,3 +7,5 @@ local/
 *.ss*
 *.deb
 __pycache__/
+node_modules/
+player/dist/

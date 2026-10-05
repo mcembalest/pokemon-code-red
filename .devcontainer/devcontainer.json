@@ -1,7 +1,21 @@
 {
   "name": "Code Red FireRed loop",
-  "build": {"dockerfile": "Dockerfile"},
-  "forwardPorts": [8000],
-  "portsAttributes": {"8000": {"label": "Code Red private playtest", "onAutoForward": "notify"}},
-  "postCreateCommand": "make setup"
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "forwardPorts": [
+    8000
+  ],
+  "portsAttributes": {
+    "8000": {
+      "label": "Code Red player (private)",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "make setup",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    }
+  }
 }

@@ -1,0 +1,14 @@
+.code-red-repl { width: min(680px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); box-sizing: border-box; overflow: auto; border: 1px solid #53565c; border-radius: 12px; background: #171a1e; color: #f3f3f3; padding: 20px; font: 15px/1.5 system-ui, sans-serif; }
+.code-red-repl::backdrop { background: rgb(0 0 0 / 75%); }
+.code-red-repl-heading, .code-red-repl-actions { display: flex; align-items: center; gap: 12px; }
+.code-red-repl-heading { justify-content: space-between; }
+.code-red-repl h2 { font-size: 20px; margin: 0; }
+.code-red-repl button, .code-red-repl select { border: 1px solid #666; border-radius: 6px; background: #292d33; color: inherit; padding: 7px 12px; font: inherit; }
+.code-red-repl button:disabled { opacity: .5; }
+.code-red-repl button:focus-visible, .code-red-repl select:focus-visible, .code-red-repl textarea:focus-visible { outline: 2px solid #89c6ff; outline-offset: 2px; }
+.code-red-repl-editor { display: block; margin-top: 14px; }
+.code-red-repl textarea { display: block; width: 100%; box-sizing: border-box; resize: vertical; min-height: 120px; border: 1px solid #666; border-radius: 6px; padding: 10px; background: #0f1114; color: #f3f3f3; font: 16px/1.5 ui-monospace, monospace; }
+.code-red-repl-hint { font-size: 13px; color: #c3c7ce; }
+.code-red-repl pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+.code-red-repl [data-repl-transcript] > div { border-top: 1px solid #41454d; margin-top: 12px; }
+.code-red-repl [data-repl-transcript] > div pre:first-child { color: #a9cfff; }
