@@ -1,0 +1,46 @@
+name: sim
+# Headless playthroughs: power-on -> Misty (2nd gym), inputs only, on several RNG seeds.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 7 * * *'
+  push:
+    paths: [sim/**, patches/**, core/**, .github/workflows/sim.yml]
+permissions:
+  contents: read
+jobs:
+  play:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v4
+      - name: System packages
+        run: sudo apt-get update && sudo apt-get install -y build-essential binutils-arm-none-eabi libpng-dev
+      - name: Cache pinned decomp compiler
+        uses: actions/cache@v4
+        with:
+          path: .cache/agbcc
+          key: agbcc-${{ hashFiles('upstream.lock.json') }}
+      - name: Build ROM (pinned decomp + patches)
+        run: python3 scripts/dev.py setup && python3 scripts/dev.py build
+      - name: Build simulator core (native)
+        run: sim/build_core.sh
+      - name: Play to Misty
+        run: |
+          pip install --break-system-packages pillow
+          set +e
+          CODERED_RUN=seed${{ matrix.seed }} python3 sim/run.py misty --seed ${{ matrix.seed }} | tee build/sim/out.txt
+          status=${PIPESTATUS[0]}
+          python3 - <<'PY'
+          import json, glob
+          r = json.load(open(glob.glob('build/sim/results/misty-seed*.json')[0]))
+          ok = r.get('ok')
+          msg = (f"badges={r.get('badges')} game_min={r.get('game_minutes')} wall_s={r.get('wall_seconds')} speedup={r.get('speedup')}x party={r.get('party')}"
+                 if ok else f"FAILED {r.get('error')} at {r.get('map')} frame {r.get('frame')}")
+          print(f"::{'notice' if ok else 'error'} title=seed ${{ matrix.seed }}::{msg}")
+          PY
+          exit $status

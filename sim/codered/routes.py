@@ -10,7 +10,8 @@ from pathlib import Path
 from .game import ROOT
 from .world import World, map_info
 
-CHECKPOINTS = ROOT / 'build/sim/checkpoints'
+import os
+CHECKPOINTS = ROOT / 'build/sim/checkpoints' / os.environ.get('CODERED_RUN', '')
 
 
 def save_checkpoint(g: World, name: str) -> Path:
@@ -46,9 +47,10 @@ def type_name(g: World, text: str) -> bool:
     return g.run_until(lambda: not naming_active(g), 300)
 
 
-def intro(g: World, player: str = 'RED', rival: str = 'BLUE') -> bool:
-    """Power-on -> title -> Oak's speech (both names typed) -> player in the bedroom."""
-    g.run(620)
+def intro(g: World, player: str = 'RED', rival: str = 'BLUE', title_wait: int = 0) -> bool:
+    """Power-on -> title -> Oak's speech (both names typed) -> player in the bedroom.
+    `title_wait` frames on the title screen change the RNG seed (FireRed seeds it on START)."""
+    g.run(620 + title_wait)
     g.press('START')
     if not g.mash(lambda: naming_active(g), 'A', limit=12000) or not type_name(g, player):
         return False
@@ -94,9 +96,9 @@ def to_rival_battle(g: World) -> bool:
     return g.mash(g.in_battle, 'A', limit=6000, period=10)
 
 
-def opening(g: World, starter: str = 'BULBASAUR') -> bool:
+def opening(g: World, starter: str = 'BULBASAUR', title_wait: int = 0) -> bool:
     """Power-on to the start of the first rival battle, saving checkpoints on the way."""
-    steps = [('bedroom', lambda: intro(g)), ('lab', lambda: to_lab(g)),
+    steps = [('bedroom', lambda: intro(g, title_wait=title_wait)), ('lab', lambda: to_lab(g)),
              (f'starter_{starter.lower()}', lambda: choose_starter(g, starter)),
              (f'rival_battle_{starter.lower()}', lambda: to_rival_battle(g))]
     for name, step in steps:
@@ -247,7 +249,7 @@ SYS_FLAGS = 0x800
 FLAG_BADGE01_GET, FLAG_BADGE02_GET = SYS_FLAGS + 0x20, SYS_FLAGS + 0x21  # include/constants/flags.h
 
 
-def to_misty(g: World, starter: str = 'BULBASAUR', log=print) -> dict:
+def to_misty(g: World, starter: str = 'BULBASAUR', log=print, seed: int = 0) -> dict:
     """Power-on -> Brock -> Mt. Moon -> Misty, inputs only (plus Options-menu settings and nothing else).
     Returns a summary; checkpoints are saved after each leg."""
     forest = ('MAP_ROUTE2_VIRIDIAN_FOREST_SOUTH_ENTRANCE', 'MAP_VIRIDIAN_FOREST', 'MAP_ROUTE2_VIRIDIAN_FOREST_NORTH_ENTRANCE')
@@ -292,7 +294,7 @@ def to_misty(g: World, starter: str = 'BULBASAUR', log=print) -> dict:
     def misty():
         return g.travel('MAP_CERULEAN_CITY_GYM') and talk_to(g, 'OBJ_EVENT_GFX_MISTY') and g.flag(FLAG_BADGE02_GET)
 
-    leg('opening', lambda: opening(g, starter))
+    leg('opening', lambda: opening(g, starter, title_wait=seed * 7))
     for name, fn in [('rival', rival), ('parcel', parcel), ('pokedex', pokedex), ('pewter', pewter),
                      ('train_brock', train_for_brock), ('brock', brock), ('route4', route4),
                      ('cerulean', cerulean), ('misty', misty)]:
