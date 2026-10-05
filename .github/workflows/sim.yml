@@ -33,11 +33,16 @@ jobs:
         run: |
           pip install --break-system-packages pillow
           set +e
-          CODERED_RUN=seed${{ matrix.seed }} python3 sim/run.py misty --seed ${{ matrix.seed }} | tee build/sim/out.txt
-          status=${PIPESTATUS[0]}
+          mkdir -p build/sim
+          CODERED_RUN=seed${{ matrix.seed }} python3 sim/run.py misty --seed ${{ matrix.seed }} > build/sim/out.txt 2>&1
+          status=$?
+          cat build/sim/out.txt
+          tail -n 12 build/sim/out.txt | tr '\n' '|' | sed 's/^/::warning title=log tail::/'; echo
           python3 - <<'PY'
           import json, glob
-          r = json.load(open(glob.glob('build/sim/results/misty-seed*.json')[0]))
+          files = glob.glob('build/sim/results/misty-seed*.json')
+          if not files: raise SystemExit(0)
+          r = json.load(open(files[0]))
           ok = r.get('ok')
           msg = (f"badges={r.get('badges')} game_min={r.get('game_minutes')} wall_s={r.get('wall_seconds')} speedup={r.get('speedup')}x party={r.get('party')}"
                  if ok else f"FAILED {r.get('error')} at {r.get('map')} frame {r.get('frame')}")
