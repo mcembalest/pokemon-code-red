@@ -70,6 +70,7 @@ class Game:
         self.lib = lib = C.CDLL(str(core))
         self.keys = 0
         self.frame = 0
+        self.battle_log: list[str] = []
         self._video = (None, 0, 0, 0)
 
         @_ENV
@@ -192,6 +193,17 @@ class Game:
         if path:
             img.save(path)
         return img
+
+    def brightness(self) -> float:
+        """Mean pixel level 0..1 of the last frame (cheap; for 'has the screen faded in')."""
+        data, w, h, pitch = self._video
+        if not data:
+            return 0.0
+        raw = C.string_at(data, pitch * h)
+        px = memoryview(raw).cast('H')
+        step = 37
+        total = sum(((p >> 11) + (p >> 6 & 31) + (p & 31)) for p in px[::step])
+        return total / (len(px[::step]) * 93)
 
     # ---- randomness -----------------------------------------------------
     def reseed(self, seed: int) -> None:

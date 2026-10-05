@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .game import ROOT
-from .world import World
+from .world import World, map_info
 
 CHECKPOINTS = ROOT / 'build/sim/checkpoints'
 
@@ -105,3 +105,75 @@ def opening(g: World, starter: str = 'BULBASAUR') -> bool:
             return False
         save_checkpoint(g, name)
     return True
+
+
+# ---- general errands -------------------------------------------------------
+import json as _json
+from .game import DECOMP as _DECOMP
+from .world import _map_index
+
+
+def objects(map_name: str) -> list[dict]:
+    folder = _map_index()['name'][map_name][2]
+    return _json.loads((_DECOMP / 'data/maps' / folder / 'map.json').read_text())['object_events']
+
+
+def talk_to(g: World, gfx: str, across_counter: bool = False, policy=None) -> bool:
+    """Walk next to the first NPC with this sprite on the current map, face it, press A, resolve."""
+    o = next(o for o in objects(g.map()) if o.get('graphics_id') == gfx)
+    x, y = o['x'], o['y']
+    gap = 2 if across_counter else 1
+    for (dx, dy, face) in ((0, gap, 'UP'), (0, -gap, 'DOWN'), (-gap, 0, 'RIGHT'), (gap, 0, 'LEFT')):
+        if g.walk_to(x + dx, y + dy, battle_policy=policy) and g.pos() == (x + dx, y + dy):
+            g.interact(face)
+            g.handle(policy)
+            return True
+    return False
+
+
+def heal(g: World) -> bool:
+    """From a city (or its center): heal at the Pokémon Center, then step back outside."""
+    city = g.map()
+    center = city + '_POKEMON_CENTER_1F' if not city.endswith('_POKEMON_CENTER_1F') else city
+    if g.map() != center and not g.travel(center):
+        return False
+    talk_to(g, 'OBJ_EVENT_GFX_NURSE', across_counter=True)
+    ok = all(m['hp'] == m['max_hp'] for m in g.party())
+    g.travel(city if city != center else center.replace('_POKEMON_CENTER_1F', ''))
+    return ok
+
+
+def grind(g: World, level: int, area: str, city: str, policy=None, max_rounds: int = 40, to_area: tuple = (), to_city: tuple = ()) -> bool:
+    """Walk around `area` (a route with grass) fighting wild Pokémon until the lead is `level`;
+    heal in `city` whenever HP < 40%. Returns True when the level is reached."""
+    import random as _r
+    rng = _r.Random(g.frame)
+    for _ in range(max_rounds):
+        lead = g.party()[0]
+        if lead['level'] >= level:
+            return True
+        if lead['hp'] < 0.5 * lead['max_hp']:
+            if g.map() != city:
+                g.travel(city, policy, via=to_city)
+            heal(g)
+        if g.map() != area and not g.travel(area, policy):
+            g.travel(area, policy, via=to_area)
+        if g.map() != area:
+            continue
+        m = map_info(area)
+        grass = set(m.grass())
+        pairs = [((x, y), (x + 1, y)) for x, y in grass if (x + 1, y) in grass]
+        if not pairs:
+            raise ValueError(f'no tall grass on {area}')
+        here = g.pos()
+        a, b = min(pairs, key=lambda p: abs(p[0][0] - here[0]) + abs(p[0][1] - here[1]))
+        if not g.walk_to(*a, battle_policy=policy) or g.map() != area:
+            continue
+        for k in range(200):  # pace in the grass until something needs attention
+            g.step('RIGHT' if k % 2 == 0 else 'LEFT')
+            if not g.free():
+                g.handle(policy)
+            lead = g.party()[0]
+            if lead['hp'] < 0.5 * lead['max_hp'] or g.map() != area or lead['level'] >= level:
+                break
+    return g.party()[0]['level'] >= level

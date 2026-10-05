@@ -12,7 +12,11 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from .game import DECOMP, Game
+import re
+import subprocess
+from functools import cached_property
+
+from .game import DECOMP, ROOT, Game
 
 # include/global.h
 SB1_POS, SB1_LOCATION, SB1_FLAGS, SB1_VARS = 0x0000, 0x0004, 0x0EE0, 0x1000
@@ -34,6 +38,15 @@ class MapInfo:
     height: int
     blocks: tuple      # metatile u16 per cell, row-major
     warps: tuple       # (x, y, dest_map, dest_warp_id)
+    attrs: tuple = ()  # metatile attributes (u32) per cell; src/fieldmap.c sMetatileAttrMasks
+
+    def encounter_type(self, x: int, y: int) -> int:
+        """1 = land (tall grass), 2 = water; bits 24-26."""
+        return self.attrs[y * self.width + x] >> 24 & 7 if self.attrs else 0
+
+    def grass(self) -> list[tuple[int, int]]:
+        return [(x, y) for y in range(self.height) for x in range(self.width)
+                if self.passable(x, y) and self.encounter_type(x, y) == 1]
 
     def passable(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height and not (self.blocks[y * self.width + x] & COLLISION_MASK)
@@ -55,12 +68,27 @@ def _map_index() -> dict:
 
 
 @lru_cache(maxsize=None)
+def _tileset_attrs(tileset: str) -> tuple:
+    headers = (DECOMP / 'src/data/tilesets/headers.h').read_text()
+    block = headers[headers.index(f'const struct Tileset {tileset} ='):]
+    attr_sym = re.search(r'\.metatileAttributes = (\w+)', block).group(1)
+    path = re.search(attr_sym + r'\[\] = INCBIN_U32\("([^"]+)"\)', (DECOMP / 'src/data/tilesets/metatiles.h').read_text()).group(1)
+    raw = (DECOMP / path).read_bytes()
+    return tuple(int.from_bytes(raw[i:i + 4], 'little') for i in range(0, len(raw), 4))
+
+
+@lru_cache(maxsize=None)
 def map_info(name: str) -> MapInfo:
     g, n, _, data, layout = _map_index()['name'][name]
     raw = (DECOMP / layout['blockdata_filepath']).read_bytes()
     blocks = tuple(int.from_bytes(raw[i:i + 2], 'little') for i in range(0, len(raw), 2))
     warps = tuple((w['x'], w['y'], w['dest_map'], int(w['dest_warp_id'])) for w in data.get('warp_events', []))
-    return MapInfo(name, g, n, layout['width'], layout['height'], blocks, warps)
+    primary, secondary = _tileset_attrs(layout['primary_tileset']), _tileset_attrs(layout['secondary_tileset'])
+    def attr(block):
+        mid = block & 0x3FF
+        table, k = (primary, mid) if mid < 640 else (secondary, mid - 640)  # NUM_METATILES_IN_PRIMARY
+        return table[k] if k < len(table) else 0
+    return MapInfo(name, g, n, layout['width'], layout['height'], blocks, warps, tuple(attr(b) for b in blocks))
 
 
 def map_name(group: int, num: int) -> str | None:
@@ -68,6 +96,32 @@ def map_name(group: int, num: int) -> str | None:
     if folder is None:
         return None
     return json.loads((DECOMP / 'data/maps' / folder / 'map.json').read_text())['id']
+
+
+@lru_cache(maxsize=None)
+def _neighbors(name: str) -> tuple:
+    g, n, folder, data, layout = _map_index()['name'][name]
+    out = [('edge', c['direction'], c['map']) for c in data.get('connections') or []]
+    out += [('warp', None, w['dest_map']) for w in data.get('warp_events', []) if w['dest_map'] in _map_index()['name']]
+    return tuple(out)
+
+
+def map_route(src: str, dest: str, avoid: tuple = ()) -> list | None:
+    """Shortest list of (kind, direction, next_map) hops from src to dest."""
+    prev, queue = {src: None}, deque([src])
+    while queue:
+        cur = queue.popleft()
+        if cur == dest:
+            out = []
+            while prev[cur]:
+                cur, hop = prev[cur]
+                out.append(hop)
+            return out[::-1]
+        for kind, d, nxt in _neighbors(cur):
+            if nxt not in prev and nxt not in avoid:
+                prev[nxt] = (cur, (kind, d, nxt))
+                queue.append(nxt)
+    return None
 
 
 def path(m: MapInfo, start: tuple[int, int], goal: tuple[int, int], extra_blocked=frozenset()) -> list[str] | None:
@@ -95,6 +149,71 @@ def path(m: MapInfo, start: tuple[int, int], goal: tuple[int, int], extra_blocke
 
 class World(Game):
     """Game + typed access to Pokémon FireRed state."""
+
+    # symbols local to one source file (static functions share names across files)
+    @cached_property
+    def _map_text(self) -> str:
+        return (DECOMP / 'pokefirered.map').read_text()
+
+    def text_range(self, obj: str) -> tuple[int, int]:
+        m = re.search(r'^ \.text\s+(0x[0-9a-f]+)\s+(0x[0-9a-f]+)\s+src/' + re.escape(obj) + r'\.o$', self._map_text, re.M)
+        start = int(m.group(1), 16)
+        return start, start + int(m.group(2), 16)
+
+    def sym_in(self, obj: str, name: str) -> int:
+        out = subprocess.check_output(['arm-none-eabi-nm', str(DECOMP / f'build/firered/src/{obj}.o')], text=True)
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) == 3 and parts[2] == name and parts[1] in 'tT':
+                return self.text_range(obj)[0] + int(parts[0], 16)
+        raise KeyError(f'{name} not in {obj}.o')
+
+    def in_file(self, address: int, obj: str) -> bool:
+        lo, hi = self.text_range(obj)
+        return lo <= (address & ~1) < hi
+
+    def learn_move_screen(self) -> bool:
+        """Summary screen opened to pick a move to forget."""
+        return self.in_file(self.callback2(), 'pokemon_summary_screen')
+
+    # how much we value a move when choosing what to forget (damage moves: by power)
+    STATUS_VALUE = {'SLEEP_POWDER': 30, 'LEECH_SEED': 20, 'POISON_POWDER': 10, 'THUNDER_WAVE': 30, 'STUN_SPORE': 25}
+
+    def forget_weakest_move(self, rules) -> None:
+        """On the 'forget a move' summary screen: forget the least valuable of the 4 known moves + the
+        new one (choosing the new one = don't learn it). Waits for the screen's fade-in first."""
+        self.run_until(lambda: self.brightness() > 0.3, 600, 5)  # faded in
+        self.run(20)
+        known = self.party_moves(0)
+        new = self.u16(self.sym('gMoveToLearn'))
+        def value(mid):
+            m = rules.moves[mid]
+            return m.power * 1.5 if m.power else self.STATUS_VALUE.get(m.name, 0)
+        slots = known + [new]
+        slot = min(range(5), key=lambda k: (value(slots[k]), -k))  # tie: forget the older move
+        self.battle_log.append(f'learn {rules.moves[new].name}: forget {rules.moves[slots[slot]].name}')
+        for _ in range(slot):
+            self.press('DOWN', hold=2, after=10)
+        self.press('A', hold=2, after=20)
+        self.mash(lambda: not self.learn_move_screen(), 'A', limit=900, period=10)
+
+    def handle(self, battle_policy=None, limit: int = 60 * 60 * 20) -> list[str]:
+        """Resolve whatever has control (dialogue, trainer/wild battle, cutscene) until free to walk.
+        Returns battle outcomes seen."""
+        from .battle import Battle, finish_battle
+        outcomes = []
+        start = self.frame
+        while self.frame - start < limit:
+            if self.in_battle():
+                b = Battle(self)
+                outcomes.append(b.play(**(battle_policy or {})))
+                self.battle_log.extend(b.log)
+                finish_battle(self)
+            elif self.settled(20):
+                return outcomes
+            else:
+                self.press('A', hold=2, after=8)
+        return outcomes
 
     # pointers
     @property
@@ -148,8 +267,29 @@ class World(Game):
 
     # options: textSpeed bits 0-2 (2 = fast), battleSceneOff bit 10
     def fast_options(self) -> None:
+        """Options menu settings, same as a player would pick: text FAST, battle style SET
+        (no switch prompt), battle scene OFF."""
         a = self.sb2 + SB2_OPTIONS
-        self.w16(a, (self.u16(a) & ~0x7 | 2) | 1 << 10)
+        self.w16(a, (self.u16(a) & ~0x7 | 2) | 1 << 9 | 1 << 10)
+
+    # bag (include/global.h SaveBlock1 pockets: {u16 item, u16 quantity ^ key})
+    POCKETS = {'items': (0x0310, 42), 'key': (0x03B8, 30), 'balls': (0x0430, 13), 'tm': (0x0464, 58), 'berries': (0x054C, 43)}
+
+    @cached_property
+    def item_ids(self) -> dict[str, int]:
+        text = (DECOMP / 'include/constants/items.h').read_text()
+        return {k[5:]: int(v, 0) for k, v in re.findall(r'#define (ITEM_\w+)\s+(0x[0-9A-Fa-f]+|\d+)\b', text)}
+
+    def bag(self) -> dict[str, int]:
+        names = {v: k for k, v in self.item_ids.items()}
+        key = self.u32(self.sb2 + 0xF20) & 0xFFFF  # encryptionKey (quantities are XORed)
+        out = {}
+        for off, n in self.POCKETS.values():
+            for i in range(n):
+                item = self.u16(self.sb1 + off + 4 * i)
+                if item:
+                    out[names.get(item, str(item))] = self.u16(self.sb1 + off + 4 * i + 2) ^ key
+        return out
 
     # party / battle
     def party(self) -> list[dict]:
@@ -157,6 +297,19 @@ class World(Game):
         base = self.sym('gPlayerParty')
         return [{'level': self.u8(base + i * MON_SIZE + MON_LEVEL), 'hp': self.u16(base + i * MON_SIZE + MON_HP),
                  'max_hp': self.u16(base + i * MON_SIZE + MON_MAXHP)} for i in range(count)]
+
+    def party_moves(self, i: int) -> list[int]:
+        """Moves of party slot i, decrypted from the BoxPokemon (include/pokemon.h; substruct order by personality % 24)."""
+        base = self.sym('gPlayerParty') + i * MON_SIZE
+        personality, ot = self.u32(base), self.u32(base + 4)
+        key = personality ^ ot
+        data = self.read(base + 0x20, 48)
+        words = [int.from_bytes(data[k:k + 4], 'little') ^ key for k in range(0, 48, 4)]
+        order = ['GAEM', 'GAME', 'GEAM', 'GEMA', 'GMAE', 'GMEA', 'AGEM', 'AGME', 'AEGM', 'AEMG', 'AMGE', 'AMEG',
+                 'EGAM', 'EGMA', 'EAGM', 'EAMG', 'EMGA', 'EMAG', 'MGAE', 'MGEA', 'MAGE', 'MAEG', 'MEGA', 'MEAG'][personality % 24]
+        a = order.index('A')  # attacks substruct: u16 moves[4], u8 pp[4]
+        w0, w1 = words[a * 3], words[a * 3 + 1]
+        return [w0 & 0xFFFF, w0 >> 16, w1 & 0xFFFF, w1 >> 16]
 
     def battlers(self) -> list[dict]:
         base = self.sym('gBattleMons')
@@ -188,23 +341,103 @@ class World(Game):
         self.face(direction)
         self.press('A', hold=3, after=20)
 
-    def walk_to(self, x: int, y: int, retries: int = 3) -> bool:
-        """Pathfind on the current map's collision data and walk there."""
-        for _ in range(retries):
-            here = self.pos()
-            if here == (x, y):
+    # ---- navigation
+    OBJ_SIZE, OBJ_COORDS = 0x24, 0x10  # include/global.fieldmap.h struct ObjectEvent
+
+    def npc_tiles(self) -> set[tuple[int, int]]:
+        base, out = self.sym('gObjectEvents'), set()
+        for i in range(16):
+            o = base + i * self.OBJ_SIZE
+            flags = self.u32(o)
+            if flags & 1 and not flags >> 16 & 1:  # active, not the player
+                out.add((self.s16(o + self.OBJ_COORDS) - 7, self.s16(o + self.OBJ_COORDS + 2) - 7))
+        return out
+
+    @cached_property
+    def _bumped(self) -> set:
+        return set()  # (map, (x, y), direction) we could not walk through (ledges, water, counters)
+
+    def _plan(self, goal: tuple[int, int]) -> list[str] | None:
+        here, m = self.pos(), map_info(self.map())
+        npcs = self.npc_tiles() - {goal}
+        moves = {'UP': (0, -1), 'DOWN': (0, 1), 'LEFT': (-1, 0), 'RIGHT': (1, 0)}
+        prev, queue, name = {here: None}, deque([here]), m.name
+        while queue:
+            cur = queue.popleft()
+            if cur == goal:
+                out = []
+                while prev[cur]:
+                    cur, d = prev[cur]
+                    out.append(d)
+                return out[::-1]
+            for d, (dx, dy) in moves.items():
+                nxt = (cur[0] + dx, cur[1] + dy)
+                if nxt in prev or nxt in npcs or (name, cur, d) in self._bumped:
+                    continue
+                if nxt == goal or m.passable(*nxt):
+                    prev[nxt] = (cur, d)
+                    queue.append(nxt)
+        return None
+
+    def walk_to(self, x: int, y: int, max_steps: int = 400, battle_policy=None) -> bool:
+        """Walk to (x, y) on the current map: replan every step, learn blocked moves,
+        fight whatever starts on the way. True when there (or when a warp moved us)."""
+        start_map = self.map()
+        for _ in range(max_steps):
+            if not self.free():
+                self.handle(battle_policy)
+            if self.map() != start_map:
                 return True
-            route = path(map_info(self.map()), here, (x, y))
-            if route is None:
+            if self.pos() == (x, y):
+                return True
+            route = self._plan((x, y))
+            if not route:
                 return False
-            start_map = self.map()
-            for d in route:
-                if not self.step(d):
-                    self.mash(self.in_overworld, 'B', limit=120)  # dismiss anything, retry
-                    break
-                if self.map() != start_map:
-                    return True  # walked through a warp
+            here, d = self.pos(), route[0]
+            if not self.step(d):
+                if self.free():
+                    self._bumped.add((start_map, here, d))
         return self.pos() == (x, y)
+
+    def edge_exit(self, direction: str, battle_policy=None) -> bool:
+        """Leave the current map across its edge (map connection) in `direction`."""
+        m, start = map_info(self.map()), self.map()
+        d = direction.upper()
+        if d == 'UP':
+            cells = [(x, 0) for x in range(m.width)]
+        elif d == 'DOWN':
+            cells = [(x, m.height - 1) for x in range(m.width)]
+        elif d == 'LEFT':
+            cells = [(0, y) for y in range(m.height)]
+        else:
+            cells = [(m.width - 1, y) for y in range(m.height)]
+        here = self.pos()
+        cells = sorted((c for c in cells if m.passable(*c)), key=lambda c: abs(c[0] - here[0]) + abs(c[1] - here[1]))
+        for c in cells:
+            if self.walk_to(*c, battle_policy=battle_policy) and self.map() == start and self.pos() == c:
+                for _ in range(4):
+                    self.step(d)
+                    if self.map() != start:
+                        self.run_until(self.free, 120)
+                        return True
+            if self.map() != start:
+                return True
+        return False
+
+    def travel(self, dest: str, battle_policy=None, avoid: tuple = (), via: tuple = ()) -> bool:
+        """Go to another map: BFS over map connections + warps (from decomp data), then walk it.
+        `via`: maps to pass through in order (when the shortest map path is physically blocked)."""
+        for stop in via:
+            if not self.travel(stop, battle_policy, avoid):
+                return False
+        hops = map_route(self.map(), dest, avoid)
+        if hops is None:
+            raise ValueError(f'no route {self.map()} -> {dest}')
+        for kind, arg, nxt in hops:
+            ok = self.edge_exit(arg, battle_policy) if kind == 'edge' else self.warp_to(nxt)
+            if not ok or self.map() != nxt:
+                return False
+        return True
 
     def take_warp(self, x: int, y: int) -> bool:
         """Walk onto a warp (door, stairs, exit) and through it. True when the map changed."""
