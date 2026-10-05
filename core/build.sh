@@ -48,7 +48,7 @@ cores = json.loads((work/'build/cores.json').read_text())
 (pkg/'license.txt').write_text((work/'mgba/LICENSE').read_text())
 (pkg/'code-red.json').write_text(json.dumps({
     'abi': 1,
-    'exports': ['ejs_cr_abi', 'ejs_cr_epoch', 'ejs_cr_ewram', 'ejs_cr_ewram_size'],
+    'exports': ['ejs_cr_abi', 'ejs_cr_epoch', 'ejs_cr_ewram', 'ejs_cr_ewram_size', 'ejs_cr_iwram', 'ejs_cr_iwram_size'],
     'sources': json.loads(lock.read_text()),
     'adapter_sha256': hashlib.sha256(adapter.read_bytes()).hexdigest(),
 }, indent=2))

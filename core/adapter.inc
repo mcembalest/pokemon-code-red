@@ -1,6 +1,6 @@
 /* Code Red core adapter (ABI 1). Included at the end of mGBA's libretro.c.
  *
- * ROM-agnostic on purpose: exposes where EWRAM lives in the WASM heap and a
+ * ROM-agnostic on purpose: exposes where EWRAM/IWRAM live in the WASM heap and a
  * counter that changes on reset / state load. All protocol logic (mailbox
  * layout, validation, replies) lives in JavaScript, so game changes never
  * require rebuilding this core.
@@ -29,4 +29,12 @@ CODE_RED_EXPORT void *ejs_cr_ewram(void) {
 }
 CODE_RED_EXPORT unsigned ejs_cr_ewram_size(void) {
     return ejs_cr_ewram() ? GBA_SIZE_EWRAM : 0;
+}
+/* GBA IWRAM (0x03000000): save block pointers and other fast globals. */
+CODE_RED_EXPORT void *ejs_cr_iwram(void) {
+    if (!core || core->platform(core) != mPLATFORM_GBA) return NULL;
+    return ((struct GBA*) core->board)->memory.iwram;
+}
+CODE_RED_EXPORT unsigned ejs_cr_iwram_size(void) {
+    return ejs_cr_iwram() ? GBA_SIZE_IWRAM : 0;
 }

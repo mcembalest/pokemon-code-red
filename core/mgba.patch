@@ -5,7 +5,7 @@ index 9e82b5dd..9be803b2 100644
 @@ -1,4 +1,4 @@
  {
 -   global: retro_*;
-+   global: retro_*; ejs_cr_abi; ejs_cr_epoch; ejs_cr_ewram; ejs_cr_ewram_size;
++   global: retro_*; ejs_cr_abi; ejs_cr_epoch; ejs_cr_ewram; ejs_cr_ewram_size; ejs_cr_iwram; ejs_cr_iwram_size;
     local: *;
  };
 diff --git a/src/platform/libretro/libretro.c b/src/platform/libretro/libretro.c

@@ -8,4 +8,4 @@ index fbf6fa57c..0e0fe5bf1 100644
  .PHONY: all clean mv_libretro
 +
 +# Code Red core adapter exports (core/adapter.inc)
-+EXPORTED_FUNCTIONS := $(EXPORTED_FUNCTIONS),_ejs_cr_abi,_ejs_cr_epoch,_ejs_cr_ewram,_ejs_cr_ewram_size
++EXPORTED_FUNCTIONS := $(EXPORTED_FUNCTIONS),_ejs_cr_abi,_ejs_cr_epoch,_ejs_cr_ewram,_ejs_cr_ewram_size,_ejs_cr_iwram,_ejs_cr_iwram_size
