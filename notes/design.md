@@ -20,6 +20,18 @@ Living doc. Decisions = settled (owner). Open = not yet. Seeds = ideas to react 
 - **Backend: Cloudflare** — AI API calls + storage. Owner pays for a handful of users.
 - **Access: invite codes.**
 - **Progress tracking:** internal first, player-facing later.
+- **Agents → zero API calls (target).** Small agent harnesses + tiny open-source models running in the browser (wasm / WebGPU). Anthropic API = interim backend only, behind the same interface. (2026-10-05)
+
+## Local models (target) — notes
+- why it fits: ≤4 actions → the model mostly *chooses* among ≤4 tools + fills small args → constrained decoding (grammar / JSON schema) makes tiny models reliable
+- harness interface must be backend-agnostic: `decide(state, actions[≤4]) → {action, args}`; backends = `local` (wasm/WebGPU), `cloud` (Worker `/v1/llm`), `replay` (recorded), `mock` (sim/CI)
+- candidate runtimes (check before choosing; not yet evaluated):
+  - wllama — llama.cpp → wasm, GGUF, CPU (works without WebGPU, e.g. older iOS); GBNF grammars
+  - WebLLM (MLC) — WebGPU, faster; needs WebGPU (iOS Safari 26+)
+  - transformers.js (ONNX Runtime Web) — wasm + WebGPU
+- mobile constraints: model download size (cache in Cache Storage/OPFS once), RAM (~0.5–1.5 B params at 4-bit ≈ 0.3–1 GB), first-token latency; WebGPU availability varies
+- determinism: local inference w/ fixed seed + greedy still not bit-stable across GPUs → record decisions for replay, same as cloud
+- open: which model(s); per-"species" models (different small models = different personalities/types?)
 
 ## Open
 - battle mechanics — how much "adversarial tool calling" (agents' actions vs each other)
@@ -56,5 +68,6 @@ browser (player + ROM + bridge + sandboxes: QuickJS / Python wasm / Go wasm / C�
    │  https (invite code → session)
 Cloudflare Worker ── D1 (players, saves meta, progress events, challenge results)
    │             └── R2 (optional: code submissions, replays)
-   └── LLM provider (agent actions; recorded for replay)
+   └── LLM provider (interim; agent actions; recorded for replay)
 ```
+Target: agents run in the browser (local models); Worker = accounts, progress, recorded decisions.

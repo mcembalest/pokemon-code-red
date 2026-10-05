@@ -1,0 +1,21 @@
+# Code Red backend. Deployed by .github/workflows/worker.yml (never by hand).
+# database_id is filled in by the deploy workflow (it creates the D1 database on first run).
+name = "code-red-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGINS = "https://maxcembalest.com,https://www.maxcembalest.com,https://*.vercel.app,http://localhost:4321,http://localhost:8000,http://127.0.0.1:8000"
+LLM_MODELS = "claude-haiku-4-5-20251001,claude-sonnet-5-5"
+LLM_DAILY_TOKENS = "200000"
+LLM_MAX_TOKENS = "1024"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "code-red"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[observability]
+enabled = true

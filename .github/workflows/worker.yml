@@ -1,0 +1,85 @@
+name: worker
+# Backend (Cloudflare Worker + D1). Tests on every change to worker/;
+# deploys from main. Needs repo secrets CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID.
+# Worker secrets (ANTHROPIC_API_KEY, ADMIN_TOKEN) live on the Worker itself
+# (Cloudflare dashboard); if the same names exist as repo secrets they are synced too.
+on:
+  push:
+    paths: ['worker/**', '.github/workflows/worker.yml']
+  pull_request:
+    paths: ['worker/**', '.github/workflows/worker.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: worker-${{ github.ref }}
+  cancel-in-progress: false
+defaults:
+  run:
+    working-directory: worker
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: worker/package-lock.json }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: worker/package-lock.json }
+      - run: npm ci
+      - name: Check secrets
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error::repo secret CLOUDFLARE_API_TOKEN missing"; exit 1; }
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "::error::repo secret CLOUDFLARE_ACCOUNT_ID missing"; exit 1; }
+      - name: D1 database (create on first run)
+        run: |
+          set -o pipefail
+          id() { npx wrangler d1 list --json 2>d1.err | jq -r '.[] | select(.name=="code-red") | .uuid'; }
+          ID=$(id) || { echo "::error title=d1 list failed::$(tail -c 600 d1.err | tr '\n' ' ')"; exit 1; }
+          if [ -z "$ID" ]; then
+            npx wrangler d1 create code-red 2>&1 | tee d1-create.log || { echo "::error title=d1 create failed::$(tail -c 600 d1-create.log | tr '\n' ' ')"; exit 1; }
+            ID=$(id)
+          fi
+          [ -n "$ID" ] || { echo "::error::could not resolve D1 id"; exit 1; }
+          sed -i "s/^database_id = .*/database_id = \"$ID\"/" wrangler.toml
+          echo "D1 code-red = $ID"
+      - name: Migrations
+        run: |
+          npx wrangler d1 migrations apply code-red --remote 2>&1 | tee mig.log || { echo "::error title=migrations failed::$(tail -c 800 mig.log | tr '\n' ' ')"; exit 1; }
+      - name: Deploy
+        run: |
+          npx wrangler deploy --var VERSION:${GITHUB_SHA::12} 2>&1 | tee deploy.log || { echo "::error title=deploy failed::$(tail -c 1200 deploy.log | tr '\n' ' ')"; exit 1; }
+          URL=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          echo "URL=$URL" >> "$GITHUB_ENV"
+      - name: Sync optional worker secrets from repo secrets
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          for k in ANTHROPIC_API_KEY ADMIN_TOKEN; do
+            v="${!k}"; [ -n "$v" ] || continue
+            printf '%s' "$v" | npx wrangler secret put "$k" >/dev/null 2>secret.err || { echo "::error title=secret $k::$(tail -c 400 secret.err | tr '\n' ' ')"; exit 1; }
+            echo "synced $k"
+          done
+      - name: Smoke test
+        run: |
+          [ -n "$URL" ] || { echo "::warning::no workers.dev URL in deploy output (workers.dev subdomain not set up?)"; exit 0; }
+          for i in 1 2 3 4 5 6; do H=$(curl -fsS "$URL/health") && break; sleep 5; done
+          [ -n "$H" ] || { echo "::error::$URL/health not responding"; exit 1; }
+          echo "::notice title=deployed::$URL  health=$H"
