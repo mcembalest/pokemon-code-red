@@ -3,10 +3,6 @@ name: core
 on:
   workflow_dispatch:
     inputs:
-      release:
-        description: Publish as GitHub release asset (tag core-abi1)
-        type: boolean
-        default: false
   push:
     paths: [core/**, .github/workflows/core.yml]
 permissions:
@@ -34,10 +30,12 @@ jobs:
         with:
           name: code-red-core
           path: build/core/
-      - name: Release
-        if: inputs.release
+      - name: Release (tag core-<content version>, immutable)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view core-abi1 >/dev/null 2>&1 || gh release create core-abi1 --title "Code Red core (ABI 1)" --notes "ROM-agnostic EmulatorJS mGBA core. Built by .github/workflows/core.yml from core/sources.lock.json."
-          gh release upload core-abi1 build/core/code-red-mgba-wasm.data build/core/code-red-mgba-wasm.data.sha256 --clobber
+          TAG="core-$(core/version.sh)"
+          if gh release view "$TAG" >/dev/null 2>&1; then echo "$TAG already published"; exit 0; fi
+          gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --title "Code Red core $TAG" \
+            --notes "ROM-agnostic EmulatorJS mGBA core (ABI 1), built by .github/workflows/core.yml from core/ at $GITHUB_SHA. Pin in core/release.json."
+          gh release upload "$TAG" build/core/code-red-mgba-wasm.data build/core/code-red-mgba-wasm.data.sha256
