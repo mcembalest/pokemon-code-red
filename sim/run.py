@@ -29,7 +29,8 @@ def main():
         result = {'ok': False, 'error': str(e), 'frame': g.frame, 'map': g.map()}
     result['wall_seconds'] = round(time.time() - t, 1)
     result['speedup'] = round(g.frame / 59.73 / max(result['wall_seconds'], 0.1))
-    out = ROOT / f'build/sim/results/{args.route}' + (f'-seed{args.seed}' if args.seed is not None else '') + '.json'
+    suffix = f'-seed{args.seed}' if args.seed is not None else ''
+    out = ROOT / 'build/sim/results' / f'{args.route}{suffix}.json'
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=2))
     print(json.dumps(result, indent=2))
