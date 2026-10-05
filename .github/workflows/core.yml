@@ -38,4 +38,4 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then echo "$TAG already published"; exit 0; fi
           gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --title "Code Red core $TAG" \
             --notes "ROM-agnostic EmulatorJS mGBA core (ABI 1), built by .github/workflows/core.yml from core/ at $GITHUB_SHA. Pin in core/release.json."
-          gh release upload "$TAG" build/core/code-red-mgba-wasm.data build/core/code-red-mgba-wasm.data.sha256
+          gh release upload "$TAG" build/core/code-red-mgba-wasm.data build/core/code-red-mgba-legacy-wasm.data build/core/SHA256SUMS

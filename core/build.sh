@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Build the Code Red mGBA core for EmulatorJS from pinned sources.
 #   requires: emsdk 3.1.74 activated (emcc on PATH), git, make, python3, 7z
-#   output:   build/core/code-red-mgba-wasm.data (+ .sha256)
+#   output:   build/core/code-red-mgba-wasm.data         (WebGL2 / GLES3)
+#             build/core/code-red-mgba-legacy-wasm.data  (WebGL1 / GLES2, EmulatorJS's GBA default)
+#             build/core/SHA256SUMS
 # The core is ROM-agnostic (core/adapter.inc); rebuild only when the
 # adapter, patches or pinned sources change.
 set -euo pipefail
@@ -37,6 +39,7 @@ git -C "$WORK/RetroArch" apply "$ROOT/core/retroarch.patch"
 cp "$WORK/mgba/mgba_libretro_emscripten.bc" "$WORK/RetroArch/emulatorjs/"
 rm -rf "$WORK/EmulatorJS"
 (cd "$WORK/RetroArch/emulatorjs" && emmake ./build-emulatorjs.sh --clean)
+(cd "$WORK/RetroArch/emulatorjs" && emmake ./build-emulatorjs.sh --clean --legacy)
 
 PKG="$WORK/package"; rm -rf "$PKG"; mkdir -p "$PKG"
 python3 - "$WORK" "$PKG" "$LOCK" "$ROOT/core/adapter.inc" <<'PY'
@@ -53,7 +56,9 @@ cores = json.loads((work/'build/cores.json').read_text())
     'adapter_sha256': hashlib.sha256(adapter.read_bytes()).hexdigest(),
 }, indent=2))
 PY
-DATA="$WORK/EmulatorJS/data/cores/mgba-wasm.data"
-(cd "$PKG" && 7z a -t7z "$DATA" core.json license.txt build.json code-red.json >/dev/null)
-cp "$DATA" "$OUT/code-red-mgba-wasm.data"
-(cd "$OUT" && sha256sum code-red-mgba-wasm.data | tee code-red-mgba-wasm.data.sha256)
+for VARIANT in mgba-wasm.data mgba-legacy-wasm.data; do
+  DATA="$WORK/EmulatorJS/data/cores/$VARIANT"
+  (cd "$PKG" && 7z a -t7z "$DATA" core.json license.txt build.json code-red.json >/dev/null)
+  cp "$DATA" "$OUT/code-red-$VARIANT"
+done
+(cd "$OUT" && sha256sum code-red-mgba-wasm.data code-red-mgba-legacy-wasm.data | tee SHA256SUMS)
