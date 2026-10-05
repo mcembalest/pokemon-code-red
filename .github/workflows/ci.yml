@@ -45,6 +45,18 @@ jobs:
           python3 -m playwright install --with-deps chromium
           python3 scripts/serve_player.py & sleep 1
           python3 player/tests/e2e.py --phase boot
+      - name: iPhone Safari diagnostics (WebKit)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m playwright install --with-deps webkit
+          python3 player/tests/mobile.py --engine webkit > build/mobile-summary.txt 2>&1 || true
+          head -c 3000 build/mobile-summary.txt | tr '\n' ' ' | sed 's/^/::notice title=mobile::/' ; echo
+          TAG="debug-${GITHUB_REF_NAME//\//-}"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease --title "$TAG (CI diagnostics)" --notes "Screenshots from CI. Safe to delete."
+          gh release upload "$TAG" build/mobile/*.png build/mobile/report.json build/mobile-summary.txt --clobber
       - uses: actions/upload-artifact@v4
         if: always()
         with:
