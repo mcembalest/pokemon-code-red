@@ -8,3 +8,4 @@
 - Save structs: no layout changes without a migration.
 - Before pushing: `make test`; for game changes also `make check` and inspect captures; for player changes run `player/tests/e2e.py`.
 - Work on branches; the owner merges to `main` (publishes the player bundle). Website deploys need the owner's OK.
+- Backend (`worker/`) deploys only via `.github/workflows/worker.yml` on main. Never commit secrets; worker secrets live on the Worker (Cloudflare dashboard).
