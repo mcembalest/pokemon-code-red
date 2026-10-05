@@ -48,6 +48,13 @@ class MapInfo:
         return [(x, y) for y in range(self.height) for x in range(self.width)
                 if self.passable(x, y) and self.encounter_type(x, y) == 1]
 
+    LEDGES = {0x38: 'RIGHT', 0x39: 'LEFT', 0x3A: 'UP', 0x3B: 'DOWN'}  # MB_JUMP_*
+
+    def ledge(self, x: int, y: int) -> str | None:
+        if not (0 <= x < self.width and 0 <= y < self.height) or not self.attrs:
+            return None
+        return self.LEDGES.get(self.attrs[y * self.width + x] & 0x1FF)
+
     def passable(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height and not (self.blocks[y * self.width + x] & COLLISION_MASK)
 
@@ -82,7 +89,7 @@ def map_info(name: str) -> MapInfo:
     g, n, _, data, layout = _map_index()['name'][name]
     raw = (DECOMP / layout['blockdata_filepath']).read_bytes()
     blocks = tuple(int.from_bytes(raw[i:i + 2], 'little') for i in range(0, len(raw), 2))
-    warps = tuple((w['x'], w['y'], w['dest_map'], int(w['dest_warp_id'])) for w in data.get('warp_events', []))
+    warps = tuple((w['x'], w['y'], w['dest_map'], int(w['dest_warp_id']) if str(w['dest_warp_id']).isdigit() else -1) for w in data.get('warp_events', []))
     primary, secondary = _tileset_attrs(layout['primary_tileset']), _tileset_attrs(layout['secondary_tileset'])
     def attr(block):
         mid = block & 0x3FF
@@ -359,7 +366,7 @@ class World(Game):
 
     def _plan(self, goal: tuple[int, int]) -> list[str] | None:
         here, m = self.pos(), map_info(self.map())
-        npcs = self.npc_tiles() - {goal}
+        npcs = (self.npc_tiles() | {(w[0], w[1]) for w in m.warps}) - {goal}  # never step on other warps
         moves = {'UP': (0, -1), 'DOWN': (0, 1), 'LEFT': (-1, 0), 'RIGHT': (1, 0)}
         prev, queue, name = {here: None}, deque([here]), m.name
         while queue:
@@ -372,19 +379,27 @@ class World(Game):
                 return out[::-1]
             for d, (dx, dy) in moves.items():
                 nxt = (cur[0] + dx, cur[1] + dy)
+                if m.ledge(*nxt) == d:  # one-way jump lands two tiles on
+                    nxt = (nxt[0] + dx, nxt[1] + dy)
+                    if not m.passable(*nxt):
+                        continue
+                elif not (nxt == goal or m.passable(*nxt)):
+                    continue
                 if nxt in prev or nxt in npcs or (name, cur, d) in self._bumped:
                     continue
-                if nxt == goal or m.passable(*nxt):
-                    prev[nxt] = (cur, d)
-                    queue.append(nxt)
+                prev[nxt] = (cur, d)
+                queue.append(nxt)
         return None
 
-    def walk_to(self, x: int, y: int, max_steps: int = 400, battle_policy=None) -> bool:
+    def walk_to(self, x: int, y: int, max_steps: int = 400, battle_policy=None, stop_on_event: bool = False) -> bool:
         """Walk to (x, y) on the current map: replan every step, learn blocked moves,
-        fight whatever starts on the way. True when there (or when a warp moved us)."""
+        fight whatever starts on the way (or, with stop_on_event, return False as soon as
+        something takes control). True when there (or when a warp moved us)."""
         start_map = self.map()
         for _ in range(max_steps):
             if not self.free():
+                if stop_on_event:
+                    return False
                 self.handle(battle_policy)
             if self.map() != start_map:
                 return True
@@ -424,20 +439,35 @@ class World(Game):
                 return True
         return False
 
-    def travel(self, dest: str, battle_policy=None, avoid: tuple = (), via: tuple = ()) -> bool:
-        """Go to another map: BFS over map connections + warps (from decomp data), then walk it.
-        `via`: maps to pass through in order (when the shortest map path is physically blocked)."""
-        for stop in via:
-            if not self.travel(stop, battle_policy, avoid):
+    def travel(self, dest: str, battle_policy=None, avoid: tuple = (), via: tuple = (), attempts: int = 6, stop=None) -> bool:
+        """Go to another map, planning over walkable regions (warps, map edges, one-way ledges).
+        `avoid`: maps that are story-gated right now. `via`: maps to pass through in order."""
+        for waypoint in via:
+            if not self.travel(waypoint, battle_policy, avoid):
                 return False
-        hops = map_route(self.map(), dest, avoid)
-        if hops is None:
-            raise ValueError(f'no route {self.map()} -> {dest}')
-        for kind, arg, nxt in hops:
-            ok = self.edge_exit(arg, battle_policy) if kind == 'edge' else self.warp_to(nxt)
-            if not ok or self.map() != nxt:
-                return False
-        return True
+        for _attempt in range(attempts):
+            if self.map() == dest:
+                return True
+            hops = region_route(self.map(), self.pos(), dest, avoid)
+            if hops is None:
+                raise ValueError(f'no route {self.map()} {self.pos()} -> {dest}')
+            for kind, arg, nxt, _rid in hops:
+                if stop and stop():
+                    return False
+                here = self.map()
+                if kind == 'edge':
+                    ok = self.edge_exit(arg, battle_policy)
+                elif kind == 'warp':
+                    # several door/mat tiles may lead there; only some are real exits
+                    ok = self.take_warp(*arg) and self.map() == nxt
+                    if not ok and self.map() == here:
+                        ok = self.warp_to(nxt)
+                else:  # ledge
+                    (sx, sy), d = arg
+                    ok = self.walk_to(sx, sy, battle_policy=battle_policy) and self.step(d)
+                if not ok or (kind != 'ledge' and self.map() != nxt):
+                    break  # replan from wherever we ended up
+        return self.map() == dest
 
     def take_warp(self, x: int, y: int) -> bool:
         """Walk onto a warp (door, stairs, exit) and through it. True when the map changed."""
@@ -467,3 +497,105 @@ class World(Game):
                 return True
             self.load_state(here)
         return False
+
+
+# ---- region-level routing (connected walkable areas, so split maps like Route 4 / Mt. Moon work)
+@lru_cache(maxsize=None)
+def regions(name: str) -> dict:
+    """cell -> region id for passable cells (warp tiles count as passable)."""
+    m = map_info(name)
+    warps = {(w[0], w[1]) for w in m.warps}
+    ok = lambda c: 0 <= c[0] < m.width and 0 <= c[1] < m.height and (m.passable(*c) or c in warps)
+    comp, rid = {}, 0
+    for y in range(m.height):
+        for x in range(m.width):
+            if (x, y) in comp or not ok((x, y)):
+                continue
+            queue = deque([(x, y)])
+            comp[(x, y)] = rid
+            while queue:
+                cx, cy = queue.popleft()
+                for nxt in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+                    if nxt not in comp and ok(nxt):
+                        comp[nxt] = rid
+                        queue.append(nxt)
+            rid += 1
+    return comp
+
+
+def _region_of(name: str, cell) -> int | None:
+    r = regions(name)
+    if cell in r:
+        return r[cell]
+    # nearest region within 1 tile (arrival tiles next to doors)
+    for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+        if (cell[0] + dx, cell[1] + dy) in r:
+            return r[(cell[0] + dx, cell[1] + dy)]
+    return None
+
+
+@lru_cache(maxsize=None)
+def _region_hops(name: str, rid: int) -> tuple:
+    """Moves out of (map, region): ('warp', (x, y), dest_map, dest_region) / ('edge', dir, dest_map, dest_region)."""
+    g, n, folder, data, layout = _map_index()['name'][name]
+    m, comp, out = map_info(name), regions(name), []
+    for x, y, dest, wid in m.warps:
+        if comp.get((x, y)) != rid or dest not in _map_index()['name']:
+            continue
+        dw = map_info(dest).warps
+        if 0 <= wid < len(dw):
+            drid = _region_of(dest, (dw[wid][0], dw[wid][1]))
+            if drid is not None:
+                out.append(('warp', (x, y), dest, drid))
+    step = {'UP': (0, -1), 'DOWN': (0, 1), 'LEFT': (-1, 0), 'RIGHT': (1, 0)}
+    seen_ledge = set()
+    for y in range(m.height):
+        for x in range(m.width):
+            d = m.ledge(x, y)
+            if not d:
+                continue
+            dx, dy = step[d]
+            src, dst = (x - dx, y - dy), (x + dx, y + dy)
+            if comp.get(src) == rid and dst in comp and comp[dst] != rid and comp[dst] not in seen_ledge:
+                seen_ledge.add(comp[dst])
+                out.append(('ledge', (src, d), name, comp[dst]))
+    for c in data.get('connections') or []:
+        d, other, off = c['direction'], c['map'], int(c['offset'])
+        if other not in _map_index()['name']:
+            continue
+        om = map_info(other)
+        if d == 'up':
+            pairs = [((x, 0), (x - off, om.height - 1)) for x in range(m.width)]
+        elif d == 'down':
+            pairs = [((x, m.height - 1), (x - off, 0)) for x in range(m.width)]
+        elif d == 'left':
+            pairs = [((0, y), (om.width - 1, y - off)) for y in range(m.height)]
+        else:
+            pairs = [((m.width - 1, y), (0, y - off)) for y in range(m.height)]
+        seen = set()
+        for mine, theirs in pairs:
+            if comp.get(mine) == rid and theirs in regions(other) and om.passable(*theirs):
+                drid = regions(other)[theirs]
+                if drid not in seen:
+                    seen.add(drid)
+                    out.append(('edge', d, other, drid))
+    return tuple(out)
+
+
+def region_route(src: str, src_pos, dest: str, avoid: tuple = ()) -> list | None:
+    start = (src, _region_of(src, src_pos))
+    prev, queue = {start: None}, deque([start])
+    while queue:
+        cur = queue.popleft()
+        if cur[0] == dest:
+            out = []
+            while prev[cur]:
+                cur, hop = prev[cur]
+                out.append(hop)
+            return out[::-1]
+        for hop in _region_hops(*cur):
+            nxt = (hop[2], hop[3])
+            if nxt not in prev and hop[2] not in avoid:
+                prev[nxt] = (cur, hop)
+                queue.append(nxt)
+    return None

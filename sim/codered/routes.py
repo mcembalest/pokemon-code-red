@@ -90,7 +90,7 @@ def choose_starter(g: World, species: str = 'BULBASAUR') -> bool:
 
 def to_rival_battle(g: World) -> bool:
     """After choosing: walk toward the exit; the rival challenges. Returns once the battle is running."""
-    g.walk_to(6, 8)  # rival stops you on the way out
+    g.walk_to(6, 8, stop_on_event=True)  # rival stops you on the way out
     return g.mash(g.in_battle, 'A', limit=6000, period=10)
 
 
@@ -177,3 +177,125 @@ def grind(g: World, level: int, area: str, city: str, policy=None, max_rounds: i
             if lead['hp'] < 0.5 * lead['max_hp'] or g.map() != area or lead['level'] >= level:
                 break
     return g.party()[0]['level'] >= level
+
+
+def journey(g: World, dest: str, center_city: str, avoid: tuple = (), low: float = 0.4, tries: int = 6) -> bool:
+    """travel() that retreats to `center_city`'s Pokémon Center whenever the lead drops below `low` HP."""
+    hurt = lambda: g.party()[0]['hp'] < low * g.party()[0]['max_hp']
+    for _ in range(tries):
+        if hurt():
+            g.travel(center_city, avoid=avoid)
+            heal(g)
+        if g.travel(dest, avoid=avoid, stop=hurt):
+            return True
+        if not hurt():
+            g.screenshot(ROOT / f'build/sim/stuck-{g.map()}.png')
+    return g.map() == dest
+
+
+MT_MOON_AVOID = ('MAP_DIGLETTS_CAVE_NORTH_ENTRANCE', 'MAP_DIGLETTS_CAVE_SOUTH_ENTRANCE')
+
+
+def mt_moon_fossil(g: World) -> bool:
+    """B2F: trigger Super Nerd Miguel (coord event at 14,11), beat him, take the Dome Fossil (13,7);
+    he then steps aside and the way to the exit ladder opens. data/maps/MtMoon_B2F/scripts.inc"""
+    if not journey(g, 'MAP_MT_MOON_B2F', 'MAP_ROUTE4', MT_MOON_AVOID):
+        return False
+    if not ready_for_boss(g, 'MAP_ROUTE4', 'MAP_MT_MOON_B2F', MT_MOON_AVOID, spot=(15, 11)):
+        return False
+    g.walk_to(14, 11)
+    g.handle()
+    if not g.walk_to(13, 8):
+        return False
+    g.interact('UP')
+    g.handle()  # YES (default) -> obtained DOME FOSSIL
+    return 'DOME_FOSSIL' in g.bag()
+
+
+def progress_trace(path=None):
+    """A trace callback: one line of where/what, plus a screenshot at `path`."""
+    import time
+    t0 = time.time()
+    def trace(g):
+        lead = g.party()[0] if g.party() else {}
+        print(f"{time.time() - t0:6.0f}s f{g.frame} {g.map()} {g.pos()} L{lead.get('level')} "
+              f"{lead.get('hp')}/{lead.get('max_hp')} free={g.free()} battle={g.in_battle()}", flush=True)
+        if path:
+            g.screenshot(path)
+    return trace
+
+
+def ready_for_boss(g: World, center_city: str, back_to: str, avoid: tuple = (), need: float = 0.9,
+                   spot: tuple | None = None, tries: int = 8) -> bool:
+    """Arrive at `spot` on `back_to` with >= `need` HP: heal and return as often as needed.
+    Trainers on the way stay beaten, so each round costs less HP."""
+    for _ in range(tries):
+        if g.map() == back_to and spot and g.pos() != spot:
+            g.walk_to(*spot)
+        lead = g.party()[0]
+        if g.map() == back_to and (not spot or g.pos() == spot) and lead['hp'] >= need * lead['max_hp']:
+            return True
+        if lead['hp'] < need * lead['max_hp']:
+            g.travel(center_city, avoid=avoid)
+            heal(g)
+        journey(g, back_to, center_city, avoid)
+    return False
+
+
+# ---- full runs ------------------------------------------------------------------
+SYS_FLAGS = 0x800
+FLAG_BADGE01_GET, FLAG_BADGE02_GET = SYS_FLAGS + 0x20, SYS_FLAGS + 0x21  # include/constants/flags.h
+
+
+def to_misty(g: World, starter: str = 'BULBASAUR', log=print) -> dict:
+    """Power-on -> Brock -> Mt. Moon -> Misty, inputs only (plus Options-menu settings and nothing else).
+    Returns a summary; checkpoints are saved after each leg."""
+    forest = ('MAP_ROUTE2_VIRIDIAN_FOREST_SOUTH_ENTRANCE', 'MAP_VIRIDIAN_FOREST', 'MAP_ROUTE2_VIRIDIAN_FOREST_NORTH_ENTRANCE')
+    def leg(name, fn):
+        ok = fn()
+        lead = g.party()[0] if g.party() else {}
+        log(f'{name:<14} {"ok " if ok else "FAIL"} frame {g.frame:>7} ({g.frame / 59.73 / 60:5.1f} game-min) '
+            f'{g.map()} L{lead.get("level")} {lead.get("hp")}/{lead.get("max_hp")}')
+        if not ok:
+            g.screenshot(CHECKPOINTS / f'fail-{name}.png')
+            raise RuntimeError(f'leg {name} failed')
+        save_checkpoint(g, name)
+
+    def rival():
+        g.fast_options()
+        outcomes = g.handle()
+        log(f'               rival battle: {outcomes}')
+        return g.free()  # losing the first rival battle is allowed by the game
+
+    def parcel():
+        return g.travel('MAP_VIRIDIAN_CITY_MART') and (g.handle() or True) and 'OAKS_PARCEL' in g.bag()
+
+    def pokedex():
+        return g.travel('MAP_PALLET_TOWN_PROFESSOR_OAKS_LAB') and talk_to(g, 'OBJ_EVENT_GFX_PROF_OAK') and 'OAKS_PARCEL' not in g.bag()
+
+    def pewter():
+        return g.travel('MAP_VIRIDIAN_CITY') and heal(g) and g.travel('MAP_PEWTER_CITY', via=forest)
+
+    def train_for_brock():
+        return heal(g) and grind(g, 13, 'MAP_VIRIDIAN_FOREST', 'MAP_PEWTER_CITY', to_area=('MAP_ROUTE2', forest[2]), to_city=(forest[2],)) \
+            and g.travel('MAP_PEWTER_CITY', via=(forest[2],)) and heal(g)
+
+    def brock():
+        return g.travel('MAP_PEWTER_CITY_GYM') and talk_to(g, 'OBJ_EVENT_GFX_BROCK') and g.flag(FLAG_BADGE01_GET)
+
+    def route4():
+        return g.travel('MAP_ROUTE4', avoid=MT_MOON_AVOID) and heal(g)
+
+    def cerulean():
+        return mt_moon_fossil(g) and journey(g, 'MAP_CERULEAN_CITY', 'MAP_ROUTE4', MT_MOON_AVOID) and heal(g)
+
+    def misty():
+        return g.travel('MAP_CERULEAN_CITY_GYM') and talk_to(g, 'OBJ_EVENT_GFX_MISTY') and g.flag(FLAG_BADGE02_GET)
+
+    leg('opening', lambda: opening(g, starter))
+    for name, fn in [('rival', rival), ('parcel', parcel), ('pokedex', pokedex), ('pewter', pewter),
+                     ('train_brock', train_for_brock), ('brock', brock), ('route4', route4),
+                     ('cerulean', cerulean), ('misty', misty)]:
+        leg(name, fn)
+    return {'frames': g.frame, 'game_minutes': round(g.frame / 59.73 / 60, 1), 'party': g.party(),
+            'badges': [g.flag(FLAG_BADGE01_GET), g.flag(FLAG_BADGE02_GET)]}

@@ -131,7 +131,16 @@ class Battle:
                 else:
                     self.act(ACTION_FIGHT)
             elif self.choosing_move():
-                self.use_move(self.best_move())
+                hp = (self.mon(0)['hp'], self.mon(1)['hp'])
+                stalled = hp == getattr(self, '_last_hp', None)
+                self._stall = getattr(self, '_stall', 0) + 1 if stalled else 0
+                self._last_hp = hp
+                k = self.best_move()
+                if self._stall >= 3:  # nothing changes (disabled/ineffective move?): try another with PP
+                    usable = [i for i, (mid, pp) in enumerate(zip(self.mon(0)['moves'], self.mon(0)['pp'])) if mid and pp and i != k]
+                    k = usable[self._stall % len(usable)] if usable else k
+                    self.log.append(f'stall {self._stall}: trying slot {k}')
+                self.use_move(k)
             elif g.learn_move_screen():
                 g.forget_weakest_move(self.rules)
             else:

@@ -71,6 +71,9 @@ class Game:
         self.keys = 0
         self.frame = 0
         self.battle_log: list[str] = []
+        self.trace = None          # callable(game), called every `trace_every` frames
+        self.trace_every = 6000
+        self._next_trace = 0
         self._video = (None, 0, 0, 0)
 
         @_ENV
@@ -105,6 +108,9 @@ class Game:
             self.lib.retro_run()
         self.frame += frames
         self.keys = 0
+        if self.trace and self.frame >= self._next_trace:
+            self._next_trace = self.frame + self.trace_every
+            self.trace(self)
 
     def press(self, *buttons: str, hold: int = 4, after: int = 12) -> None:
         self.run(hold, *buttons)
