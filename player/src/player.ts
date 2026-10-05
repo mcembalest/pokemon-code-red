@@ -146,6 +146,11 @@ export function mount(root: HTMLElement, options: { assets: string }) {
   }
 
   async function start(bytes: Uint8Array) {
+    // EmulatorJS builds its (hidden) screen-recording settings at startup and
+    // throws if MediaRecorder is missing (some WebKit builds). Recording is off.
+    if (typeof (window as { MediaRecorder?: unknown }).MediaRecorder === 'undefined') {
+      (window as { MediaRecorder?: unknown }).MediaRecorder = { isTypeSupported: () => false }
+    }
     const rom = await romInfo()
     gameUrl = URL.createObjectURL(new Blob([new Uint8Array(bytes).buffer], { type: 'application/octet-stream' }))
     Object.assign(emulator, {
@@ -158,9 +163,13 @@ export function mount(root: HTMLElement, options: { assets: string }) {
       EJS_startOnLoaded: true,
       EJS_disableDatabases: true,
       EJS_threads: false,
-      EJS_paths: { 'mgba-wasm.data': assets + 'emulator/cores/code-red-mgba-wasm.data' },
+      // Both renderer variants are Code Red builds. EmulatorJS picks one: legacy
+      // (WebGL1) by default for GBA, WebGL2 only if the user enables it in settings.
+      EJS_paths: {
+        'mgba-wasm.data': assets + 'emulator/cores/code-red-mgba-wasm.data',
+        'mgba-legacy-wasm.data': assets + 'emulator/cores/code-red-mgba-legacy-wasm.data',
+      },
       EJS_defaultOptions: {
-        webgl2Enabled: 'enabled',
         'virtual-gamepad': navigator.maxTouchPoints > 0 ? 'enabled' : 'disabled',
         'save-save-interval': '30',
       },

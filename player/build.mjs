@@ -25,14 +25,16 @@ mkdirSync(dist, { recursive: true })
 cpSync(need(join(root, '.cache/browser/data'), 'make browser-setup'), join(dist, 'emulator'), { recursive: true })
 cpSync(join(root, '.cache/browser/frontend/package/LICENSE'), join(dist, 'emulator/LICENSE'))
 const coreLock = JSON.parse(readFileSync(join(root, 'core/release.json'), 'utf8'))
-const core = readFileSync(need(join(root, 'build/core/code-red-mgba-wasm.data'), 'make core-fetch (or core/build.sh)'))
-const coreSha = createHash('sha256').update(core).digest('hex')
-if (coreSha !== coreLock.sha256 && !process.env.CODE_RED_UNPINNED_CORE) {
-  console.error(`core sha256 ${coreSha} != core/release.json ${coreLock.sha256}\n  -> make core-fetch, or set CODE_RED_UNPINNED_CORE=1 to test a local core build`)
-  process.exit(1)
+for (const [name, pinned] of Object.entries(coreLock.files)) {
+  const core = readFileSync(need(join(root, 'build/core', name), 'make core-fetch (or core/build.sh)'))
+  const sha = createHash('sha256').update(core).digest('hex')
+  if (sha !== pinned && !process.env.CODE_RED_UNPINNED_CORE) {
+    console.error(`${name} sha256 ${sha} != core/release.json ${pinned}\n  -> make core-fetch, or set CODE_RED_UNPINNED_CORE=1 to test a local core build`)
+    process.exit(1)
+  }
+  writeFileSync(join(dist, 'emulator/cores', name), core)
 }
-writeFileSync(join(dist, 'emulator/cores/code-red-mgba-wasm.data'), core)
-writeFileSync(join(dist, 'emulator/code-red-core.json'), JSON.stringify({ ...coreLock, sha256: coreSha, sources: JSON.parse(readFileSync(join(root, 'core/sources.lock.json'), 'utf8')) }, null, 2))
+writeFileSync(join(dist, 'emulator/code-red-core.json'), JSON.stringify({ ...coreLock, sources: JSON.parse(readFileSync(join(root, 'core/sources.lock.json'), 'utf8')) }, null, 2))
 writeFileSync(join(dist, 'emulator/SOURCES.txt'), [
   'EmulatorJS 4.2.3 (GPL-3.0): https://github.com/EmulatorJS/EmulatorJS/tree/v4.2.3',
   'Code Red mGBA core: built by .github/workflows/core.yml in https://github.com/mcembalest/pokemon-code-red',
