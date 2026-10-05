@@ -69,7 +69,7 @@ def main():
                   if (document.querySelector('.code-red-text-entry:not([hidden])')) { clearInterval(driver); gm.simulateInput(0, 3, 0); gm.simulateInput(0, 8, 0); fast(false) } }, 4)''')
                 name.wait_for(timeout=180000)
             drive_to_naming()
-            name.fill('Claude'); name.press('Enter')
+            name.fill('RED'); name.press('Enter')
             page.wait_for_function('document.querySelector(".code-red-text-entry").hidden', timeout=30000)
             step('player named')
             drive_to_naming()

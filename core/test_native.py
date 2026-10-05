@@ -111,8 +111,8 @@ def current():
     n = ew(box + 27, 1)[0]
     return ew(box + 28, n).decode()
 
-request(1, 1, 'Claude')
-check(current() == 'Claude' and ew(box + 26, 1)[0] == 0, 'write through pointer replaces name in game')
+request(1, 1, 'RED')
+check(current() == 'RED' and ew(box + 26, 1)[0] == 0, 'write through pointer replaces name in game')
 
 epoch = lib.ejs_cr_epoch()
 size = lib.retro_serialize_size(); state = C.create_string_buffer(size)

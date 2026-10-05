@@ -31,8 +31,8 @@ Plan: foundation-plan.md. Status per item:
 - intro → player + rival naming via DOM input
 - calc op 1 → 318; op 2 scratchpad: game paused, `typeof fetch` = undefined, Escape → reply 318, game resumes
 - request with stale epoch → cancelled
-- Start → SAVE → "Claude saved the game." → .sav (56,687 non-FF bytes) == IndexedDB backup
-- rebuild ROM with a layout-shifting text edit (`0d16f8e9…` → `dc846c6a…`), same core, reload → title shows CONTINUE / Claude → loads into bedroom
+- Start → SAVE → "RED saved the game." → .sav (56,687 non-FF bytes) == IndexedDB backup
+- rebuild ROM with a layout-shifting text edit (`0d16f8e9…` → `dc846c6a…`), same core, reload → title shows CONTINUE / RED → loads into bedroom
 - delete emulator's .srm → reload → "Restored your save." from backup
 - zero external requests, zero page errors
 - headless mGBA: smoke (intro marker), `tests/native/naming.py`, `tests/native/pc.py` pass
