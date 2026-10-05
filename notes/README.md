@@ -10,6 +10,7 @@ Working notes. Outline + links + quotes. Not docs.
 | [foundation-plan.md](foundation-plan.md) | proposed order of work to make the foundation robust |
 | [foundation-2026-10-04.md](foundation-2026-10-04.md) | what was done + verified for that plan |
 | [bridge-v2.md](bridge-v2.md) | sketch: general game <-> browser channel |
+| [sim-2026-10-05.md](sim-2026-10-05.md) | headless simulator: power-on -> Misty, 6/6 seeds |
 | [sources.md](sources.md) | external links |
 
 Conventions
