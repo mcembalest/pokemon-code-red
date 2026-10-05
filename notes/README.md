@@ -4,6 +4,7 @@ Working notes. Outline + links + quotes. Not docs.
 
 | file | what |
 |---|---|
+| [design.md](design.md) | goals, decisions, open questions, risks — the game itself |
 | [state-2026-10-04.md](state-2026-10-04.md) | what exists, where (branches, commits, files) |
 | [fragility-audit.md](fragility-audit.md) | weak points in browser / runtime / dev cycle, with evidence |
 | [memory-budget.md](memory-budget.md) | measured RAM / ROM / save numbers from vanilla build |
