@@ -15,6 +15,12 @@ BASE = ROOT / 'local/baserom.gba'
 OUT = ROOT / 'build/e2e'
 A, B, SELECT, START, RIGHT, LEFT, UP, DOWN = 8, 0, 2, 3, 7, 6, 4, 5
 
+def map_symbol(name):
+    """Address from the build's ELF (test-only symbols; the player uses rom.json)."""
+    import subprocess
+    out = subprocess.check_output(['arm-none-eabi-nm', str(ROOT / '.cache/pokefirered/pokefirered.elf')], text=True)
+    return next(int(line.split()[0], 16) for line in out.splitlines() if line.split()[-1:] == [name])
+
 HELPERS = r'''
 window.gm = EJS_emulator.gameManager;
 window.frame = () => gm.functions.getFrameNum();
@@ -75,10 +81,16 @@ def main():
             page.locator('canvas').screenshot(path=str(OUT / 'after-naming.png'))
 
             # Finish the intro: mash A (fast) until Oak's speech ends and the bedroom loads.
-            page.evaluate('''(async () => { fast(true); for (let i = 0; i < 60; i++) await press(8, 4, 30); fast(false) })()''')
-            page.wait_for_timeout(500)
-            page.wait_for_function('frame() > 0', timeout=5000)
-            page.wait_for_timeout(25000)
+            # All waits count emulated frames, not wall time (CI emulates slower).
+            # Stop as soon as gMain.callback2 == CB2_Overworld; extra A presses would talk to the NES.
+            overworld = page.evaluate('''async ([main, cb2]) => {
+              const m = gm.Module, cb = () => new DataView(m.HEAPU8.buffer, m._ejs_cr_iwram()).getUint32(main - 0x03000000 + 4, true);
+              fast(true);
+              for (let i = 0; i < 200 && cb() !== (cb2 | 1); i++) await press(8, 4, 30);
+              fast(false); await waitFrames(120);
+              return cb() === (cb2 | 1)
+            }''', [map_symbol('gMain'), map_symbol('CB2_Overworld')])
+            assert overworld, 'did not reach the overworld after the intro'
             page.locator('canvas').screenshot(path=str(OUT / 'bedroom.png'))
 
             # Calculation bridge, op 1 (fixed stats-sum in a QuickJS worker), injected via rom.json symbol.
@@ -124,22 +136,22 @@ def main():
             results['calc_stale_cancelled'] = True
             step('stale request cancelled ok')
 
-            # In-game save: Start -> menu screenshot (navigate after looking).
-            page.evaluate('press(3, 6, 40)')
-            page.wait_for_timeout(1500)
+            # In-game save: Start -> SAVE (3rd) -> A -> YES. Frame-based, confirmed by SRAM contents.
+            page.evaluate('''window.sramWritten = () => { gm.saveSaveFiles(); const a = gm.getSaveFile(false); return a ? a.reduce((n, b) => n + (b !== 0xff ? 1 : 0), 0) : 0 }''')
+            page.evaluate('''(async () => { await press(3, 6, 90) })()''')
             page.locator('canvas').screenshot(path=str(OUT / 'start-menu.png'))
-            # BAG, <name>, SAVE: down twice, A, confirm YES, wait for the write.
-            for i, key in enumerate([DOWN, DOWN, A]):
-                page.evaluate(f'press({key}, 6, 30)')
-                page.wait_for_timeout(800)
-                page.locator('canvas').screenshot(path=str(OUT / f'save-step-{i}.png'))
-            page.wait_for_timeout(2500)
-            page.locator('canvas').screenshot(path=str(OUT / 'save-prompt.png'))
-            page.evaluate(f'press({A}, 6, 30)')
-            page.wait_for_timeout(8000)
+            saved = page.evaluate('''(async () => {
+              await press(5, 6, 30); await press(5, 6, 30);
+              await press(8, 6, 240);              // SAVE: info window + "Would you like to save the game?"
+              for (let i = 0; i < 3; i++) {        // YES (or finish text that was still printing), then wait for the write
+                await press(8, 6, 600);
+                if (sramWritten() > 1000) return true
+              }
+              return false
+            })()''')
             page.locator('canvas').screenshot(path=str(OUT / 'saved.png'))
-            page.evaluate('(async () => { await press(8, 6, 30) })()')
-            page.wait_for_timeout(1000)
+            assert saved, 'in-game save did not reach SRAM'
+            page.evaluate('(async () => { await press(8, 6, 60) })()')
             # Force the autosave flush (it also runs every 10 s and on page hide).
             page.evaluate('document.dispatchEvent(new Event("visibilitychange"))')
             page.evaluate('window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true }))')
