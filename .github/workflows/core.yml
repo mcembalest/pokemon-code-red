@@ -1,0 +1,43 @@
+name: core
+# Builds the ROM-agnostic EmulatorJS mGBA core from pinned sources.
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Publish as GitHub release asset (tag core-abi1)
+        type: boolean
+        default: false
+  push:
+    paths: [core/**, .github/workflows/core.yml]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+      - name: Install pinned emsdk
+        run: |
+          EMSDK_REV=$(python3 -c "import json;print(json.load(open('core/sources.lock.json'))['emsdk']['revision'])")
+          SDK=$(python3 -c "import json;print(json.load(open('core/sources.lock.json'))['emsdk']['sdk'])")
+          git init -q "$RUNNER_TEMP/emsdk" && cd "$RUNNER_TEMP/emsdk"
+          git fetch -q --depth=1 https://github.com/emscripten-core/emsdk.git "$EMSDK_REV" && git checkout -q FETCH_HEAD
+          ./emsdk install "$SDK" && ./emsdk activate "$SDK"
+          echo "EMSDK=$RUNNER_TEMP/emsdk" >> "$GITHUB_ENV"
+      - name: Build core
+        run: |
+          source "$EMSDK/emsdk_env.sh"
+          core/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: code-red-core
+          path: build/core/
+      - name: Release
+        if: inputs.release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view core-abi1 >/dev/null 2>&1 || gh release create core-abi1 --title "Code Red core (ABI 1)" --notes "ROM-agnostic EmulatorJS mGBA core. Built by .github/workflows/core.yml from core/sources.lock.json."
+          gh release upload core-abi1 build/core/code-red-mgba-wasm.data build/core/code-red-mgba-wasm.data.sha256 --clobber

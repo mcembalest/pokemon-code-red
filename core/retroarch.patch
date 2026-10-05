@@ -1,0 +1,11 @@
+diff --git a/Makefile.emulatorjs b/Makefile.emulatorjs
+index fbf6fa57c..0e0fe5bf1 100644
+--- a/Makefile.emulatorjs
++++ b/Makefile.emulatorjs
+@@ -335,3 +335,6 @@ clean:
+ 	rm -f $(TARGET)
+ 
+ .PHONY: all clean mv_libretro
++
++# Code Red core adapter exports (core/adapter.inc)
++EXPORTED_FUNCTIONS := $(EXPORTED_FUNCTIONS),_ejs_cr_abi,_ejs_cr_epoch,_ejs_cr_ewram,_ejs_cr_ewram_size

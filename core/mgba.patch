@@ -1,0 +1,39 @@
+diff --git a/link.T b/link.T
+index 9e82b5dd..9be803b2 100644
+--- a/link.T
++++ b/link.T
+@@ -1,4 +1,4 @@
+ {
+-   global: retro_*;
++   global: retro_*; ejs_cr_abi; ejs_cr_epoch; ejs_cr_ewram; ejs_cr_ewram_size;
+    local: *;
+ };
+diff --git a/src/platform/libretro/libretro.c b/src/platform/libretro/libretro.c
+index 4b05a422..5199ec88 100644
+--- a/src/platform/libretro/libretro.c
++++ b/src/platform/libretro/libretro.c
+@@ -1947,7 +1947,10 @@ static void _setupMaps(struct mCore* core) {
+ #endif
+ }
+ 
++static void code_red_core_invalidate(void);
++
+ void retro_reset(void) {
++	code_red_core_invalidate();
+ 	core->reset(core);
+ 	mRumbleIntegratorReset(&rumble);
+ 	_setupMaps(core);
+@@ -2197,6 +2200,7 @@ bool retro_unserialize(const void* data, size_t size) {
+ 	}
+ 	struct VFile* vfm = VFileFromConstMemory(data, size);
+ 	bool success = mCoreLoadStateNamed(core, vfm, SAVESTATE_RTC);
++	code_red_core_invalidate();
+ 	vfm->close(vfm);
+ 	return success;
+ }
+@@ -2609,3 +2613,5 @@ static int32_t _readGyroZ(struct mRotationSource* source) {
+ 	UNUSED(source);
+ 	return gyroZ;
+ }
++
++#include "code_red_adapter.inc"
