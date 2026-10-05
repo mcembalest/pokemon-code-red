@@ -6,6 +6,7 @@ import { createRepl } from './repl.ts'
 import { bindGameText } from './game-text.ts'
 import { BASE_SHA1, ROM_SIZE, sha1 } from './patch.ts'
 import { bindGameKeyboard, type GameInput } from './keyboard.ts'
+import { createSpeed, type SpeedControls } from './speed.ts'
 import { applyCopyPatch } from './copy-patch.ts'
 import { restoreRom } from './rom-cache.ts'
 import { readLocal, writeLocal, romKey, SOURCE_KEY } from './storage.ts'
@@ -23,7 +24,7 @@ export interface RomInfo {
   symbols: Record<string, { address: number; bytes: number }>
 }
 
-type GameManager = GameInput & SaveGame & LifecycleGame & { Module: unknown }
+type GameManager = GameInput & SaveGame & LifecycleGame & { Module: unknown; functions: SpeedControls }
 type EmulatorWindow = Window & {
   EJS_player?: string; EJS_core?: string; EJS_gameUrl?: string; EJS_gameName?: string
   EJS_pathtodata?: string; EJS_DEBUG_XX?: boolean; EJS_startOnLoaded?: boolean
@@ -48,8 +49,11 @@ const TEMPLATE = `
   </div>
   <p class="code-red-status" data-status role="status" aria-live="polite">Loading…</p>
   <p class="code-red-error" data-error role="alert" hidden></p>
-  <p class="code-red-muted code-red-help">PC → Code opens a JavaScript scratchpad. Type names on naming screens. Click the game to use arrow keys; hold Space for 10× speed. Your in-game save is kept in this browser and survives updates.</p>
-  <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>`
+  <p class="code-red-muted code-red-help">PC → Code opens a JavaScript scratchpad. Type names on naming screens. Tap 10× to speed up (or hold Space on a keyboard). Your in-game save is kept in this browser and survives updates.</p>
+  <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>
+  <div class="code-red-toolbar" data-toolbar hidden>
+    <button class="code-red-speed" data-speed type="button" aria-pressed="false">10×</button>
+  </div>`
 
 export function mount(root: HTMLElement, options: { assets: string }) {
   const assets = options.assets.endsWith('/') ? options.assets : options.assets + '/'
@@ -60,6 +64,8 @@ export function mount(root: HTMLElement, options: { assets: string }) {
   const status = root.querySelector<HTMLElement>('[data-status]')!
   const error = root.querySelector<HTMLElement>('[data-error]')!
   const game = root.querySelector<HTMLElement>('[data-game]')!
+  const toolbar = root.querySelector<HTMLElement>('[data-toolbar]')!
+  const speedButton = root.querySelector<HTMLButtonElement>('[data-speed]')!
   const emulator = window as EmulatorWindow
   const disposers: (() => void)[] = []
   let info: RomInfo | undefined
@@ -131,7 +137,16 @@ export function mount(root: HTMLElement, options: { assets: string }) {
       })
       const lifecycle = bindGameLifecycle(gm, () => { if (consoleActive) { calc.cancel(true); keyboard.release() } })
       const naming = bindGameText(game, new NamingMailbox(memory, symbol('gCodeRedNamingMailbox')), epoch, () => keyboard.release(), () => consoleActive || menuOpen())
-      const keyboard = bindGameKeyboard(game, gm, epoch, () => consoleActive || menuOpen() || ejs.controlPopup.parentElement!.parentElement!.getAttribute('hidden') === null)
+      const speed = createSpeed(gm.functions, (on, toggled) => {
+        speedButton.setAttribute('aria-pressed', String(toggled))
+        speedButton.classList.toggle('code-red-speed-on', on)
+      })
+      // click covers tap, mouse and keyboard; pointerdown preventDefault keeps focus on the game.
+      speedButton.onpointerdown = event => event.preventDefault()
+      speedButton.onclick = () => speed.toggle()
+      toolbar.hidden = false
+      disposers.push(() => { speed.reset(); toolbar.hidden = true; speedButton.onpointerdown = speedButton.onclick = null })
+      const keyboard = bindGameKeyboard(game, gm, speed, epoch, () => consoleActive || menuOpen() || ejs.controlPopup.parentElement!.parentElement!.getAttribute('hidden') === null)
       disposers.push(() => keyboard.dispose(), () => lifecycle.dispose(), () => naming.dispose(), () => calc.dispose(), () => repl.dispose())
       ejs.on('exit', () => { while (disposers.length) disposers.pop()!() })
     } catch (problem) {

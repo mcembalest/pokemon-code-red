@@ -1,12 +1,14 @@
+import type { createSpeed } from './speed.ts'
+
 export interface GameInput {
   simulateInput(player: number, index: number, value: number): void
-  functions: { setFastForwardRatio(ratio: number): void; toggleFastForward(enabled: number): void }
 }
+type Speed = ReturnType<typeof createSpeed>
 const arrows: Record<string, number> = { ArrowUp: 4, ArrowDown: 5, ArrowLeft: 6, ArrowRight: 7 }
 const editing = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('input, textarea, select, button, a, [contenteditable], [role="textbox"]'))
 
-export function bindGameKeyboard(game: HTMLElement, gm: GameInput, epochOf: () => number, menuOpen: () => boolean = () => false) {
-  let focused = false, speeding = false, disposed = false
+export function bindGameKeyboard(game: HTMLElement, gm: GameInput, speed: Speed, epochOf: () => number, menuOpen: () => boolean = () => false) {
+  let focused = false, disposed = false
   let epoch = epochOf()
   const held = new Set<number>()
   const simulate = gm.simulateInput
@@ -16,8 +18,7 @@ export function bindGameKeyboard(game: HTMLElement, gm: GameInput, epochOf: () =
   }
   gm.simulateInput = wrapped
   const release = () => {
-    if (speeding) gm.functions.toggleFastForward(0)
-    speeding = false
+    speed.hold(false)
     for (const index of held) simulate.call(gm, 0, index, 0)
     held.clear()
   }
@@ -34,6 +35,15 @@ export function bindGameKeyboard(game: HTMLElement, gm: GameInput, epochOf: () =
     focused = game.contains(document.activeElement) && !editing(document.activeElement)
     if (!focused) release()
   }
+  // Focus moving between elements INSIDE the game (EmulatorJS focuses its own
+  // element on every touchstart) must not release buttons: during focusout,
+  // activeElement is still <body>, so use relatedTarget to see where focus goes.
+  const focusout = (event: FocusEvent) => {
+    const next = event.relatedTarget
+    if (next instanceof Node && game.contains(next) && !editing(next)) return
+    focused = false
+    release()
+  }
   const key = (event: KeyboardEvent) => {
     if (menuOpen()) { release(); return }
     if (editing(event.target) || !focused || event.ctrlKey || event.metaKey || event.altKey) {
@@ -46,19 +56,19 @@ export function bindGameKeyboard(game: HTMLElement, gm: GameInput, epochOf: () =
     event.preventDefault()
     event.stopImmediatePropagation()
     if (event.code === 'Space') {
-      if (event.type === 'keyup') { if (speeding) gm.functions.toggleFastForward(0); speeding = false }
-      else if (!event.repeat && !speeding) { gm.functions.setFastForwardRatio(10); gm.functions.toggleFastForward(1); speeding = true }
+      if (event.type === 'keyup') speed.hold(false)
+      else if (!event.repeat) speed.hold(true)
     } else if (event.type === 'keyup') gm.simulateInput(0, index!, 0)
     else if (!event.repeat) gm.simulateInput(0, index!, 1)
   }
-  const up = (event: KeyboardEvent) => { if (event.code === 'Space' && speeding) { gm.functions.toggleFastForward(0); speeding = false } }
+  const up = (event: KeyboardEvent) => { if (event.code === 'Space') speed.hold(false) }
   const blur = () => { focused = false; release() }
   const hide = () => { if (document.hidden) blur() }
   const restore = () => { if (!document.hidden) focus() }
   game.tabIndex = 0
   window.addEventListener('pointerdown', pointer, true)
   document.addEventListener('focusin', focus)
-  game.addEventListener('focusout', focus)
+  game.addEventListener('focusout', focusout)
   game.addEventListener('keydown', key, true)
   game.addEventListener('keyup', key, true)
   window.addEventListener('keyup', up, true)
@@ -75,7 +85,7 @@ export function bindGameKeyboard(game: HTMLElement, gm: GameInput, epochOf: () =
     if (gm.simulateInput === wrapped) gm.simulateInput = simulate
     window.removeEventListener('pointerdown', pointer, true)
     document.removeEventListener('focusin', focus)
-    game.removeEventListener('focusout', focus)
+    game.removeEventListener('focusout', focusout)
     game.removeEventListener('keydown', key, true)
     game.removeEventListener('keyup', key, true)
     window.removeEventListener('keyup', up, true)

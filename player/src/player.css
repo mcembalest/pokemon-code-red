@@ -16,3 +16,7 @@
 .code-red-text-entry label { display: grid; gap: .25rem; }
 .code-red-text-entry input { max-width: 100%; font-size: 16px; padding: .5rem; }
 .code-red-text-entry small { flex-basis: 100%; }
+.code-red-toolbar { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+.code-red-toolbar[hidden] { display: none; }
+.code-red-speed { min-width: 64px; min-height: 44px; padding: 0.4rem 0.9rem; border: 2px solid var(--muted, #777); border-radius: 22px; background: transparent; color: inherit; font: 600 1rem/1 system-ui, sans-serif; cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.code-red-speed.code-red-speed-on { background: var(--link, #c8323c); border-color: var(--link, #c8323c); color: var(--bg, #fff); }
