@@ -27,8 +27,11 @@ test('battleSpec: one action per usable move (≤4)', () => {
   const spec = battleSpec(ME)
   checkSpec(spec)
   assert.deepEqual(spec.actions.map(a => a.id), ['scratch', 'growl'])  // EMBER has no PP
-  assert.match(spec.actions[1]!.description, /status move/)
-  assert.match(observe(ME, FOE, true), /^Trainer battle\. Foe: SQUIRTLE Lv5, HP 12\/19, type WATER\.\nYou: CHARMANDER/)
+  assert.match(spec.actions[1]!.description, /^Run growl.js \(GROWL\).*status script/)
+  assert.match(spec.actions[0]!.description, /Source:\nconst { me, foe, move } = input/)
+  assert.match(observe(ME, FOE, true), /^Trainer battle\. Foe: SQUIRTLE Lv5, bytes left 12\/19, type WATER\.\nYou: CHARMANDER/)
+  assert.match(observe(ME, FOE, true, '"THUD " (5 bytes)'), /Last output that landed in your context: "THUD "/)
+  assert.match(battleSpec(ME).persona, /Hot-headed.*byte budget/)
 })
 
 test('greedy baseline picks the strongest usable move', () => {

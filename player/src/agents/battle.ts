@@ -3,6 +3,7 @@
 // Reads battle state from RAM and move/species names from the ROM image; drives
 // the menus with simulated button presses (same approach as sim/codered/battle.py).
 import type { AgentSpec, Decision, DecideRequest } from './agent.ts'
+import { STARTERS, scriptFor } from './moves.ts'
 
 // include/pokemon.h struct BattlePokemon (0x58 bytes)
 const BMON = 0x58, SPECIES = 0x00, MOVES = 0x0C, TYPE1 = 0x21, TYPE2 = 0x22, PP = 0x24, HP = 0x28, LEVEL = 0x2A, MAXHP = 0x2C
@@ -67,6 +68,10 @@ export class BattleReader {
     return decodeText(this.rom.subarray(at, at + size))
   }
 
+  moveName(id: number): string { return this.romText('gMoveNames', id, MOVE_NAME) }
+  speciesName(id: number): string { return this.romText('gSpeciesNames', id, SPECIES_NAME) }
+  typeName(id: number): string { return this.romText('gTypeNames', id, TYPE_NAME) }
+
   mon(battler: number): BattleMon {
     const m = this.mem, b = this.sym('gBattleMons') + battler * BMON
     const species = m.u16(b + SPECIES)
@@ -94,18 +99,25 @@ export function battleSpec(me: BattleMon): AgentSpec {
   const moves = usable.length ? usable : me.moves.slice(0, 1)
   return {
     id: 'lead', name: me.name,
-    persona: 'You fight for your trainer in turn-based Pokémon battles. You are clever and like efficient solutions.',
-    actions: moves.map(m => ({
-      id: actionId(m.name),
-      description: `${m.name}: ${m.type}${m.power ? `, power ${m.power}` : ', status move (no damage)'}${m.accuracy ? `, accuracy ${m.accuracy}` : ''}, PP ${m.pp}/${m.maxPp}`,
-    })),
+    persona: [
+      STARTERS[me.species]?.persona ?? '',
+      'Your HP is a byte budget. Each of your moves is a script: a damaging script\'s output lands in the foe\'s context, and every byte it absorbs costs it HP. The foe does the same to you. Run the foe out of bytes.',
+    ].filter(Boolean).join(' '),
+    actions: moves.map(m => {
+      const script = scriptFor(m.name, m.power > 0)
+      return {
+        id: actionId(m.name),
+        description: `Run ${script.file} (${m.name}): ${m.type}${m.power ? `, power ${m.power}` : ', status script, no bytes land'}${m.accuracy ? `, accuracy ${m.accuracy}` : ''}, PP ${m.pp}/${m.maxPp}. Source:\n${script.source}`,
+      }
+    }),
   }
 }
 
-export function observe(me: BattleMon, foe: BattleMon, trainer: boolean): string {
+export function observe(me: BattleMon, foe: BattleMon, trainer: boolean, incoming: string | null = null): string {
   return [
-    `${trainer ? 'Trainer' : 'Wild'} battle. Foe: ${foe.name} Lv${foe.level}, HP ${foe.hp}/${foe.maxHp}, type ${foe.types.join('/')}.`,
-    `You: ${me.name} Lv${me.level}, HP ${me.hp}/${me.maxHp}, type ${me.types.join('/')}.`,
+    `${trainer ? 'Trainer' : 'Wild'} battle. Foe: ${foe.name} Lv${foe.level}, bytes left ${foe.hp}/${foe.maxHp}, type ${foe.types.join('/')}.`,
+    `You: ${me.name} Lv${me.level}, bytes left ${me.hp}/${me.maxHp}, type ${me.types.join('/')}.`,
+    ...(incoming ? [`Last output that landed in your context: ${incoming}`] : []),
   ].join('\n')
 }
 

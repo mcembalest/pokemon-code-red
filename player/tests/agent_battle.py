@@ -34,7 +34,8 @@ def battle(p, url, records=None):
     assert page.locator('[data-agent]').is_visible(), 'Agent toggle should show with ?agents='
     page.evaluate('b64 => EJS_emulator.gameManager.loadState(Uint8Array.from(atob(b64), c => c.charCodeAt(0)))', base64.b64encode(STATE.read_bytes()).decode())
     page.wait_for_timeout(1000)
-    page.click('[data-agent]')
+    page.evaluate('''window.__heads = []; new MutationObserver(() => { const h = document.querySelector("[data-agent-box] .code-red-agent-head")?.textContent; const f = document.querySelector("[data-agent-box] .code-red-agent-foot")?.textContent; if (h && window.__heads.at(-1) !== h + " | " + f) window.__heads.push(h + " | " + f) }).observe(document.querySelector("[data-game]"), { subtree: true, childList: true, characterData: true })''')
+    # Agents mode starts with the agent in control (button pressed).
     assert page.get_attribute('[data-agent]', 'aria-pressed') == 'true'
     page.wait_for_function('document.querySelector("[data-agent-box]")?.dataset.turns >= "1"', timeout=60000)
     page.wait_for_timeout(300)
@@ -42,6 +43,9 @@ def battle(p, url, records=None):
     first = page.text_content('[data-agent-box]')
     print('first turn:', first, flush=True)
     assert 'CHARMANDER' in first and '▶' in first, first
+    if records is None:
+        page.wait_for_function('document.querySelector("[data-agent-box] .code-red-agent-foot")?.textContent.includes("absorbed")', timeout=60000)
+        page.locator('[data-game]').screenshot(path=str(OUT / 'byte-hit.png'))
     page.evaluate('gm = EJS_emulator.gameManager; gm.functions.setFastForwardRatio(10); gm.functions.toggleFastForward(1)')
     done = '''a => { const m = EJS_emulator.gameManager.Module; return new DataView(m.HEAPU8.buffer, m._ejs_cr_ewram()).getUint8(a - 0x02000000) !== 0 }'''
     for i in range(24):
@@ -54,6 +58,11 @@ def battle(p, url, records=None):
     outcome = page.evaluate(done.replace('!== 0', ''), outcome_addr)
     turns = int(page.get_attribute('[data-agent-box]', 'data-turns') or 0)
     recs = page.evaluate('window.CodeRed.agentRecords()')
+    heads = page.evaluate('window.__heads')
+    hits = [h for h in heads if '.js' in h and 'byte' in h]
+    print('byte hits:', hits, flush=True)
+    assert any('CHARMANDER ▶ scratch.js' in h for h in hits), heads
+    assert any('SQUIRTLE ▶ tackle.js' in h for h in hits), heads
     page.locator('canvas').screenshot(path=str(OUT / 'after.png'))
     browser.close()
     result = {'outcome': {1: 'won', 2: 'lost'}.get(outcome, outcome), 'turns': turns, 'errors': errors, 'external': external}
@@ -64,9 +73,36 @@ def battle(p, url, records=None):
     return result, recs
 
 
+def starter_card(p):
+    """Oak's lab: offered CHARMANDER → the agent card shows its scripts."""
+    browser = p.chromium.launch(headless=True, args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'])
+    page = browser.new_page()
+    page.goto('http://127.0.0.1:8000/?agents=mock')
+    page.wait_for_selector('[data-open]:not([hidden])', timeout=30000)
+    page.locator('[data-file]').set_input_files(str(ROOT / 'local/baserom.gba'))
+    page.wait_for_function('window.EJS_emulator?.started', timeout=90000)
+    page.wait_for_timeout(1500)
+    lab = ROOT / 'build/sim/checkpoints/lab_at_charmander.raw'
+    page.evaluate('b64 => EJS_emulator.gameManager.loadState(Uint8Array.from(atob(b64), c => c.charCodeAt(0)))', base64.b64encode(lab.read_bytes()).decode())
+    page.wait_for_timeout(500)
+    for _ in range(20):
+        if page.locator('[data-starter-card]').is_visible():
+            break
+        page.evaluate('(async () => { const gm = EJS_emulator.gameManager; gm.simulateInput(0, 8, 1); await new Promise(r => setTimeout(r, 80)); gm.simulateInput(0, 8, 0) })()')
+        page.wait_for_timeout(700)
+    page.wait_for_selector('[data-starter-card]:not([hidden])', timeout=5000)
+    page.wait_for_timeout(500)
+    page.locator('[data-game]').screenshot(path=str(OUT / 'starter-card.png'))
+    text = page.text_content('[data-starter-card]')
+    print('starter card:', text.replace('\n', ' ')[:200], flush=True)
+    assert 'CHARMANDER' in text and 'scratch.js' in text and 'growl.js' in text, text
+    browser.close()
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
+        starter_card(p)
         live, records = battle(p, 'http://127.0.0.1:8000/?agents=mock')
         assert len(records) == live['turns'] and all(r['brain'] == 'mock' for r in records), records
         # Replay: same situations → recorded decisions (tagged so we can see they came from the recording).

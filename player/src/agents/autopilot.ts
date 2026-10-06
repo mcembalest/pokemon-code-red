@@ -13,6 +13,8 @@ export interface Pad {
 export interface ThinkingUi {
   thinking(name: string, brain: string): void
   say(name: string, thought: string, action: string, note?: string): void
+  hit(hit: { attacker: string; target: string; file: string; output: string; bytes: number; error?: string }): void
+  absorbed(sent: number, absorbed: number, target: string): void
   hide(): void
 }
 
@@ -30,8 +32,11 @@ export class BattleAutopilot {
   private readonly onDecision: (record: DecisionRecord) => void
   private readonly sayMs: number
 
-  constructor(reader: BattleReader, agent: Agent, ui: ThinkingUi, pad: Pad, options: { onDecision?: (r: DecisionRecord) => void; sayMs?: number } = {}) {
+  private readonly incoming: () => string | null
+
+  constructor(reader: BattleReader, agent: Agent, ui: ThinkingUi, pad: Pad, options: { onDecision?: (r: DecisionRecord) => void; sayMs?: number; incoming?: () => string | null } = {}) {
     this.reader = reader; this.agent = agent; this.ui = ui; this.pad = pad
+    this.incoming = options.incoming ?? (() => null)
     this.onDecision = options.onDecision ?? (() => {})
     this.sayMs = options.sayMs ?? 1600
   }
@@ -78,7 +83,7 @@ export class BattleAutopilot {
     this.pad.pause()
     let decision
     try {
-      const out = await this.agent.turn({ text: observe(me, foe, r.isTrainer()), data: { me, foe } })
+      const out = await this.agent.turn({ text: observe(me, foe, r.isTrainer(), this.incoming()), data: { me, foe } })
       decision = out.decision
       this.onDecision(out.record)
       const move = me.moves.find(m => actionId(m.name) === decision!.action) ?? me.moves[0]!
@@ -114,8 +119,9 @@ export function createThinkingBox(host: HTMLElement): ThinkingUi & { element: HT
   box.setAttribute('aria-live', 'polite')
   host.appendChild(box)
   let typing: ReturnType<typeof setInterval> | undefined
+  let hideLater: ReturnType<typeof setTimeout> | undefined
   const set = (head: string, body: string, foot = '') => {
-    clearInterval(typing)
+    clearInterval(typing); clearTimeout(hideLater)
     box.hidden = false
     box.innerHTML = '<div class="code-red-agent-head"></div><div class="code-red-agent-body"></div><div class="code-red-agent-foot"></div>'
     box.children[0]!.textContent = head
@@ -131,6 +137,18 @@ export function createThinkingBox(host: HTMLElement): ThinkingUi & { element: HT
       box.classList.remove('code-red-agent-busy')
       set(name, `“${thought || '…'}”`, `▶ ${action}${note ? ` (${note})` : ''}`)
       box.dataset.turns = String(Number(box.dataset.turns || 0) + 1)
+    },
+    hit(h) {
+      box.classList.remove('code-red-agent-busy')
+      const shown = h.output.length > 60 ? h.output.slice(0, 57) + '…' : h.output
+      set(`${h.attacker} ▶ ${h.file}`, h.error ? `(script failed: ${h.error})` : `“${shown}”`, h.error ? 'vanilla damage' : `${h.bytes} byte${h.bytes === 1 ? '' : 's'} → ${h.target}`)
+      clearTimeout(hideLater); hideLater = setTimeout(() => { box.hidden = true }, 2500)
+    },
+    absorbed(sent, absorbed, target) {
+      const foot = box.querySelector('.code-red-agent-foot')
+      if (!foot || box.hidden) return
+      foot.textContent = absorbed === sent ? `${sent} bytes absorbed by ${target}` : `${sent} sent · ${absorbed} absorbed by ${target}`
+      clearTimeout(hideLater); hideLater = setTimeout(() => { box.hidden = true }, 2500)
     },
     hide() { clearInterval(typing); box.hidden = true },
   }
