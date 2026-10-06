@@ -10,7 +10,7 @@ import { createSpeed, type SpeedControls } from './speed.ts'
 import { applyCopyPatch } from './copy-patch.ts'
 import { restoreRom } from './rom-cache.ts'
 import { readLocal, writeLocal, romKey, SOURCE_KEY } from './storage.ts'
-import { autosave, restoreSave, type SaveGame } from './saves.ts'
+import { autosave, requestPersistence, restoreSave, type SaveGame } from './saves.ts'
 import { GbaMemory, isCodeRedCore } from './bridge/memory.ts'
 import { CalcMailbox } from './bridge/calc.ts'
 import { CalcController } from './bridge/calc-controller.ts'
@@ -18,7 +18,8 @@ import { NamingMailbox } from './bridge/naming.ts'
 import { Backend, DEFAULT_API, localSessionStore } from './backend.ts'
 import { ProgressWatcher, readSnapshot } from './progress.ts'
 import { Agent } from './agents/agent.ts'
-import { CloudBrain, MockBrain } from './agents/brains.ts'
+import { CloudBrain, MockBrain, ReplayBrain } from './agents/brains.ts'
+import type { DecisionRecord } from './agents/agent.ts'
 import { BattleReader, greedyPolicy, type BattleMon } from './agents/battle.ts'
 import { BattleAutopilot, createThinkingBox, type Pad } from './agents/autopilot.ts'
 
@@ -86,7 +87,10 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   const api = options.api === false ? null : options.api || DEFAULT_API
   const backend = api ? new Backend(api, localSessionStore()) : null
   const agentParam = new URLSearchParams(location.search).get('agents')
-  const agentsMode = options.agents ?? (agentParam === 'mock' ? 'mock' : agentParam === 'on' || agentParam === 'cloud' ? 'cloud' : null)
+  const agentsMode = options.agents ?? (agentParam === 'mock' || agentParam === 'replay' ? agentParam : agentParam === 'on' || agentParam === 'cloud' ? 'cloud' : null)
+  /** Every agent decision this page made (replay format). Exposed as window.CodeRed.agentRecords(). */
+  const agentRecords: DecisionRecord[] = []
+  ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, agentRecords: () => agentRecords.slice() }
   const agentButton = root.querySelector<HTMLButtonElement>('[data-agent]')!
   let romBytes: Uint8Array | undefined
   if (backend) backend.start()
@@ -175,14 +179,22 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     disposers.push(() => { clearInterval(timer); document.removeEventListener('visibilitychange', hide); window.removeEventListener('pagehide', pagehide) })
   }
 
+  let replayRecords: DecisionRecord[] = []
+  async function loadReplay() {
+    const url = new URLSearchParams(location.search).get('records')
+    if (agentsMode !== 'replay' || !url) return
+    try { replayRecords = await (await fetch(url)).json() as DecisionRecord[] } catch { fail('Could not load the agent recording.') }
+  }
+
   /** Prototype: lead Pokémon picks its own battle moves (agents/autopilot.ts). Off unless ?agents= is set. */
   function startAgents(gm: GameManager, memory: GbaMemory, rom: RomInfo) {
     if (!agentsMode || !romBytes || !BattleReader.supported(rom.symbols)) return
     const ejs = emulator.EJS_emulator!
     const reader = new BattleReader(memory, romBytes, rom.symbols)
     let moves: BattleMon['moves'] = []
-    const brain = agentsMode === 'mock' || !backend
-      ? new MockBrain(request => greedyPolicy(moves)(request))
+    const mock = new MockBrain(request => greedyPolicy(moves)(request))
+    const brain = agentsMode === 'replay' ? new ReplayBrain(replayRecords, mock)
+      : agentsMode === 'mock' || !backend ? mock
       : new CloudBrain((body, signal) => backend.llm(body, signal))
     const agent = new Agent({ id: 'lead', name: 'LEAD', persona: '', actions: [{ id: 'wait', description: 'placeholder' }] }, brain)
     const frames = () => (gm.functions as unknown as { getFrameNum(): number }).getFrameNum()
@@ -197,7 +209,10 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     }
     const box = createThinkingBox(game)
     const pilot = new BattleAutopilot(reader, agent, box, pad, {
-      onDecision: r => backend?.track('agent_decision', { brain: r.brain, action: r.decision.action, thought: r.decision.thought, ms: r.ms, ...(r.fallback ? { fallback: r.fallback } : {}) }),
+      onDecision: r => {
+        agentRecords.push(r)
+        backend?.track('agent_decision', { brain: r.brain, key: r.key, observation: r.observation, action: r.decision.action, args: r.decision.args, thought: r.decision.thought, ms: r.ms, ...(r.fallback ? { fallback: r.fallback } : {}) })
+      },
     })
     // The mock policy scores the current moves; refresh them each tick.
     const refresh = setInterval(() => { try { if (reader.inBattle()) moves = reader.mon(0).moves } catch { /* memory not ready */ } }, 250)
@@ -284,7 +299,8 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     const restored = await restoreSave(gm, store).catch(() => 'none' as const)
     const saver = autosave(gm, store)
     disposers.push(() => saver.dispose())
-    backend?.track('session_start', { rom: rom.rom_sha1.slice(0, 12), save: restored, touch: navigator.maxTouchPoints > 0 })
+    const persisted = await requestPersistence()
+    backend?.track('session_start', { rom: rom.rom_sha1.slice(0, 12), save: restored, touch: navigator.maxTouchPoints > 0, storage: persisted })
     void backend?.flush()
     say(restored === 'backup' ? 'Restored your save.' : remembered ? '' : 'Playing. Browser storage is unavailable; reopen the file next time.')
     game.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -369,6 +385,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   void (async () => {
     try {
       await account()
+      await loadReplay()
       const { rom_sha1 } = await romInfo()
       const restored = await restoreRom({ read: readLocal, write: writeLocal, patch: patchSource }, rom_sha1)
       if (restored) { remembered = restored.remembered; await start(restored.bytes); return }

@@ -69,6 +69,7 @@ async function route(req: Request, env: Env): Promise<Response> {
     if (sub === 'players' && m === 'GET') return adminPlayers(env);
     if (sub === 'events' && m === 'GET') return adminEvents(env, url);
     if (sub === 'llm' && m === 'GET') return adminLlm(env, url);
+    if (sub === 'agent-records' && m === 'GET') return adminAgentRecords(env, url);
     if (sub === 'invites' && m === 'GET') return json({ invites: (await env.DB.prepare('SELECT * FROM invites ORDER BY created_at DESC').all()).results });
     if (sub === 'invites' && m === 'POST') return adminCreateInvites(req, env);
     if (sub === 'invites/revoke' && m === 'POST') {
@@ -219,6 +220,21 @@ export function mapName(map: unknown): string | null {
   const m = typeof map === 'string' ? (() => { try { return JSON.parse(map); } catch { return null; } })() : map;
   if (!Array.isArray(m) || m.length !== 2) return null;
   return MAP_NAMES[`${m[0]}.${m[1]}`] ?? `map ${m[0]}.${m[1]}`;
+}
+
+/** A player's agent decisions in the player's replay format (agents/agent.ts DecisionRecord). */
+async function adminAgentRecords(env: Env, url: URL): Promise<Response> {
+  const player = url.searchParams.get('player');
+  if (!player) throw new HttpError(400, 'player required');
+  const rows = await env.DB.prepare("SELECT at, data FROM events WHERE player_id = ? AND kind = 'agent_decision' ORDER BY at, id").bind(player).all<{ at: number; data: string }>();
+  const records = rows.results.flatMap((r) => {
+    try {
+      const d = JSON.parse(r.data);
+      if (!d.key || !d.action) return [];
+      return [{ agent: 'lead', key: d.key, observation: d.observation ?? '', decision: { action: d.action, args: d.args ?? {}, thought: d.thought ?? '' }, brain: d.brain, ms: d.ms ?? 0, at: r.at, ...(d.fallback ? { fallback: d.fallback } : {}) }];
+    } catch { return []; }
+  });
+  return json(records);
 }
 
 async function adminLlm(env: Env, url: URL): Promise<Response> {

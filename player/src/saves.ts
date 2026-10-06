@@ -84,3 +84,13 @@ export function autosave(game: SaveGame, store: SaveStore, everyMs = 10_000) {
     },
   }
 }
+
+/** Ask the browser not to evict our storage (ROM copy + save backup) under storage pressure.
+ *  Chrome decides silently (site engagement); Safari 17+/Firefox may prompt or deny. */
+export async function requestPersistence(storage: Pick<StorageManager, 'persisted' | 'persist'> | undefined = globalThis.navigator?.storage): Promise<'persisted' | 'denied' | 'unsupported'> {
+  if (!storage?.persist) return 'unsupported'
+  try {
+    if (await storage.persisted()) return 'persisted'
+    return await storage.persist() ? 'persisted' : 'denied'
+  } catch { return 'unsupported' }
+}

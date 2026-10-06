@@ -119,6 +119,15 @@ test('events: stored, validated, visible to admin', async () => {
   assert.equal(events.find((e) => e.kind === 'snapshot').place, 'Pallet Town');
 });
 
+test('agent records export (replay format)', async () => {
+  await call('/v1/events', { token, body: { events: [
+    { kind: 'agent_decision', at: 5000, data: { brain: 'cloud', key: 'abc12345', observation: 'Foe: SQUIRTLE', action: 'scratch', args: {}, thought: 'Go!', ms: 900 } },
+    { kind: 'agent_decision', at: 5001, data: { brain: 'cloud', action: 'old_format_without_key' } }] } });
+  const r = await (await call(`/admin/api/agent-records?player=${playerId}`, { token: ADMIN })).json();
+  assert.deepEqual(r, [{ agent: 'lead', key: 'abc12345', observation: 'Foe: SQUIRTLE', decision: { action: 'scratch', args: {}, thought: 'Go!' }, brain: 'cloud', ms: 900, at: 5000 }]);
+  assert.equal((await call('/admin/api/agent-records', { token: ADMIN })).status, 400);
+});
+
 test('llm proxy: forwards, records, enforces model + budget', async () => {
   assert.equal((await call('/v1/llm', { token, body: { model: 'gpt-x', messages: [{ role: 'user', content: 'hi' }] } })).status, 400);
   assert.equal((await call('/v1/llm', { token, body: { messages: [] } })).status, 400);
