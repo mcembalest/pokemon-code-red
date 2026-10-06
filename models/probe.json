@@ -1,0 +1,15 @@
+{
+  "note": "Edit + push to run .github/workflows/models.yml (Workers AI). Results → release model-probe.",
+  "level": 5,
+  "samples": 16,
+  "temperature": 0.8,
+  "max_tokens": 300,
+  "concurrency": 4,
+  "models": [
+    "@cf/meta/llama-3.2-1b-instruct",
+    "@cf/ibm-granite/granite-4.0-h-micro",
+    "@cf/meta/llama-3.2-3b-instruct",
+    "@cf/meta/llama-3.1-8b-instruct-fp8",
+    "@cf/qwen/qwen2.5-coder-32b-instruct"
+  ]
+}
