@@ -53,6 +53,13 @@ Living doc. Decisions = settled (owner). Open = not yet. Seeds = ideas to react 
 - **Moves are language-independent.** Some moves fit some languages better. Pokémon can write several languages; stronger Pokémon write more powerful code blocks
 - **Level = how good a coding agent it is.** Level grows the HP byte budget and its programming ability
 
+## Battle decisions, round 2 (owner, 2026-10-06)
+- **Starter's first language: JavaScript** (fits codemode + browser)
+- **"More powerful code block" = bigger per-move byte budget.** Two budgets: HP bytes = defensive work; per-move bytes = offensive work. Both grow with level
+- **Real tiny models at the lowest levels** ("baby Pokémon don't have to be that good"); bigger models as they grow
+- **Move autopilot off.** Player picks moves; agents are codemode (they write the move's code)
+  - live 2026-10-06: autopilot only with an explicit `?agents=mock|replay|on` (test harness); fixed byte-battle scripts + starter card still on until codemode replaces them
+
 ## Starter battle spec — DRAFT for review (2026-10-06)
 Battle: rival's first battle in Oak's lab. Lv5 starter vs Lv5 rival starter. Moves: CHARMANDER SCRATCH/GROWL, SQUIRTLE TACKLE/TAIL WHIP, BULBASAUR TACKLE/GROWL
 - turn
@@ -71,9 +78,9 @@ Battle: rival's first battle in Oak's lab. Lv5 starter vs Lv5 rival starter. Mov
 - rival's Pokémon writes code too (its own model call per turn); trainer AI still picks its move
 - shown: code window over the top of the battle; foe's code too; Oak's tutorial lines explain what you're seeing
 - open
-  - which language the Lv5 starter writes (codemode = JS today; Python/C/Go need their own sandboxes)
-  - what "more powerful code block" means per level: bigger model at evolution? more tool calls / bytes per block? more battle functions unlocked? more languages?
-  - model per level (tiny local model at Lv5 → real bad code) vs Sonnet everywhere for now
+  - ~~language~~ → JS · ~~power~~ → per-move byte budget · ~~model per level~~ → real tiny models at low levels
+  - which tiny model + runtime (wllama / WebLLM / transformers.js); download size on phones; needs model hosting reachable (Hugging Face is blocked from the dev sandbox → allowlist or self-host on R2)
+  - level → (HP bytes, per-move bytes, model) table
   - latency budget per turn (Sonnet ~2–5 s × 2 Pokémon)
 
 ## Local models (target) — notes
