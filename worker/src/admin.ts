@@ -30,6 +30,9 @@ let token = ''; try { token = sessionStorage.getItem('cr-admin') || ''; } catch 
 let player = null;
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hms = (s) => s == null ? '' : Math.floor(s / 3600) + 'h ' + String(Math.floor(s / 60) % 60).padStart(2, '0') + 'm';
+const party = (p) => { try { const a = typeof p === 'string' ? JSON.parse(p) : p; return Array.isArray(a) && a.length ? 'Lv ' + a.join(', ') : '' } catch { return '' } };
+const SITE = 'https://maxcembalest.com/pokemon-code-red?invite=';
 const when = (t) => t ? new Date(t).toLocaleString() : '';
 async function api(path, opts = {}) {
   const r = await fetch('/admin/api/' + path, { ...opts, headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' } });
@@ -46,10 +49,10 @@ function table(el, cols, rows, onclick) {
 async function load() {
   const [{ players }, { events }, { invites }] = await Promise.all([api('players'), api('events?limit=200' + (player ? '&player=' + player : '')), api('invites')]);
   table($('#players'), [['Name', (r) => r.name], ['Joined', (r) => when(r.created_at)], ['Last seen', (r) => when(r.last_seen)],
-    ['Badges', (r) => r.badges], ['Events', (r) => r.events], ['Last event', (r) => r.last_event], ['Agent calls', (r) => r.llm_calls], ['Tokens', (r) => r.llm_tokens], ['Invite', (r) => r.invite]],
+    ['Badges', (r) => r.badges ?? ''], ['Play time', (r) => hms(r.play_s)], ['Where', (r) => r.place ?? ''], ['Party', (r) => party(r.party)], ['Events', (r) => r.events], ['Last event', (r) => r.last_event], ['Agent calls', (r) => r.llm_calls], ['Tokens', (r) => r.llm_tokens], ['Invite', (r) => r.invite]],
     players, (r) => { player = player === r.id ? null : r.id; $('#evh').textContent = player ? 'Events · ' + r.name : 'Recent events'; load(); });
-  table($('#events'), [['When', (r) => when(r.at)], ['Player', (r) => r.name], ['Kind', (r) => r.kind], ['Data', (r) => r.data, 'data']], events);
-  table($('#invites'), [['Code', (r) => r.code], ['Uses', (r) => r.uses + '/' + r.max_uses], ['Note', (r) => r.note], ['Created', (r) => when(r.created_at)], ['Revoked', (r) => r.revoked ? 'yes' : '']], invites);
+  table($('#events'), [['When', (r) => when(r.at)], ['Player', (r) => r.name], ['Kind', (r) => r.kind], ['Where', (r) => r.place ?? ''], ['Data', (r) => r.data, 'data']], events);
+  table($('#invites'), [['Code', (r) => r.code], ['Link', (r) => r.revoked || r.uses >= r.max_uses ? '' : SITE + r.code], ['Uses', (r) => r.uses + '/' + r.max_uses], ['Note', (r) => r.note], ['Created', (r) => when(r.created_at)], ['Revoked', (r) => r.revoked ? 'yes' : '']], invites);
 }
 async function unlock() {
   try { await load(); $('#app').hidden = false; $('#login').hidden = true; try { sessionStorage.setItem('cr-admin', token); } catch {} }
@@ -59,7 +62,7 @@ $('#login').onsubmit = (e) => { e.preventDefault(); token = $('#tok').value.trim
 $('#mk').onsubmit = async (e) => {
   e.preventDefault();
   const { codes } = await api('invites', { method: 'POST', body: JSON.stringify({ count: +$('#n').value, max_uses: +$('#uses').value, note: $('#note').value || null }) });
-  $('#new').innerHTML = 'New: ' + codes.map((c) => '<code>' + esc(c) + '</code>').join(' ');
+  $('#new').innerHTML = 'New (send the link): ' + codes.map((c) => '<br><code>' + esc(SITE + c) + '</code>').join('');
   load();
 };
 if (token) unlock();
