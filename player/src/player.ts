@@ -73,7 +73,7 @@ const TEMPLATE = `
   </div>`
 
 /** api: backend URL; default = the hosted backend; false = no account or tracking (local dev, tests).
- *  agents: prototype battle agent ('cloud' = Sonnet 5.5 via the backend, 'mock' = offline baseline); also ?agents=on|mock. */
+ *  agents: force a mode. Default: on (Sonnet 5.5) for every invited player unless the worker turns it off; ?agents=off|mock|replay|on overrides. */
 export function mount(root: HTMLElement, options: { assets: string; api?: string | false; agents?: 'cloud' | 'mock' }) {
   const assets = options.assets.endsWith('/') ? options.assets : options.assets + '/'
   root.classList.add('code-red')
@@ -89,8 +89,17 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   const who = root.querySelector<HTMLElement>('[data-who]')!
   const api = options.api === false ? null : options.api || DEFAULT_API
   const backend = api ? new Backend(api, localSessionStore()) : null
+  // Agents: on for every invited player (the worker can switch them off: features.agents).
+  // ?agents=off|mock|replay|on overrides (testing). No backend (local page) → off unless asked.
   const agentParam = new URLSearchParams(location.search).get('agents')
-  const agentsMode = options.agents ?? (agentParam === 'mock' || agentParam === 'replay' ? agentParam : agentParam === 'on' || agentParam === 'cloud' ? 'cloud' : null)
+  let agentsMode: 'cloud' | 'mock' | 'replay' | null = options.agents ?? null
+  const resolveAgents = () => {
+    if (options.agents) return
+    if (agentParam === 'off') agentsMode = null
+    else if (agentParam === 'mock' || agentParam === 'replay') agentsMode = agentParam
+    else if (agentParam === 'on' || agentParam === 'cloud') agentsMode = 'cloud'
+    else agentsMode = backend?.session && backend.session.features?.agents !== false ? 'cloud' : null
+  }
   /** Every agent decision this page made (replay format). Exposed as window.CodeRed.agentRecords(). */
   const agentRecords: DecisionRecord[] = []
   ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, agentRecords: () => agentRecords.slice() }
@@ -422,6 +431,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   void (async () => {
     try {
       await account()
+      resolveAgents()
       await loadReplay()
       const { rom_sha1 } = await romInfo()
       const restored = await restoreRom({ read: readLocal, write: writeLocal, patch: patchSource }, rom_sha1)

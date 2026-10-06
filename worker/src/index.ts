@@ -20,6 +20,7 @@ export interface Env {
   LLM_DAILY_TOKENS: string;  // per player, rolling 24 h
   LLM_MAX_TOKENS: string;    // cap per call
   VERSION?: string;
+  AGENTS?: string;           // "on" | "off"
 }
 
 type Player = { id: string; name: string; created_at: number; last_seen: number };
@@ -58,7 +59,7 @@ async function route(req: Request, env: Env): Promise<Response> {
 
   if (p === '/health' && m === 'GET') return json({ ok: true, version: env.VERSION || 'dev', llm: !!env.ANTHROPIC_API_KEY, admin: !!env.ADMIN_TOKEN });
   if (p === '/v1/join' && m === 'POST') return join(req, env);
-  if (p === '/v1/me' && m === 'GET') return json({ player: await auth(req, env) });
+  if (p === '/v1/me' && m === 'GET') return json({ player: await auth(req, env), features: features(env) });
   if (p === '/v1/events' && m === 'POST') return events(req, env);
   if (p === '/v1/llm' && m === 'POST') return llm(req, env, await auth(req, env));
 
@@ -101,7 +102,7 @@ async function join(req: Request, env: Env): Promise<Response> {
     env.DB.prepare('INSERT INTO sessions (token_hash, player_id, created_at, user_agent) VALUES (?, ?, ?, ?)').bind(await sha256(token), id, now, (req.headers.get('user-agent') || '').slice(0, 200)),
     env.DB.prepare('INSERT INTO events (player_id, at, received_at, kind, data) VALUES (?, ?, ?, ?, ?)').bind(id, now, now, 'joined', JSON.stringify({ invite: code })),
   ]);
-  return json({ player: { id, name: display, created_at: now, last_seen: now }, token }, 201);
+  return json({ player: { id, name: display, created_at: now, last_seen: now }, token, features: features(env) }, 201);
 }
 
 async function auth(req: Request, env: Env, fallbackToken?: unknown): Promise<Player> {
@@ -137,6 +138,7 @@ async function events(req: Request, env: Env): Promise<Response> {
 // ---------------------------------------------------------------- LLM (interim)
 
 async function llm(req: Request, env: Env, player: Player): Promise<Response> {
+  if (!features(env).agents) throw new HttpError(403, 'agents are turned off');
   if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, 'agent backend not configured');
   const raw = await req.text();
   if (raw.length > MAX_LLM_BODY) throw new HttpError(413, 'request too large');
@@ -258,6 +260,11 @@ async function adminCreateInvites(req: Request, env: Env): Promise<Response> {
 }
 
 // ---------------------------------------------------------------- helpers
+
+/** What every invited player gets. AGENTS = "off" (wrangler var) turns agents off for everyone. */
+function features(env: Env): { agents: boolean } {
+  return { agents: env.AGENTS !== 'off' && !!env.ANTHROPIC_API_KEY };
+}
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });

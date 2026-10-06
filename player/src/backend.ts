@@ -4,7 +4,8 @@
 
 export const DEFAULT_API = 'https://code-red-api.macembalest.workers.dev'
 
-export interface Session { token: string; player: { id: string; name: string } }
+export interface Features { agents: boolean }
+export interface Session { token: string; player: { id: string; name: string }; features?: Features }
 export interface SessionStore { get(): Session | null; set(session: Session | null): void }
 export interface TrackedEvent { kind: string; at: number; data?: unknown }
 
@@ -60,11 +61,11 @@ export class Backend {
         body: JSON.stringify({ invite: invite.trim(), name: name.trim() }),
       })
     } catch { throw new BackendError(0, 'Could not reach the Code Red server. Check your connection and try again.') }
-    const body = await response.json().catch(() => ({})) as { token?: string; player?: Session['player']; error?: string }
+    const body = await response.json().catch(() => ({})) as { token?: string; player?: Session['player']; features?: Features; error?: string }
     if (!response.ok || !body.token || !body.player) {
       throw new BackendError(response.status, response.status === 403 ? 'That invite code is not valid (or was already used).' : body.error || 'Could not join. Try again.')
     }
-    const session = { token: body.token, player: { id: body.player.id, name: body.player.name } }
+    const session: Session = { token: body.token, player: { id: body.player.id, name: body.player.name }, ...(body.features ? { features: body.features } : {}) }
     this.store.set(session)
     return session
   }
@@ -76,7 +77,10 @@ export class Backend {
     try {
       const response = await this.http(this.api + '/v1/me', { headers: { authorization: 'Bearer ' + session.token } })
       if (response.status === 401) { this.store.set(null); return 'invalid' }
-      return response.ok ? 'ok' : 'offline'
+      if (!response.ok) return 'offline'
+      const body = await response.json().catch(() => ({})) as { features?: Features }
+      if (body.features) this.store.set({ ...session, features: body.features })
+      return 'ok'
     } catch { return 'offline' }
   }
 
