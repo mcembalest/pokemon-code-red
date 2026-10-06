@@ -135,6 +135,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     if (fromLink && !invite.value) invite.value = fromLink
     joinForm.hidden = false
     who.hidden = true
+    say('')
     ;(invite.value ? name : invite).focus({ preventScroll: true })
     return new Promise(resolve => {
       joinForm.onsubmit = async event => {
@@ -151,6 +152,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
             history.replaceState(history.state, '', url)
           }
           showWho()
+          say('Loading…')
           resolve()
         } catch (problem) {
           fail(problem instanceof Error ? problem.message : 'Could not join.')
