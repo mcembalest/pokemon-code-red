@@ -46,7 +46,35 @@ Living doc. Decisions = settled (owner). Open = not yet. Seeds = ideas to react 
 ## Kernel (proposed, 2026-10-06)
 - pi 1.0 (`@earendil-works/*`, pinned exact): `pi-codemode` (one move = one code block in QuickJS, tool calls metered in bytes), `pi-durable` (a Pokémon = a conversation: identity, history, docs, moves as tools), `pi-ai` (Sonnet via the worker now; local model later)
 - browser spikes ok in Chromium: codemode via ~40-line `node:worker_threads` shim (~26 KB + 287 KB wasm gz); durable with MemoryStorage + faux model (~103 KB gz). iOS Safari untested
-- open: who picks the move in the starter battle (player vs Pokémon); language the Pokémon writes; model size as level
+- open: language runtimes for C/Go/Python (codemode is JS/QuickJS only)
+
+## Battle decisions (owner, 2026-10-06)
+- **Player picks the move** (FIGHT → move, as in FireRed). **The Pokémon writes the code for it at inference time.** Bad code is one reason a move can miss
+- **Moves are language-independent.** Some moves fit some languages better. Pokémon can write several languages; stronger Pokémon write more powerful code blocks
+- **Level = how good a coding agent it is.** Level grows the HP byte budget and its programming ability
+
+## Starter battle spec — DRAFT for review (2026-10-06)
+Battle: rival's first battle in Oak's lab. Lv5 starter vs Lv5 rival starter. Moves: CHARMANDER SCRATCH/GROWL, SQUIRTLE TACKLE/TAIL WHIP, BULBASAUR TACKLE/GROWL
+- turn
+  1. player picks a move (vanilla menu)
+  2. the Pokémon writes one code block for it (model call; shown typing over the battle; no prose, comments only)
+  3. block runs in the sandbox; calls to the move's battle functions are metered in bytes
+  4. outcome → vanilla battle text + HP bars
+- HP = byte budget (proposal)
+  - running a block costs the runner's own bytes (small: what its code spends) → concise code is literally HP-efficient
+  - a hit forces bytes of work onto the target (main drain), capped by the move's power + stats
+- skill replaces luck (proposal): the code decides what FireRed decides with RNG
+  - accuracy check → did the block run and do the move's job (crash/timeout/wrong job = miss)
+  - critical hit → exceptionally tight block
+  - 85–100% damage roll → how efficiently the block did the job
+  - type match-ups, STAB, stat stages stay as in FireRed
+- rival's Pokémon writes code too (its own model call per turn); trainer AI still picks its move
+- shown: code window over the top of the battle; foe's code too; Oak's tutorial lines explain what you're seeing
+- open
+  - which language the Lv5 starter writes (codemode = JS today; Python/C/Go need their own sandboxes)
+  - what "more powerful code block" means per level: bigger model at evolution? more tool calls / bytes per block? more battle functions unlocked? more languages?
+  - model per level (tiny local model at Lv5 → real bad code) vs Sonnet everywhere for now
+  - latency budget per turn (Sonnet ~2–5 s × 2 Pokémon)
 
 ## Local models (target) — notes
 - why it fits: ≤4 actions → the model mostly *chooses* among ≤4 tools + fills small args → constrained decoding (grammar / JSON schema) makes tiny models reliable
