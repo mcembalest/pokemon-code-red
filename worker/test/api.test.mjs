@@ -79,11 +79,13 @@ test('invite → join → me; invites are single-use', async () => {
   const j = await call('/v1/join', { body: { invite: ' ' + codes[0].toLowerCase() + ' ', name: '  Ash  K ' } });
   assert.equal(j.status, 201);
   const joined = await j.json();
+  assert.deepEqual(joined.features, { agents: true });
   assert.equal(joined.player.name, 'Ash K');
   token = joined.token; playerId = joined.player.id;
 
   assert.equal((await call('/v1/join', { body: { invite: codes[0], name: 'Gary' } })).status, 403); // used up
   const me = await (await call('/v1/me', { token })).json();
+  assert.deepEqual(me.features, { agents: true });
   assert.equal(me.player.id, playerId);
   assert.equal((await call('/v1/me', { token: 'bogus' })).status, 401);
   assert.equal((await call('/v1/me')).status, 401);

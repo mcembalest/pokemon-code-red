@@ -42,5 +42,5 @@ Code: `player/src/agents/` · tests: `player/src/agents/*.test.ts`, `player/test
 - ROM: `patches/006-byte-battles.patch` — `Cmd_damagecalc` asks the host via `gCodeRedBattleBytes` ('CRB1', 48 B; `player/src/bridge/battle-bytes.ts`), waits ≤1800 frames, else vanilla. Host enables it; no host (sim, plain player) → vanilla
 - agent sees bytes: persona explains the rules; each action's description includes its script source; observation has "bytes left" + the last output that landed in its context (seed for adversarial tool calling)
 - first agent moment (Pallet): starter card in Oak's lab while "So! You want ___?" — `agents/starter-card.ts` (monpic task in `gTasks` + VAR_TEMP_2); then the rival battle with the starter in control (Agent button pressed by default; tap to take over)
-- all behind `?agents=on` (Sonnet) / `?agents=mock`; flip to default = owner's call
+- on by default for every invited player (owner, 2026-10-06); kill switch: worker var `AGENTS = "off"` (wrangler.toml) → `features.agents=false` on join/me + `/v1/llm` 403; `?agents=off|mock|replay|on` overrides for testing
 - test: `player/tests/agent_battle.py` — starter card (lab fixture) → rival battle: byte hits both ways (scratch.js, tackle.js), win, replay

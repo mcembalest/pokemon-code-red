@@ -71,6 +71,20 @@ test('flushOnHide uses a beacon with the token in the body', async () => {
   assert.deepEqual(JSON.parse(await beacons[0]!.body.text()), { token: 'tok', events: [{ kind: 'snapshot', at: 42, data: { play_s: 5 } }] })
 })
 
+test('features: stored on join, refreshed by check', async () => {
+  const store = memoryStore()
+  let agents = true
+  const { http } = fakeHttp(c => c.url.endsWith('/v1/join')
+    ? json({ token: 't', player: { id: 'p', name: 'A' }, features: { agents } }, 201)
+    : json({ player: { id: 'p', name: 'A' }, features: { agents } }))
+  const b = new Backend('https://api.test', store, http)
+  await b.join('RED-X', 'A')
+  assert.deepEqual(store.value?.features, { agents: true })
+  agents = false
+  assert.equal(await b.check(), 'ok')
+  assert.deepEqual(store.value?.features, { agents: false })
+})
+
 test('check: invalid token clears the session; offline keeps it', async () => {
   let status = 401
   const store = memoryStore({ ...SESSION })
