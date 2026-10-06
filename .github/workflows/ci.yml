@@ -32,6 +32,8 @@ jobs:
           mkdir -p local && cp build/baseline.gba local/baserom.gba
       - name: Code Red ROM + bundle
         run: make rom-bundle
+      - name: Save layout guard (existing player saves must keep loading)
+        run: python3 scripts/save_guard.py
       - name: Player
         run: make player
       - name: Unit tests

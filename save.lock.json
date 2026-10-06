@@ -1,0 +1,8 @@
+{
+  "note": "sizes of saved structs; see scripts/save_guard.py",
+  "sizes": {
+    "gPokemonStorage": 33744,
+    "gSaveBlock1": 15720,
+    "gSaveBlock2": 3876
+  }
+}

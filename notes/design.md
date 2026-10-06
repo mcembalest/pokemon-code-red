@@ -21,6 +21,10 @@ Living doc. Decisions = settled (owner). Open = not yet. Seeds = ideas to react 
 - **Access: invite codes.**
 - **Progress tracking:** internal first, player-facing later.
 - **Model: Claude Sonnet 5.5** for all agent calls while cloud-backed (owner, 2026-10-06: Opus overkill; pre-5.5 models too weak). Worker allowlist = `claude-sonnet-5-5` only.
+- **PC = remote login (VDI) to the player's home desktop** — canonical, always-available place the player works from. Player-owned code: not a strong concept yet. (2026-10-06)
+- **Agent action = a script that is also a battle move** — both battle move and coding move. (2026-10-06)
+- **HP = byte budget ("byte stamina")** — winning = the opponent spends its finite bytes while working during the battle, not harm. Must still read as HP to Pokémon players. (2026-10-06, "could be")
+- **First agent moment = Pallet Town**: choosing the starter + the first (rival) battle. (2026-10-06)
 - **Agents → zero API calls (target).** Small agent harnesses + tiny open-source models running in the browser (wasm / WebGPU). Anthropic API = interim backend only, behind the same interface. (2026-10-05)
 
 ## Local models (target) — notes
