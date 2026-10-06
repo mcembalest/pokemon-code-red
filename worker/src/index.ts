@@ -8,6 +8,7 @@
 //   GET  /admin                       admin page (asks for ADMIN_TOKEN)
 //   /admin/api/*                      JSON for the admin page (Bearer ADMIN_TOKEN)
 import { adminPage } from './admin';
+import { MAP_NAMES } from './maps';
 
 export interface Env {
   DB: D1Database;
@@ -58,7 +59,7 @@ async function route(req: Request, env: Env): Promise<Response> {
   if (p === '/health' && m === 'GET') return json({ ok: true, version: env.VERSION || 'dev', llm: !!env.ANTHROPIC_API_KEY, admin: !!env.ADMIN_TOKEN });
   if (p === '/v1/join' && m === 'POST') return join(req, env);
   if (p === '/v1/me' && m === 'GET') return json({ player: await auth(req, env) });
-  if (p === '/v1/events' && m === 'POST') return events(req, env, await auth(req, env));
+  if (p === '/v1/events' && m === 'POST') return events(req, env);
   if (p === '/v1/llm' && m === 'POST') return llm(req, env, await auth(req, env));
 
   if (p === '/admin' && m === 'GET') return new Response(adminPage, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
@@ -102,8 +103,9 @@ async function join(req: Request, env: Env): Promise<Response> {
   return json({ player: { id, name: display, created_at: now, last_seen: now }, token }, 201);
 }
 
-async function auth(req: Request, env: Env): Promise<Player> {
-  const token = bearer(req);
+async function auth(req: Request, env: Env, fallbackToken?: unknown): Promise<Player> {
+  // sendBeacon can't set headers, so /v1/events also accepts the token in the body.
+  const token = bearer(req) || (typeof fallbackToken === 'string' ? fallbackToken : null);
   if (!token) throw new HttpError(401, 'missing token');
   const row = await env.DB.prepare(
     'SELECT p.id, p.name, p.created_at, p.last_seen FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token_hash = ?',
@@ -114,8 +116,9 @@ async function auth(req: Request, env: Env): Promise<Player> {
   return row;
 }
 
-async function events(req: Request, env: Env, player: Player): Promise<Response> {
-  const { events: list } = await body<{ events?: { kind?: string; at?: number; data?: unknown }[] }>(req);
+async function events(req: Request, env: Env): Promise<Response> {
+  const { events: list, token } = await body<{ events?: { kind?: string; at?: number; data?: unknown }[]; token?: string }>(req);
+  const player = await auth(req, env, token);
   if (!Array.isArray(list) || list.length === 0) throw new HttpError(400, 'events must be a non-empty array');
   if (list.length > MAX_EVENTS) throw new HttpError(413, `at most ${MAX_EVENTS} events per request`);
   const now = Date.now();
@@ -186,12 +189,15 @@ async function adminPlayers(env: Env): Promise<Response> {
   const rows = await env.DB.prepare(`
     SELECT p.id, p.name, p.invite, p.created_at, p.last_seen,
       (SELECT COUNT(*) FROM events e WHERE e.player_id = p.id) AS events,
-      (SELECT COUNT(*) FROM events e WHERE e.player_id = p.id AND e.kind = 'badge') AS badges,
-      (SELECT e.kind FROM events e WHERE e.player_id = p.id ORDER BY e.at DESC LIMIT 1) AS last_event,
+      (SELECT MAX(json_extract(e.data, '$.badge_count')) FROM events e WHERE e.player_id = p.id AND e.kind = 'snapshot') AS badges,
+      (SELECT MAX(json_extract(e.data, '$.play_s')) FROM events e WHERE e.player_id = p.id AND e.kind IN ('snapshot', 'map', 'badge')) AS play_s,
+      (SELECT json_extract(e.data, '$.party') FROM events e WHERE e.player_id = p.id AND e.kind = 'snapshot' ORDER BY e.at DESC, e.id DESC LIMIT 1) AS party,
+      (SELECT json_extract(e.data, '$.map') FROM events e WHERE e.player_id = p.id AND e.kind IN ('snapshot', 'map') ORDER BY e.at DESC, e.id DESC LIMIT 1) AS map,
+      (SELECT e.kind FROM events e WHERE e.player_id = p.id ORDER BY e.at DESC, e.id DESC LIMIT 1) AS last_event,
       (SELECT COUNT(*) FROM llm_calls l WHERE l.player_id = p.id) AS llm_calls,
       (SELECT COALESCE(SUM(l.input_tokens + l.output_tokens), 0) FROM llm_calls l WHERE l.player_id = p.id) AS llm_tokens
-    FROM players p ORDER BY p.last_seen DESC`).all();
-  return json({ players: rows.results });
+    FROM players p ORDER BY p.last_seen DESC`).all<Record<string, unknown>>();
+  return json({ players: rows.results.map((r) => ({ ...r, place: mapName(r.map) })) });
 }
 
 async function adminEvents(env: Env, url: URL): Promise<Response> {
@@ -200,7 +206,19 @@ async function adminEvents(env: Env, url: URL): Promise<Response> {
   const q = player
     ? env.DB.prepare('SELECT e.*, p.name FROM events e JOIN players p ON p.id = e.player_id WHERE e.player_id = ? ORDER BY e.at DESC LIMIT ?').bind(player, limit)
     : env.DB.prepare('SELECT e.*, p.name FROM events e JOIN players p ON p.id = e.player_id ORDER BY e.at DESC LIMIT ?').bind(limit);
-  return json({ events: (await q.all()).results });
+  const rows = (await q.all<Record<string, unknown> & { data: string | null }>()).results;
+  return json({ events: rows.map((r) => {
+    let place: string | null = null;
+    try { place = mapName(JSON.parse(r.data || 'null')?.map); } catch { /* not JSON */ }
+    return { ...r, place };
+  }) });
+}
+
+/** [group, num] (or its JSON text) → readable name. */
+export function mapName(map: unknown): string | null {
+  const m = typeof map === 'string' ? (() => { try { return JSON.parse(map); } catch { return null; } })() : map;
+  if (!Array.isArray(m) || m.length !== 2) return null;
+  return MAP_NAMES[`${m[0]}.${m[1]}`] ?? `map ${m[0]}.${m[1]}`;
 }
 
 async function adminLlm(env: Env, url: URL): Promise<Response> {

@@ -15,6 +15,8 @@ WANTED = {
     'gCodeRedNamingMailbox': 60,
     'gSaveBlock1Ptr': 4,
     'gSaveBlock2Ptr': 4,
+    'gPlayerPartyCount': 1,
+    'gPlayerParty': 600,
 }
 
 def parse(text):

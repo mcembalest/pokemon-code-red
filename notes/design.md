@@ -20,6 +20,7 @@ Living doc. Decisions = settled (owner). Open = not yet. Seeds = ideas to react 
 - **Backend: Cloudflare** — AI API calls + storage. Owner pays for a handful of users.
 - **Access: invite codes.**
 - **Progress tracking:** internal first, player-facing later.
+- **Model: Claude Sonnet 5.5** for all agent calls while cloud-backed (owner, 2026-10-06: Opus overkill; pre-5.5 models too weak). Worker allowlist = `claude-sonnet-5-5` only.
 - **Agents → zero API calls (target).** Small agent harnesses + tiny open-source models running in the browser (wasm / WebGPU). Anthropic API = interim backend only, behind the same interface. (2026-10-05)
 
 ## Local models (target) — notes

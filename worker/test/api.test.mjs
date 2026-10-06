@@ -93,9 +93,15 @@ test('invite → join → me; invites are single-use', async () => {
 });
 
 test('events: stored, validated, visible to admin', async () => {
-  const ok = await call('/v1/events', { token, body: { events: [{ kind: 'badge', data: { n: 1, name: 'BOULDER' } }, { kind: 'map', at: 1234, data: { group: 3, num: 0 } }] } });
+  const ok = await call('/v1/events', { token, body: { events: [
+    { kind: 'snapshot', at: 1000, data: { play_s: 3600, map: [3, 0], badges: 1, badge_count: 1, party: [12, 7] } },
+    { kind: 'map', at: 1234, data: { map: [3, 19], play_s: 3700 } }] } });
   assert.equal(ok.status, 200);
   assert.deepEqual(await ok.json(), { stored: 2 });
+  // sendBeacon path: no auth header, token in the body, text/plain
+  const beacon = await fetch(base + '/v1/events', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ token, events: [{ kind: 'badge', at: 1300, data: { n: 2 } }] }) });
+  assert.equal(beacon.status, 200);
+  assert.equal((await fetch(base + '/v1/events', { method: 'POST', body: JSON.stringify({ token: 'bogus', events: [{ kind: 'x' }] }) })).status, 401);
   assert.equal((await call('/v1/events', { token, body: { events: [{ kind: 'Bad Kind' }] } })).status, 400);
   assert.equal((await call('/v1/events', { token, body: { events: [] } })).status, 400);
   assert.equal((await call('/v1/events', { token, body: { events: [{ kind: 'x', data: 'a'.repeat(5000) }] } })).status, 413);
@@ -104,9 +110,13 @@ test('events: stored, validated, visible to admin', async () => {
   const { players } = await (await call('/admin/api/players', { token: ADMIN })).json();
   const p = players.find((x) => x.id === playerId);
   assert.equal(p.badges, 1);
-  assert.equal(p.events, 3); // joined + 2
+  assert.equal(p.play_s, 3700);
+  assert.equal(p.place, 'Route 1');
+  assert.deepEqual(JSON.parse(p.party), [12, 7]);
+  assert.equal(p.events, 4); // joined + 3
   const { events } = await (await call(`/admin/api/events?player=${playerId}`, { token: ADMIN })).json();
-  assert.deepEqual(events.map((e) => e.kind).sort(), ['badge', 'joined', 'map']);
+  assert.deepEqual(events.map((e) => e.kind).sort(), ['badge', 'joined', 'map', 'snapshot']);
+  assert.equal(events.find((e) => e.kind === 'snapshot').place, 'Pallet Town');
 });
 
 test('llm proxy: forwards, records, enforces model + budget', async () => {
@@ -118,7 +128,7 @@ test('llm proxy: forwards, records, enforces model + budget', async () => {
   assert.equal((await r.json()).content[0].name, 'scan');
   const sent = mockCalls.at(-1);
   assert.equal(sent.headers['x-api-key'], 'sk-test');
-  assert.equal(sent.body.model, 'claude-haiku-4-5-20251001');
+  assert.equal(sent.body.model, 'claude-sonnet-5-5');
   assert.equal(sent.body.max_tokens, 1024);
   assert.equal(sent.body.evil, undefined);
 

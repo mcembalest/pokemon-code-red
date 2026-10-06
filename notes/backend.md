@@ -17,7 +17,7 @@ Code: `worker/` · deploy: `.github/workflows/worker.yml` · schema: `worker/mig
 - `POST /v1/join {invite, name}` → `{player, token}`; token = bearer, stored only as sha256
 - `GET /v1/me`
 - `POST /v1/events {events:[{kind, at?, data?}]}` — ≤200/request, kind `[a-z0-9_.:-]{1,48}`, data ≤4 KB JSON
-- `POST /v1/llm` — Anthropic Messages passthrough; model allowlist (`LLM_MODELS`), `max_tokens` cap, per-player rolling-24 h token budget (`LLM_DAILY_TOKENS`); every call stored in `llm_calls` (full request/response + hash) for replay
+- `POST /v1/llm` — Anthropic Messages passthrough; model allowlist (`LLM_MODELS` = `claude-sonnet-5-5`), `max_tokens` cap, per-player rolling-24 h token budget (`LLM_DAILY_TOKENS`); every call stored in `llm_calls` (full request/response + hash) for replay
 - `GET /admin` — page; `/admin/api/{players,events,llm,invites,invites/revoke}` with `Bearer ADMIN_TOKEN`
 
 ## Decisions
@@ -30,6 +30,16 @@ Code: `worker/` · deploy: `.github/workflows/worker.yml` · schema: `worker/mig
 ## Tests
 - `cd worker && npm test` — real `wrangler dev` (local workerd + D1) + mock Anthropic server; CI runs the same
 
+## Player side (2026-10-06)
+- `player/src/backend.ts` — join, session in localStorage (`code-red-session`), event queue (flush 15 s; page hide → `sendBeacon`, token in body)
+- `player/src/progress.ts` — reads RAM every 2 s; reports only while the play clock runs (not title screen)
+  - `snapshot` (first + every 60 s + on hide): play_s, map, badges, party levels, has_pokemon, champion
+  - `map` on change · `badge` on new badge · `first_pokemon` · `champion` · `session_start` on boot
+  - first snapshot of a session = baseline (owned badges not re-reported)
+- gate: `mount(root, { assets, api })` — `api` default = hosted worker; `false` = no account (dev `index.html` unless `?api=`)
+- invite links: `https://maxcembalest.com/pokemon-code-red?invite=RED-XXXX-XXXX` (prefilled, removed from URL after join); admin page shows them
+- test: `player/tests/account.py` (Chromium + mock backend; runs in CI)
+- lost token (cleared browser / new device) → new invite
+
 ## Next
-- player client: invite gate UI, token in IndexedDB, event queue (session_start, badges/flags/map from RAM via bridge)
 - custom domain `api.maxcembalest.com` (needs the domain's DNS on Cloudflare)
