@@ -1,0 +1,8 @@
+{
+  "note": "Edit + push to run (workflow: .github/workflows/rl.yml). mode smoke = tiny sizes to check the pipeline.",
+  "runs": [
+    { "name": "smoke-qwen05", "model": "Qwen/Qwen2.5-0.5B-Instruct", "level": 5,
+      "eval_per_move": 8, "eval_per_move_curve": 4, "eval_every": 5,
+      "train_steps": 5, "train_prompts_per_move": 8, "batch": 16, "num_generations": 8, "max_completion_length": 256 }
+  ]
+}

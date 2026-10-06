@@ -1,0 +1,7 @@
+{
+  "name": "code-red-rl-env",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test ../tests/*.test.mjs" },
+  "dependencies": { "@earendil-works/pi-codemode": "1.0.4" }
+}

@@ -4,9 +4,9 @@ name: ci
 # the player bundle (no ROM bytes) as release player-<rom>-<commit>.
 on:
   push:
-    paths-ignore: ['notes/**', '**/*.md', 'worker/**', '.github/workflows/worker.yml']
+    paths-ignore: ['notes/**', '**/*.md', 'worker/**', '.github/workflows/worker.yml', 'rl/**', '.github/workflows/rl.yml']
   pull_request:
-    paths-ignore: ['notes/**', '**/*.md', 'worker/**', '.github/workflows/worker.yml']
+    paths-ignore: ['notes/**', '**/*.md', 'worker/**', '.github/workflows/worker.yml', 'rl/**', '.github/workflows/rl.yml']
 permissions:
   contents: write
 jobs:

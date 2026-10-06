@@ -1,0 +1,45 @@
+name: rl
+# Feasibility experiment: tiny models practicing starter-battle move code (rl/, notes/rl.md).
+# Env tests always run; the GPU run (Modal) runs when rl/run.json changes and the Modal secrets exist.
+on:
+  push:
+    paths: ['rl/**', '.github/workflows/rl.yml']
+permissions:
+  contents: write
+jobs:
+  rl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Env tests (game sandbox scoring)
+        working-directory: rl/env
+        run: npm ci && npm test
+      - name: Should the GPU run?
+        id: gate
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+        run: |
+          if [ -z "$MODAL_TOKEN_ID" ]; then echo "::warning::MODAL_TOKEN_ID not set; skipping GPU run"; exit 0; fi
+          if git diff --name-only HEAD~1 HEAD | grep -qx 'rl/run.json'; then echo "run=1" >> "$GITHUB_OUTPUT"; else echo "rl/run.json unchanged; skipping GPU run"; fi
+      - name: Modal run
+        if: steps.gate.outputs.run
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          pip install --break-system-packages modal==1.6.1
+          set -o pipefail
+          modal run rl/train.py --config rl/run.json 2>&1 | tee rl-log.txt || { echo "::error title=modal run::$(tail -c 1500 rl-log.txt | tr '\n' ' ')"; exit 1; }
+          grep '^RESULT\|^\[' rl-log.txt | while read -r l; do echo "::notice title=rl::$l"; done
+      - name: Publish results (release asset)
+        if: always() && steps.gate.outputs.run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="rl-results"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease --title "RL experiment results" --notes "Outputs of .github/workflows/rl.yml. Safe to delete."
+          for f in rl/results/*.json rl-log.txt; do [ -f "$f" ] && gh release upload "$TAG" "$f" --clobber; done
