@@ -95,10 +95,10 @@ def main():
         wait(lambda: any(e['kind'] == 'session_start' for e in received['events']), 30, 'session_start')
         assert received['auth'][0] == 'Bearer tok-1', received['auth']
         print('session_start ok', flush=True)
-        # Invited player → agents on by default (no ?agents= needed).
-        page.wait_for_selector('[data-agent]:not([hidden])', timeout=10000)
-        assert page.get_attribute('[data-agent]', 'aria-pressed') == 'true'
-        print('agents on by default ok', flush=True)
+        # Invited player → agents on by default, but the player picks moves: no autopilot button.
+        page.wait_for_timeout(1500)
+        assert page.locator('[data-agent]').is_hidden(), 'move autopilot must be off by default'
+        print('agents on, autopilot off by default ok', flush=True)
 
         # 3. Progress: point save-block pointers at scratch EWRAM with a running play clock
         #    (the title screen has no loaded save), then hide the page → beacon.

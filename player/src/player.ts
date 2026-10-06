@@ -257,8 +257,11 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     })
     // The mock policy scores the current moves; refresh them each tick.
     const refresh = setInterval(() => { try { if (reader.inBattle()) moves = reader.mon(0).moves } catch { /* memory not ready */ } }, 250)
+    // The player picks moves (owner, 2026-10-06). The move-picking autopilot is a test
+    // harness only: on with an explicit ?agents=mock|replay|on.
+    if (!agentParam || agentParam === 'off') { disposers.push(() => { clearInterval(refresh); box.element.remove() }); return }
     const stop = pilot.start()
-    pilot.setEnabled(true) // the starter fights on its own; the button hands control back
+    pilot.setEnabled(true)
     agentButton.setAttribute('aria-pressed', 'true')
     agentButton.classList.add('code-red-speed-on')
     agentButton.hidden = false
