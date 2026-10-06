@@ -33,3 +33,14 @@ Code: `player/src/agents/` · tests: `player/src/agents/*.test.ts`, `player/test
 - no replay UI; no recorded runs fed back to the sim yet
 - agents in the sim (Python) would need a port or a JS runner; today the sim's battle policy is separate (`sim/codered/battle.py`)
 - latency: Sonnet ~1–3 s per turn while the game is paused
+
+## Byte battles v1 (2026-10-06, owner decisions → notes/design.md)
+- HP = byte budget. A damaging move is a fixed script (`player/src/agents/moves.ts`); its output lands in the foe's context; output bytes replace the base damage
+  - then the engine applies crit, type match-up, STAB, random roll → **absorbed** bytes = HP lost (box: "5 sent · 4 absorbed by SQUIRTLE")
+  - scripts write out the Gen 3 base formula (`force`) → balance ≈ vanilla; GROWL/TAIL WHIP = status scripts (no bytes; engine stat effect)
+  - language-neutral (owner: not starter = language for now); run in the QuickJS sandbox
+- ROM: `patches/006-byte-battles.patch` — `Cmd_damagecalc` asks the host via `gCodeRedBattleBytes` ('CRB1', 48 B; `player/src/bridge/battle-bytes.ts`), waits ≤1800 frames, else vanilla. Host enables it; no host (sim, plain player) → vanilla
+- agent sees bytes: persona explains the rules; each action's description includes its script source; observation has "bytes left" + the last output that landed in its context (seed for adversarial tool calling)
+- first agent moment (Pallet): starter card in Oak's lab while "So! You want ___?" — `agents/starter-card.ts` (monpic task in `gTasks` + VAR_TEMP_2); then the rival battle with the starter in control (Agent button pressed by default; tap to take over)
+- all behind `?agents=on` (Sonnet) / `?agents=mock`; flip to default = owner's call
+- test: `player/tests/agent_battle.py` — starter card (lab fixture) → rival battle: byte hits both ways (scratch.js, tackle.js), win, replay

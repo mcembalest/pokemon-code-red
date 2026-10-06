@@ -22,6 +22,9 @@ import { CloudBrain, MockBrain, ReplayBrain } from './agents/brains.ts'
 import type { DecisionRecord } from './agents/agent.ts'
 import { BattleReader, greedyPolicy, type BattleMon } from './agents/battle.ts'
 import { BattleAutopilot, createThinkingBox, type Pad } from './agents/autopilot.ts'
+import { ByteBattle, type ScriptRunner } from './agents/byte-battle.ts'
+import { ByteMailbox } from './bridge/battle-bytes.ts'
+import { createStarterCard, offeredStarter } from './agents/starter-card.ts'
 
 /** Written by the build next to the copy patch (scripts/bundle.py). */
 export interface RomInfo {
@@ -187,7 +190,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   }
 
   /** Prototype: lead Pokémon picks its own battle moves (agents/autopilot.ts). Off unless ?agents= is set. */
-  function startAgents(gm: GameManager, memory: GbaMemory, rom: RomInfo) {
+  function startAgents(gm: GameManager, memory: GbaMemory, rom: RomInfo, runner: ScriptRunner) {
     if (!agentsMode || !romBytes || !BattleReader.supported(rom.symbols)) return
     const ejs = emulator.EJS_emulator!
     const reader = new BattleReader(memory, romBytes, rom.symbols)
@@ -208,7 +211,36 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       play: () => { if (!consoleActive) ejs.play(true) },
     }
     const box = createThinkingBox(game)
+    // Byte battles: damaging moves run their script; output bytes = damage (patches/006).
+    let bytes: ByteBattle | null = null
+    const byteSym = rom.symbols.gCodeRedBattleBytes
+    if (byteSym) {
+      bytes = new ByteBattle(new ByteMailbox(memory, byteSym.address), runner, reader, hit => {
+        box.hit(hit)
+        // Type match-ups, STAB, crits and the random roll scale what lands: watch the target's HP.
+        const target = hit.side === 0 ? 1 : 0, started = Date.now()
+        const watch = setInterval(() => {
+          let hp: number
+          try { hp = reader.mon(target).hp } catch { clearInterval(watch); return }
+          if (hp !== hit.targetHpBefore || Date.now() - started > 5000) {
+            clearInterval(watch)
+            if (hp < hit.targetHpBefore && !hit.error) box.absorbed(hit.bytes, hit.targetHpBefore - hp, hit.target)
+          }
+        }, 50)
+        backend?.track('byte_hit', { attacker: hit.attacker, target: hit.target, move: hit.move, bytes: hit.bytes, ...(hit.error ? { error: hit.error } : {}) })
+      })
+      const poll = setInterval(() => { if (memory.ready()) void bytes!.poll() }, 16)
+      disposers.push(() => clearInterval(poll))
+    }
+    // First agent moment: the starter card in Oak's lab.
+    const tasks = rom.symbols.gTasks, monPic = rom.symbols['script_menu.Task_ScriptShowMonPic']
+    if (tasks && monPic) {
+      const card = createStarterCard(game, () => memory.ready() ? offeredStarter(memory, { gTasks: tasks.address, monPicTask: monPic.address, saveBlock1Ptr: rom.symbols.gSaveBlock1Ptr!.address }) : null,
+        species => backend?.track('starter_card', { species }))
+      disposers.push(() => card.dispose())
+    }
     const pilot = new BattleAutopilot(reader, agent, box, pad, {
+      incoming: () => { const h = bytes?.lastHit[0]; return h ? `${JSON.stringify(h.output.slice(0, 80))} (${h.bytes} bytes, from ${h.target === h.attacker ? 'yourself' : h.attacker}'s ${h.file})` : null },
       onDecision: r => {
         agentRecords.push(r)
         backend?.track('agent_decision', { brain: r.brain, key: r.key, observation: r.observation, action: r.decision.action, args: r.decision.args, thought: r.decision.thought, ms: r.ms, ...(r.fallback ? { fallback: r.fallback } : {}) })
@@ -217,6 +249,9 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     // The mock policy scores the current moves; refresh them each tick.
     const refresh = setInterval(() => { try { if (reader.inBattle()) moves = reader.mon(0).moves } catch { /* memory not ready */ } }, 250)
     const stop = pilot.start()
+    pilot.setEnabled(true) // the starter fights on its own; the button hands control back
+    agentButton.setAttribute('aria-pressed', 'true')
+    agentButton.classList.add('code-red-speed-on')
     agentButton.hidden = false
     agentButton.onpointerdown = event => event.preventDefault()
     agentButton.onclick = () => {
@@ -265,9 +300,11 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     try {
       const { epoch, menuOpen, memory, symbol } = attachBridge(gm, rom)
       trackProgress(memory, rom)
-      startAgents(gm, memory, rom)
       const runnerPath = assets + 'runner/client.js'
       const { Runner } = await import(/* @vite-ignore */ runnerPath)
+      const scriptRunner = new Runner()
+      disposers.push(() => scriptRunner.dispose())
+      startAgents(gm, memory, rom, scriptRunner)
       let finish: ((result?: number) => void) | undefined
       const repl = createRepl({ runner: new Runner(), onClose: value => { const done = finish; finish = undefined; done?.(value); resume() } })
       const calc = new CalcController(new CalcMailbox(memory, symbol('gCodeRedMailbox')), new Runner(), {

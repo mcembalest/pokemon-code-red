@@ -21,7 +21,15 @@ def rival_choose_action(g: World) -> bool:
     return routes.opening(g, 'CHARMANDER') and g.mash(Battle(g).choosing_action, 'A', limit=6000, period=20)
 
 
-FIXTURES = {'rival_choose_action': rival_choose_action}
+def lab_at_charmander(g: World) -> bool:
+    """Oak's lab, free to move, facing CHARMANDER's ball (press A to be offered it)."""
+    if not (routes.intro(g) and routes.to_lab(g) and g.walk_to(routes.STARTER_BALLS['CHARMANDER'], 5)):
+        return False
+    g.face('UP')
+    return True
+
+
+FIXTURES = {'rival_choose_action': rival_choose_action, 'lab_at_charmander': lab_at_charmander}
 
 if __name__ == '__main__':
     OUT.mkdir(parents=True, exist_ok=True)

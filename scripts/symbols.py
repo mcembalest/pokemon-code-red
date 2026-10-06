@@ -25,6 +25,8 @@ WANTED = {
     'gActionSelectionCursor': 4,
     'gMoveSelectionCursor': 4,
     'gBattleOutcome': 1,
+    'gCodeRedBattleBytes': 48,
+    'gTasks': 16 * 40,
     # code / ROM data (bytes = 0: not RAM)
     'BattleMainCB2': 0,
     'gBattleMoves': 0,
@@ -39,6 +41,7 @@ WANTED_LOCAL = [
     ('battle_controller_player', 'HandleInputChooseMove'),
     ('battle_controller_oak_old_man', 'HandleInputChooseAction'),
     ('battle_controller_oak_old_man', 'OakOldManHandleInputChooseMove'),
+    ('script_menu', 'Task_ScriptShowMonPic'),
 ]
 DECOMP = ROOT / '.cache/pokefirered'
 

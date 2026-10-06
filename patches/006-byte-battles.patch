@@ -1,0 +1,148 @@
+Code Red: byte battles. A damaging move is a script run by the host; the bytes its
+output puts into the target's context are the damage. Host-optional (vanilla without one).
+
+diff --git a/src/battle_script_commands.c b/src/battle_script_commands.c
+index 67f90a37..771a3413 100644
+--- a/src/battle_script_commands.c
++++ b/src/battle_script_commands.c
+@@ -37,6 +37,8 @@
+ #include "constants/pokemon.h"
+ #include "constants/maps.h"
+ 
++bool8 CodeRedByteDamage(s32 *baseDamage);
++
+ extern const u8 *const gBattleScriptsForMoveEffects[];
+ 
+ #define DEFENDER_IS_PROTECTED ((gProtectStructs[gBattlerTarget].protected) && (gBattleMoves[gCurrentMove].flags & FLAG_PROTECT_AFFECTED))
+@@ -1209,10 +1211,12 @@ static void Cmd_critcalc(void)
+ static void Cmd_damagecalc(void)
+ {
+     u16 sideStatus = gSideStatuses[GET_BATTLER_SIDE(gBattlerTarget)];
+-    gBattleMoveDamage = CalculateBaseDamage(&gBattleMons[gBattlerAttacker], &gBattleMons[gBattlerTarget], gCurrentMove,
+-                                            sideStatus, gDynamicBasePower,
+-                                            gBattleStruct->dynamicMoveType, gBattlerAttacker, gBattlerTarget);
+-    gBattleMoveDamage = gBattleMoveDamage * gCritMultiplier * gBattleScripting.dmgMultiplier;
++    s32 baseDamage = CalculateBaseDamage(&gBattleMons[gBattlerAttacker], &gBattleMons[gBattlerTarget], gCurrentMove,
++                                         sideStatus, gDynamicBasePower,
++                                         gBattleStruct->dynamicMoveType, gBattlerAttacker, gBattlerTarget);
++    if (CodeRedByteDamage(&baseDamage))
++        return; // Code Red: the move's script is still running on the host
++    gBattleMoveDamage = baseDamage * gCritMultiplier * gBattleScripting.dmgMultiplier;
+ 
+     if (gStatuses3[gBattlerAttacker] & STATUS3_CHARGED_UP && gBattleMoves[gCurrentMove].type == TYPE_ELECTRIC)
+         gBattleMoveDamage *= 2;
+diff --git a/src/code_red_battle.c b/src/code_red_battle.c
+new file mode 100644
+index 00000000..2dd152f1
+--- /dev/null
++++ b/src/code_red_battle.c
+@@ -0,0 +1,109 @@
++#include "global.h"
++#include "battle.h"
++#include "pokemon.h"
++#include "battle_main.h"
++#include "battle_util.h"
++#include "battle_anim.h"
++#include "constants/battle.h"
++#include "constants/pokemon.h"
++
++// Byte battles: a damaging move is a script run by the host (browser). Its
++// output lands in the target's context; the bytes it absorbs are the damage.
++// Host-driven and optional: with no host (enabled == 0) or no reply in time,
++// the vanilla damage formula is used. Fixed 48-byte transport, no pointers.
++struct CodeRedBattleBytes {
++    u32 magic;          // 'CRB1'
++    u16 version;        // 1
++    u8 state;           // 0 idle, 1 pending, 2 reply, 4 cancelled
++    u8 enabled;         // set by the host
++    u32 requestId;
++    u32 epoch;          // stamped by the host
++    u16 move;
++    u8 attackerSide;    // 0 player, 1 opponent
++    u8 moveType;
++    u16 power;
++    u8 level;
++    u8 crit;
++    u16 attack;         // effective (stat stages applied), physical or special by type
++    u16 defense;
++    u16 attackerSpecies;
++    u16 targetSpecies;
++    u16 targetHp;
++    u16 targetMaxHp;
++    u16 vanilla;        // vanilla base damage, for reference / fallback
++    u16 status;         // host: 0 ok, 1 script error
++    u32 result;         // bytes absorbed (1..999)
++    u16 waited;         // frames waited for this request
++    u16 unused;
++};
++STATIC_ASSERT(sizeof(struct CodeRedBattleBytes) == 48, CodeRedBattleBytesSize);
++EWRAM_DATA volatile struct CodeRedBattleBytes gCodeRedBattleBytes = {0};
++static EWRAM_DATA u32 sByteRequestId = 0;
++
++#define CRB_MAGIC 0x31425243
++#define CRB_WAIT_FRAMES 1800
++
++static u16 StagedStat(u16 stat, s8 stage)
++{
++    return stat * gStatStageRatios[stage][0] / gStatStageRatios[stage][1];
++}
++
++// Called by Cmd_damagecalc. Returns TRUE while the host is still running the
++// move's script (the battle script command repeats next frame). On FALSE,
++// *baseDamage holds the damage to use (script bytes, or vanilla on fallback).
++bool8 CodeRedByteDamage(s32 *baseDamage)
++{
++    volatile struct CodeRedBattleBytes *m = &gCodeRedBattleBytes;
++    struct BattlePokemon *a = &gBattleMons[gBattlerAttacker], *t = &gBattleMons[gBattlerTarget];
++    u8 type;
++
++    if (m->magic != CRB_MAGIC || m->version != 1 || !m->enabled || (gBattleTypeFlags & BATTLE_TYPE_LINK))
++        return FALSE;
++
++    switch (m->state)
++    {
++    case 0:
++        GET_MOVE_TYPE(gCurrentMove, type);
++        m->requestId = ++sByteRequestId;
++        m->epoch = 0;
++        m->move = gCurrentMove;
++        m->attackerSide = GET_BATTLER_SIDE(gBattlerAttacker);
++        m->moveType = type;
++        m->power = gBattleMovePower; // set by CalculateBaseDamage (abilities, Mud/Water Sport applied)
++        m->level = a->level;
++        m->crit = gCritMultiplier > 1;
++        if (IS_TYPE_PHYSICAL(type))
++        {
++            m->attack = StagedStat(a->attack, a->statStages[STAT_ATK]);
++            m->defense = StagedStat(t->defense, t->statStages[STAT_DEF]);
++        }
++        else
++        {
++            m->attack = StagedStat(a->spAttack, a->statStages[STAT_SPATK]);
++            m->defense = StagedStat(t->spDefense, t->statStages[STAT_SPDEF]);
++        }
++        m->attackerSpecies = a->species;
++        m->targetSpecies = t->species;
++        m->targetHp = t->hp;
++        m->targetMaxHp = t->maxHP;
++        m->vanilla = *baseDamage > 0xFFFF ? 0xFFFF : *baseDamage;
++        m->status = 0;
++        m->result = 0;
++        m->waited = 0;
++        m->state = 1; // publish last
++        return TRUE;
++    case 1:
++        if (++m->waited < CRB_WAIT_FRAMES)
++            return TRUE;
++        m->state = 0; // host too slow: vanilla
++        return FALSE;
++    case 2:
++        if (m->status == 0 && m->result >= 1 && m->result <= 999)
++            *baseDamage = m->result;
++        m->state = 0;
++        return FALSE;
++    default: // cancelled (state load / reset on the host side)
++        m->state = 0;
++        return FALSE;
++    }
++}

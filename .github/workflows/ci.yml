@@ -56,7 +56,7 @@ jobs:
         with:
           path: build/sim/mgba_libretro.so*
           key: simcore-${{ hashFiles('core/sources.lock.json', 'core/mgba.patch', 'core/adapter.inc', 'sim/build_core.sh') }}
-      - name: Battle agent prototype (sim state → Chromium, mock brain)
+      - name: Starter card + byte battle + replay (sim states → Chromium, mock brain)
         run: |
           sim/build_core.sh
           python3 sim/make_states.py
