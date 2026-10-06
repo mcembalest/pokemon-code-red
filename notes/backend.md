@@ -1,5 +1,6 @@
 # Backend — Cloudflare Worker + D1 (2026-10-05)
 
+Live: https://code-red-api.macembalest.workers.dev (admin: `/admin`) · secrets set 2026-10-06
 Code: `worker/` · deploy: `.github/workflows/worker.yml` · schema: `worker/migrations/`
 
 ## Where secrets live
