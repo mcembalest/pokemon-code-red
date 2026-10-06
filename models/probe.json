@@ -1,5 +1,5 @@
 {
-  "note": "Edit + push to run .github/workflows/models.yml (Workers AI). Results → release model-probe.",
+  "note": "Edit + push to run .github/workflows/models.yml (Workers AI). Results \u2192 release model-probe. Run 2: lenient extraction + auto-call.",
   "level": 5,
   "samples": 16,
   "temperature": 0.8,
@@ -10,6 +10,10 @@
     "@cf/ibm-granite/granite-4.0-h-micro",
     "@cf/meta/llama-3.2-3b-instruct",
     "@cf/meta/llama-3.1-8b-instruct-fp8",
+    "@cf/openai/gpt-oss-20b",
+    "@cf/qwen/qwen3-30b-a3b-fp8",
+    "@cf/google/gemma-4-26b-a4b-it",
+    "@cf/mistralai/mistral-small-3.1-24b-instruct",
     "@cf/qwen/qwen2.5-coder-32b-instruct"
   ]
 }

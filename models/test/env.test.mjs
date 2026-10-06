@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { extractCode, promptFor, scoreCompletion } from '../evaluate.mjs'
+import { extractCode, normalizeBlock, promptFor, scoreCompletion } from '../evaluate.mjs'
 import { makeFoe } from '../contracts.mjs'
 
 const block = code => '```js\n' + code + '\n```'
@@ -9,7 +9,7 @@ test('format: exactly one code block, no prose', () => {
   assert.equal(extractCode(block('return 1')).code, 'return 1')
   assert.equal(extractCode('```javascript\nreturn 1\n```').code, 'return 1')
   assert.match(extractCode('Sure! ' + block('return 1')).reason, /prose/)
-  assert.match(extractCode('return 1').reason, /no code block/)
+  assert.equal(extractCode('return 1').code, 'return 1')  // unfenced = code
   assert.match(extractCode(block('a') + '\n' + block('b')).reason, /more than one|prose/)
 })
 
@@ -47,4 +47,14 @@ test('prompt: Pokémon voice, declarations, no prose instruction', () => {
   assert.match(p.system, /You are CHARMANDER, a level 5 Pokémon/)
   assert.match(p.system, /scratch\(args: \{/)
   assert.match(p.user, /use SCRATCH!/)
+})
+
+test('uncalled single function gets called; called or multiple left alone', async () => {
+  assert.match(normalizeBlock('async function growl() { return 1 }'), /return await growl\(\)$/)
+  assert.equal(normalizeBlock('async function a() {}\nawait a()'), 'async function a() {}\nawait a()')
+  assert.equal(normalizeBlock('function a() {}\nfunction b() {}'), 'function a() {}\nfunction b() {}')
+  const r = await scoreCompletion({ move: 'GROWL', seed: 3, completion: '```js\nasync function growl() {\n  const s = await tools.stats({})\n  await tools.growl({ amount: Math.ceil(s.attack / 4) })\n}\n```' })
+  assert.equal(r.outcome, 'crit', JSON.stringify(r))
+  const prose = await scoreCompletion({ move: 'GROWL', seed: 3, completion: 'I will growl at the foe now.' })
+  assert.equal(prose.outcome, 'miss')
 })
