@@ -12,6 +12,9 @@ Working notes. Outline + links + quotes. Not docs.
 | [foundation-2026-10-04.md](foundation-2026-10-04.md) | what was done + verified for that plan |
 | [bridge-v2.md](bridge-v2.md) | sketch: general game <-> browser channel |
 | [sim-2026-10-05.md](sim-2026-10-05.md) | headless simulator: power-on -> Misty, 6/6 seeds |
+| [backend.md](backend.md) | Cloudflare worker + D1, secrets, endpoints, player-side tracking |
+| [agents.md](agents.md) | agent framework v0, battle prototype, sim↔browser states |
+| [overnight-2026-10-06.md](overnight-2026-10-06.md) | what shipped overnight, what to try, what's unverified |
 | [sources.md](sources.md) | external links |
 
 Conventions
