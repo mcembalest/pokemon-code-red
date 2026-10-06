@@ -27,6 +27,27 @@ Living doc. Decisions = settled (owner). Open = not yet. Seeds = ideas to react 
 - **First agent moment = Pallet Town**: choosing the starter + the first (rival) battle. (2026-10-06)
 - **Agents → zero API calls (target).** Small agent harnesses + tiny open-source models running in the browser (wasm / WebGPU). Anthropic API = interim backend only, behind the same interface. (2026-10-05)
 
+## Persistence + accounts (owner, 2026-10-06) — agreed direction, not built
+- **The in-game save is the only commit point.** Game save + every party Pokémon's agent state → one bundle → Cloudflare
+  - between saves: browser tab only (current battle, code just written, what Pokémon "experienced"); quit without saving = lost, for game and agents alike
+  - load (any device) = that bundle exactly → Pokémon remember what they remembered at save time
+  - → reverting is consistent: one save slot (FireRed), emulator save states hidden; no game-vs-agent-memory divergence
+  - server keeps every save version (owner-only safety net / debugging, not a player feature)
+- **Login: username + password**, chosen when redeeming an invite
+  - password hashed server-side (PBKDF2 via WebCrypto in the Worker); login attempts rate-limited
+  - no email → forgotten password = owner resets it from /admin
+- **One active device**: a login elsewhere takes over (owner: "refuse and explain")
+  - proposed: new login asks "playing on another device — continue here?"; old tab is told it was signed out, game pauses
+  - the old tab can no longer save (server only accepts saves from the current session) → no overwrites
+  - not "block the second login": a dead phone / forgotten laptop would lock the player out
+- **Agents** (pi-durable): in-memory in the browser during a session; exported into the save bundle; imported on load. Its crash-recovery is not used (unsaved = forgotten by design) — keep it only if export/import is clean
+- progress/telemetry events stay live + separate (analytics, not game state)
+
+## Kernel (proposed, 2026-10-06)
+- pi 1.0 (`@earendil-works/*`, pinned exact): `pi-codemode` (one move = one code block in QuickJS, tool calls metered in bytes), `pi-durable` (a Pokémon = a conversation: identity, history, docs, moves as tools), `pi-ai` (Sonnet via the worker now; local model later)
+- browser spikes ok in Chromium: codemode via ~40-line `node:worker_threads` shim (~26 KB + 287 KB wasm gz); durable with MemoryStorage + faux model (~103 KB gz). iOS Safari untested
+- open: who picks the move in the starter battle (player vs Pokémon); language the Pokémon writes; model size as level
+
 ## Local models (target) — notes
 - why it fits: ≤4 actions → the model mostly *chooses* among ≤4 tools + fills small args → constrained decoding (grammar / JSON schema) makes tiny models reliable
 - harness interface must be backend-agnostic: `decide(state, actions[≤4]) → {action, args}`; backends = `local` (wasm/WebGPU), `cloud` (Worker `/v1/llm`), `replay` (recorded), `mock` (sim/CI)
