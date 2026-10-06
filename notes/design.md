@@ -60,6 +60,13 @@ Living doc. Decisions = settled (owner). Open = not yet. Seeds = ideas to react 
 - **Move autopilot off.** Player picks moves; agents are codemode (they write the move's code)
   - live 2026-10-06: autopilot only with an explicit `?agents=mock|replay|on` (test harness); fixed byte-battle scripts + starter card still on until codemode replaces them
 
+## Models + growth (owner, 2026-10-06 evening)
+- **Models run on Cloudflare** (Workers AI). No GPUs of our own, no training for now
+- **XP: nothing happens yet. Level-up: stats update.** Growth = state, not weights
+  - stats that grow at level-up: HP byte budget (defense), per-move byte budget (offense); possibly model tier at set levels (e.g. 1B → 3B → 8B on Workers AI) — to confirm
+  - later: noticeable state growth without training (ideas, not decided: per-Pokémon library of its own working code fed back into prompts; habits/quirks from its history)
+- **Parked:** per-Pokémon weights + RL training. Experiment code kept on branch `rl-experiment` (move contracts scored in pi-codemode; GRPO+LoRA on Modal) — not merged, not run; Modal not needed
+
 ## Starter battle spec — DRAFT for review (2026-10-06)
 Battle: rival's first battle in Oak's lab. Lv5 starter vs Lv5 rival starter. Moves: CHARMANDER SCRATCH/GROWL, SQUIRTLE TACKLE/TAIL WHIP, BULBASAUR TACKLE/GROWL
 - turn
