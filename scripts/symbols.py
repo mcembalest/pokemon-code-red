@@ -17,7 +17,45 @@ WANTED = {
     'gSaveBlock2Ptr': 4,
     'gPlayerPartyCount': 1,
     'gPlayerParty': 600,
+    # battle (agent prototype): RAM
+    'gMain': 0x438,
+    'gBattleTypeFlags': 4,
+    'gBattleMons': 4 * 0x58,
+    'gBattlerControllerFuncs': 16,
+    'gActionSelectionCursor': 4,
+    'gMoveSelectionCursor': 4,
+    'gBattleOutcome': 1,
+    # code / ROM data (bytes = 0: not RAM)
+    'BattleMainCB2': 0,
+    'gBattleMoves': 0,
+    'gMoveNames': 0,
+    'gSpeciesNames': 0,
+    'gTypeNames': 0,
 }
+
+# Static functions share names across files: (object, name) -> exported key "object.name".
+WANTED_LOCAL = [
+    ('battle_controller_player', 'HandleInputChooseAction'),
+    ('battle_controller_player', 'HandleInputChooseMove'),
+    ('battle_controller_oak_old_man', 'HandleInputChooseAction'),
+    ('battle_controller_oak_old_man', 'OakOldManHandleInputChooseMove'),
+]
+DECOMP = ROOT / '.cache/pokefirered'
+
+
+def parse_local(text):
+    import subprocess
+    found = {}
+    for obj, name in WANTED_LOCAL:
+        m = re.search(r'^ \.text\s+(0x[0-9a-f]+)\s+(0x[0-9a-f]+)\s+src/' + re.escape(obj) + r'\.o$', text, re.M)
+        if not m:
+            continue
+        out = subprocess.check_output(['arm-none-eabi-nm', str(DECOMP / f'build/firered/src/{obj}.o')], text=True)
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) == 3 and parts[2] == name and parts[1] in 'tT':
+                found[f'{obj}.{name}'] = {'address': int(m.group(1), 16) + int(parts[0], 16), 'bytes': 0}
+    return found
 
 def parse(text):
     found = {}
@@ -28,8 +66,9 @@ def parse(text):
     return found
 
 def main():
-    symbols = parse(MAP.read_text())
-    missing = sorted(set(WANTED) - set(symbols))
+    text = MAP.read_text()
+    symbols = {**parse(text), **parse_local(text)}
+    missing = sorted((set(WANTED) | {f'{o}.{n}' for o, n in WANTED_LOCAL}) - set(symbols))
     if missing:
         sys.exit(f'missing symbols in {MAP}: {missing}')
     manifest = json.loads((ROOT / 'build/manifest.json').read_text())

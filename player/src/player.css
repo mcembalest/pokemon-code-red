@@ -3,7 +3,7 @@
 .code-red-button:disabled { opacity: 0.5; cursor: default; }
 .code-red-status { color: var(--muted, #777); min-height: 1.65em; margin-block: 0.65rem; font-size: 0.9rem; }
 .code-red-error { color: #b82727; overflow-wrap: anywhere; }
-.code-red-game > div { width: 100%; height: 100%; }
+.code-red-game > div:not([data-agent-box]) { width: 100%; height: 100%; }
 .code-red-muted { color: var(--muted, #777); }
 .code-red-help { font-size: 0.85rem; }
 .code-red-game { width: 100%; height: min(78dvh, 650px); min-height: 450px; background: #080808; border-radius: 10px; overflow: hidden; scroll-margin-top: 12px; }
@@ -26,3 +26,11 @@
 .code-red-join label { display: grid; gap: .25rem; font-size: .9rem; }
 .code-red-join input { font-size: 16px; padding: .5rem; border-radius: 6px; border: 1px solid var(--muted, #777); background: transparent; color: inherit; }
 .code-red-join .code-red-button { justify-self: start; }
+.code-red-game { position: relative; }
+.code-red-agent-box { position: absolute; left: 3%; right: 3%; top: 3%; z-index: 5; padding: .55rem .8rem; background: #f8f8f0; color: #383838; border: 3px solid #607088; border-radius: 8px; box-shadow: 0 0 0 3px #f8f8f0, 0 0 0 5px #405068; font: 600 15px/1.35 ui-monospace, "Courier New", monospace; letter-spacing: .02em; pointer-events: none; }
+.code-red-agent-box[hidden] { display: none; }
+.code-red-agent-head { color: #c03028; }
+.code-red-agent-body { min-height: 1.35em; }
+.code-red-agent-foot { color: #607088; font-size: 13px; text-align: right; }
+.code-red-agent-busy .code-red-agent-head::after { content: ''; display: inline-block; width: .5em; animation: code-red-blink 1s steps(2) infinite; }
+@keyframes code-red-blink { 50% { opacity: 0 } }

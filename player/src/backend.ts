@@ -80,6 +80,23 @@ export class Backend {
     } catch { return 'offline' }
   }
 
+  /** Agent model call via the worker (Anthropic Messages body; the worker picks/limits the model). */
+  async llm(body: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>> {
+    const session = this.session
+    if (!session) throw new BackendError(401, 'Join with an invite code to use agents.')
+    let response: Response
+    try {
+      response = await this.http(this.api + '/v1/llm', {
+        method: 'POST', signal,
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + session.token },
+        body: JSON.stringify(body),
+      })
+    } catch { throw new BackendError(0, 'Could not reach the Code Red server.') }
+    const json = await response.json().catch(() => ({})) as Record<string, unknown>
+    if (!response.ok) throw new BackendError(response.status, typeof json.error === 'string' ? json.error : `agent call failed (${response.status})`)
+    return json
+  }
+
   track(kind: string, data?: unknown, at = Date.now()): void {
     if (!this.session) return
     this.queue.push(data === undefined ? { kind, at } : { kind, at, data })
