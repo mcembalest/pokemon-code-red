@@ -17,6 +17,10 @@ import { CalcController } from './bridge/calc-controller.ts'
 import { NamingMailbox } from './bridge/naming.ts'
 import { Backend, DEFAULT_API, localSessionStore } from './backend.ts'
 import { ProgressWatcher, readSnapshot } from './progress.ts'
+import { Agent } from './agents/agent.ts'
+import { CloudBrain, MockBrain } from './agents/brains.ts'
+import { BattleReader, greedyPolicy, type BattleMon } from './agents/battle.ts'
+import { BattleAutopilot, createThinkingBox, type Pad } from './agents/autopilot.ts'
 
 /** Written by the build next to the copy patch (scripts/bundle.py). */
 export interface RomInfo {
@@ -60,11 +64,13 @@ const TEMPLATE = `
   <p class="code-red-muted code-red-help"><span data-who hidden></span>PC → Code opens a JavaScript scratchpad. Type names on naming screens. Tap 10× to speed up (or hold Space on a keyboard). Your in-game save is kept in this browser and survives updates.</p>
   <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>
   <div class="code-red-toolbar" data-toolbar hidden>
+    <button class="code-red-speed" data-agent type="button" aria-pressed="false" hidden>Agent</button>
     <button class="code-red-speed" data-speed type="button" aria-pressed="false">10×</button>
   </div>`
 
-/** api: backend URL; default = the hosted backend; false = no account or tracking (local dev, tests). */
-export function mount(root: HTMLElement, options: { assets: string; api?: string | false }) {
+/** api: backend URL; default = the hosted backend; false = no account or tracking (local dev, tests).
+ *  agents: prototype battle agent ('cloud' = Sonnet 5.5 via the backend, 'mock' = offline baseline); also ?agents=on|mock. */
+export function mount(root: HTMLElement, options: { assets: string; api?: string | false; agents?: 'cloud' | 'mock' }) {
   const assets = options.assets.endsWith('/') ? options.assets : options.assets + '/'
   root.classList.add('code-red')
   root.innerHTML = TEMPLATE
@@ -79,6 +85,10 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   const who = root.querySelector<HTMLElement>('[data-who]')!
   const api = options.api === false ? null : options.api || DEFAULT_API
   const backend = api ? new Backend(api, localSessionStore()) : null
+  const agentParam = new URLSearchParams(location.search).get('agents')
+  const agentsMode = options.agents ?? (agentParam === 'mock' ? 'mock' : agentParam === 'on' || agentParam === 'cloud' ? 'cloud' : null)
+  const agentButton = root.querySelector<HTMLButtonElement>('[data-agent]')!
+  let romBytes: Uint8Array | undefined
   if (backend) backend.start()
   const emulator = window as EmulatorWindow
   const disposers: (() => void)[] = []
@@ -163,6 +173,43 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     disposers.push(() => { clearInterval(timer); document.removeEventListener('visibilitychange', hide); window.removeEventListener('pagehide', pagehide) })
   }
 
+  /** Prototype: lead Pokémon picks its own battle moves (agents/autopilot.ts). Off unless ?agents= is set. */
+  function startAgents(gm: GameManager, memory: GbaMemory, rom: RomInfo) {
+    if (!agentsMode || !romBytes || !BattleReader.supported(rom.symbols)) return
+    const ejs = emulator.EJS_emulator!
+    const reader = new BattleReader(memory, romBytes, rom.symbols)
+    let moves: BattleMon['moves'] = []
+    const brain = agentsMode === 'mock' || !backend
+      ? new MockBrain(request => greedyPolicy(moves)(request))
+      : new CloudBrain((body, signal) => backend.llm(body, signal))
+    const agent = new Agent({ id: 'lead', name: 'LEAD', persona: '', actions: [{ id: 'wait', description: 'placeholder' }] }, brain)
+    const frames = () => (gm.functions as unknown as { getFrameNum(): number }).getFrameNum()
+    const waitFrames = (n: number) => new Promise<void>(resolve => {
+      const start = frames(), deadline = Date.now() + 3000
+      const t = setInterval(() => { if (frames() >= start + n || Date.now() > deadline) { clearInterval(t); resolve() } }, 4)
+    })
+    const pad: Pad = {
+      async press(key, hold = 2, after = 8) { gm.simulateInput(0, key, 1); await waitFrames(hold); gm.simulateInput(0, key, 0); await waitFrames(after) },
+      pause: () => ejs.pause(true),
+      play: () => { if (!consoleActive) ejs.play(true) },
+    }
+    const box = createThinkingBox(game)
+    const pilot = new BattleAutopilot(reader, agent, box, pad, {
+      onDecision: r => backend?.track('agent_decision', { brain: r.brain, action: r.decision.action, thought: r.decision.thought, ms: r.ms, ...(r.fallback ? { fallback: r.fallback } : {}) }),
+    })
+    // The mock policy scores the current moves; refresh them each tick.
+    const refresh = setInterval(() => { try { if (reader.inBattle()) moves = reader.mon(0).moves } catch { /* memory not ready */ } }, 250)
+    const stop = pilot.start()
+    agentButton.hidden = false
+    agentButton.onpointerdown = event => event.preventDefault()
+    agentButton.onclick = () => {
+      pilot.setEnabled(!pilot.enabled)
+      agentButton.setAttribute('aria-pressed', String(pilot.enabled))
+      agentButton.classList.toggle('code-red-speed-on', pilot.enabled)
+    }
+    disposers.push(() => { stop(); clearInterval(refresh); box.element.remove(); agentButton.hidden = true; agentButton.onclick = agentButton.onpointerdown = null })
+  }
+
   async function romInfo(): Promise<RomInfo> {
     if (info) return info
     const response = await fetch(assets + 'rom/rom.json', { cache: 'no-cache' })
@@ -201,6 +248,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     try {
       const { epoch, menuOpen, memory, symbol } = attachBridge(gm, rom)
       trackProgress(memory, rom)
+      startAgents(gm, memory, rom)
       const runnerPath = assets + 'runner/client.js'
       const { Runner } = await import(/* @vite-ignore */ runnerPath)
       let finish: ((result?: number) => void) | undefined
@@ -241,6 +289,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   }
 
   async function start(bytes: Uint8Array) {
+    romBytes = bytes
     // EmulatorJS builds its (hidden) screen-recording settings at startup and
     // throws if MediaRecorder is missing (some WebKit builds). Recording is off.
     if (typeof (window as { MediaRecorder?: unknown }).MediaRecorder === 'undefined') {

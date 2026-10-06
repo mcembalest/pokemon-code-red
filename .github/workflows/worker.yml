@@ -80,6 +80,7 @@ jobs:
       - name: Smoke test
         run: |
           [ -n "$URL" ] || { echo "::warning::no workers.dev URL in deploy output (workers.dev subdomain not set up?)"; exit 0; }
-          for i in 1 2 3 4 5 6; do H=$(curl -fsS "$URL/health") && break; sleep 5; done
-          [ -n "$H" ] || { echo "::error::$URL/health not responding"; exit 1; }
+          V=${GITHUB_SHA::12}
+          for i in $(seq 1 24); do H=$(curl -fsS "$URL/health" || true); echo "$H" | grep -q "\"version\":\"$V\"" && break; sleep 5; done
+          echo "$H" | grep -q "\"version\":\"$V\"" || { echo "::error::$URL/health not serving $V after 2 min: $H"; exit 1; }
           echo "::notice title=deployed::$URL  health=$H"

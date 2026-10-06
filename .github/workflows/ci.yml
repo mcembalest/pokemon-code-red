@@ -49,6 +49,16 @@ jobs:
           python3 player/tests/e2e.py --phase boot
       - name: Invite gate + progress tracking (Chromium, mock backend)
         run: python3 player/tests/account.py
+      - name: Cache simulator core
+        uses: actions/cache@v4
+        with:
+          path: build/sim/mgba_libretro.so*
+          key: simcore-${{ hashFiles('core/sources.lock.json', 'core/mgba.patch', 'core/adapter.inc', 'sim/build_core.sh') }}
+      - name: Battle agent prototype (sim state → Chromium, mock brain)
+        run: |
+          sim/build_core.sh
+          python3 sim/make_states.py
+          python3 player/tests/agent_battle.py
       - name: Touch input + 10x toggle (iPhone emulation, Chromium)
         run: python3 player/tests/mobile.py --engine chromium --out build/mobile-chromium
       - name: iPhone Safari diagnostics (WebKit)
