@@ -21,3 +21,18 @@
 - move difficulty differs by model size (SCRATCH separates small from big) → moves can feel harder for young Pokémon
 - latency fine for turns except 8B (3.6 s)
 - 16 samples/move: rough (±~12 pts)
+
+## Scaffolding run (2026-10-06 night) — can a small model play a high-level Pokémon?
+`models/scaffold.mjs` · memory = notes from 12 warm-up tries per move (its own shortest working code per move, or "missed every time") · retry = on crash, sees the error and rewrites (≤2)
+
+| model | plain | + memory | + retry2 | + memory + retry2 |
+|---|---|---|---|---|
+| llama-3.2-3b | miss .38 / crit .59 | **miss 0 / crit .75** | miss .36 | miss 0 / crit .75 |
+| llama-3.2-1b | miss .91 | miss .72 | miss .89 | miss .73 |
+| gemma-2b-it-lora | miss 1.0 | 1.0 | 1.0 | .98 |
+| (ref) qwen2.5-coder-32b plain | miss 0 / crit .75 | | | |
+
+- **3B + its own memory = Qwen Coder 32B** on these moves (SCRATCH 94% → 0% miss; one lucky win in warm-up was enough)
+- crash-retries barely help (most misses are wrong logic, not crashes)
+- 1B: memory helps a little; gemma-2b (LoRA-capable base on Workers AI) unusable as-is
+- caveat: here a move's task is identical every battle → memory = cached solution → never misses again. For the game: memory must help without trivializing (capacity limits, newly learned moves start blank, tasks that vary with the situation)
