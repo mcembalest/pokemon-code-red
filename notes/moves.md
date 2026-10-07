@@ -33,106 +33,106 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Type | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|---|
-| PING | Tackle | Normal | 35/95 | hit | how many bytes there are | S |
-| SLICE | Scratch | Normal | 40/100 | hit | the first 3 bytes | S |
-| POKE | Pound | Normal | 40/100 | hit | the second byte (index 1) |  |
-| FETCH | Peck | Flying | 35/100 | hit | the last byte |  |
-| SPIKE | Horn Attack | Normal | 65/100 | hit | the index of the largest byte |  |
-| BOOTDRIVE | Rock Throw | Rock | 50/90 | hit | the sum of the bytes |  |
-| FORKBOMB | Slam | Normal | 80/75 | hit | each byte times 2 |  |
-| CRAWL | Vine Whip | Grass | 35/100 | hit | the bytes at even indexes (0, 2, 4…) | S |
-| FLUSH | Water Gun | Water | 40/100 | hit | every byte set to 0 |  |
-| UPLOAD | Wing Attack | Flying | 60/100 | hit | the bytes joined into one string with '-' between them |  |
-| UNDO | Double Slap | Normal | 15/85 | multi hit | the bytes without the first one |  |
-| SPAM | Fury Attack | Normal | 15/85 | multi hit | a list of 5 entries, each one the first byte |  |
-| BRUTEFORCE | Fury Swipes | Normal | 18/80 | multi hit | the bytes that are under 50 |  |
-| SNAPSHOT | Icicle Spear | Ice | 10/100 | multi hit | a copy of the bytes, unchanged |  |
-| SUSPEND | Hypnosis | Psychic | –/60 | sleep | the bytes without the last one |  |
-| SCREENSAVER | Sing | Normal | –/55 | sleep | how many bytes are even |  |
-| HIBERNATE | Sleep Powder | Grass | –/75 | sleep | the average byte, rounded down |  |
-| STANDBY | Spore | Grass | –/100 | sleep | the first byte minus the last |  |
-| GLITCH | Kinesis | Psychic | –/80 | accuracy down | each byte's last digit |  |
-| SANDBOX | Sand Attack | Ground | –/100 | accuracy down | every byte, capped at 100 |  |
-| OBFUSCATE | Smokescreen | Normal | –/100 | accuracy down | every byte XOR 255 |  |
-| SCRAMBLE | Confusion | Psychic | 50/100 | confuse hit | the bytes sorted from largest to smallest |  |
-| DEEPFAKE | Psybeam | Psychic | 65/100 | confuse hit | every byte rounded to the nearest 10 (5 rounds up) |  |
-| DROPTABLE | Water Pulse | Water | 60/100 | confuse hit | the bytes with every byte under 50 dropped |  |
-| PHISH | Bite | Dark | 60/100 | flinch hit | the second-to-last byte |  |
-| REBOOT | Headbutt | Normal | 70/100 | flinch hit | the first byte plus the last |  |
-| SEGFAULT | Hyper Fang | Normal | 80/90 | flinch hit | the byte at index (first byte % number of bytes) |  |
-| OVERCLOCK | Karate Chop | Fighting | 50/100 | high critical | the sum of every byte squared |  |
-| SHARDS | Razor Leaf | Grass | 55/95 | high critical | the bytes split into pairs; an odd last byte is a pair of one |  |
-| TRUNCATE | Slash | Normal | 70/100 | high critical | the first half of the bytes (half rounded down) |  |
-| BROWNOUT | Glare | Normal | –/75 | paralyze | the smallest byte times how many bytes |  |
-| SPINLOCK | Stun Spore | Grass | –/75 | paralyze | how many bytes are under 50 |  |
-| POWERCUT | Thunder Wave | Electric | –/100 | paralyze | the bytes in their order, without the largest one |  |
-| INJECT | Poison Sting | Poison | 15/100 | poison hit | the bytes with a 1 added at the end |  |
-| MALWARE | Sludge | Poison | 65/100 | poison hit | every byte plus the first byte |  |
-| BOTNET | Smog | Poison | 20/70 | poison hit | the sum of the bytes over 100 |  |
-| TROJAN | Poison Gas | Poison | –/55 | poison | the bytes in their order, but with the largest moved to the front |  |
-| PAYLOAD | Poison Powder | Poison | –/75 | poison | how many bytes are odd |  |
+| PING | Tackle | Normal | 35/95 | hit | how many numbers there are (the length of the list) | S |
+| SLICE | Scratch | Normal | 40/100 | hit | the first 3 numbers | S |
+| POKE | Pound | Normal | 40/100 | hit | the second number (index 1) |  |
+| FETCH | Peck | Flying | 35/100 | hit | the last number |  |
+| SPIKE | Horn Attack | Normal | 65/100 | hit | the index of the largest number |  |
+| BOOTDRIVE | Rock Throw | Rock | 50/90 | hit | the sum of the numbers |  |
+| FORKBOMB | Slam | Normal | 80/75 | hit | each number times 2 |  |
+| CRAWL | Vine Whip | Grass | 35/100 | hit | the numbers at even indexes (0, 2, 4…) | S |
+| FLUSH | Water Gun | Water | 40/100 | hit | an empty list |  |
+| UPLOAD | Wing Attack | Flying | 60/100 | hit | the numbers joined into one string with '-' between them |  |
+| UNDO | Double Slap | Normal | 15/85 | multi hit | the numbers without the first one |  |
+| SPAM | Fury Attack | Normal | 15/85 | multi hit | a list of 5 copies of the first number |  |
+| BRUTEFORCE | Fury Swipes | Normal | 18/80 | multi hit | the numbers that are under 50 |  |
+| SNAPSHOT | Icicle Spear | Ice | 10/100 | multi hit | a copy of the numbers, unchanged |  |
+| SUSPEND | Hypnosis | Psychic | –/60 | sleep | the numbers without the last one |  |
+| SCREENSAVER | Sing | Normal | –/55 | sleep | how many numbers are even |  |
+| HIBERNATE | Sleep Powder | Grass | –/75 | sleep | the average number, rounded down |  |
+| STANDBY | Spore | Grass | –/100 | sleep | the first number minus the last |  |
+| GLITCH | Kinesis | Psychic | –/80 | accuracy down | each number's last digit |  |
+| SANDBOX | Sand Attack | Ground | –/100 | accuracy down | each number capped at 100 (numbers over 100 become 100) |  |
+| OBFUSCATE | Smokescreen | Normal | –/100 | accuracy down | every number XOR 255 |  |
+| SCRAMBLE | Confusion | Psychic | 50/100 | confuse hit | the numbers sorted from largest to smallest |  |
+| DEEPFAKE | Psybeam | Psychic | 65/100 | confuse hit | every number rounded to the nearest 10 (5 rounds up) |  |
+| DROPTABLE | Water Pulse | Water | 60/100 | confuse hit | the numbers with every number under 50 dropped |  |
+| PHISH | Bite | Dark | 60/100 | flinch hit | the second-to-last number |  |
+| REBOOT | Headbutt | Normal | 70/100 | flinch hit | the first number plus the last |  |
+| SEGFAULT | Hyper Fang | Normal | 80/90 | flinch hit | the number at index (first number % number of numbers) |  |
+| OVERCLOCK | Karate Chop | Fighting | 50/100 | high critical | the sum of every number squared |  |
+| SHARDS | Razor Leaf | Grass | 55/95 | high critical | the numbers split into pairs; an odd last number is a pair of one |  |
+| TRUNCATE | Slash | Normal | 70/100 | high critical | the first half of the numbers (half rounded down) |  |
+| BROWNOUT | Glare | Normal | –/75 | paralyze | the smallest number multiplied by the length of the list |  |
+| SPINLOCK | Stun Spore | Grass | –/75 | paralyze | how many numbers are under 50 |  |
+| POWERCUT | Thunder Wave | Electric | –/100 | paralyze | the numbers in their order, without the largest one |  |
+| INJECT | Poison Sting | Poison | 15/100 | poison hit | the list with one extra number, 1, appended at the end |  |
+| MALWARE | Sludge | Poison | 65/100 | poison hit | every number plus the first number |  |
+| BOTNET | Smog | Poison | 20/70 | poison hit | the sum of only the numbers greater than 100 |  |
+| TROJAN | Poison Gas | Poison | –/55 | poison | the numbers in their order, but with the largest moved to the front |  |
+| PAYLOAD | Poison Powder | Poison | –/75 | poison | how many numbers are odd |  |
 | SCRAPE | Absorb | Grass | 20/100 | absorb | half the sum, rounded down |  |
-| LEAK | Leech Life | Bug | 20/100 | absorb | the sum of the last two bytes |  |
-| AUTOSCALE | Aerial Ace | Flying | 60/– | always hit | every byte halved, rounded down |  |
-| SWIFT | Swift | Normal | 60/– | always hit | the first byte plus 1 | K |
-| EXPOSE | Leer | Normal | –/100 | defense down | the index of the smallest byte |  |
-| DOWNGRADE | Tail Whip | Normal | –/100 | defense down | the largest byte | S |
-| HARDEN | Harden | Normal | –/– | defense up | the smallest byte | K |
-| BACKUP | Withdraw | Water | –/– | defense up | the bytes in reverse order | S |
-| SPARK | Spark | Electric | 65/100 | paralyze hit | the largest byte minus the smallest | K |
-| SURGE | Thunder Shock | Electric | 40/100 | paralyze hit | the largest byte plus 1 |  |
-| WIPEDISC | Bubble | Water | 20/100 | speed down hit | an empty list | S |
-| BRICK | Rock Tomb | Rock | 50/80 | speed down hit | the bytes sorted from smallest to largest |  |
-| BIND | Bind | Normal | 15/75 | trap | the first and last byte, as a list of two | K |
-| WRAP | Wrap | Normal | 15/85 | trap | the bytes wrapped in another list | K |
-| ERRORMSG | Growl | Normal | –/100 | attack down | the text 'ERROR ' followed by how many bytes there are | S |
-| COLDSTORAGE | Aurora Beam | Ice | 65/100 | attack down hit | the 3 smallest bytes, smallest first |  |
-| HASH | Metal Claw | Steel | 50/95 | attack up hit | the sum of the bytes mod 256 | S |
-| BURNDISC | Ember | Fire | 40/100 | burn hit | every byte plus 1 | S |
-| SPOOF | Camouflage | Normal | –/100 | camouflage | how many letters are in the foe's first type |  |
-| CHARGE | Charge | Electric | –/100 | charge | the largest byte times 2 | K |
-| FEEDBACK | Supersonic | Normal | –/55 | confuse | the sum of the first two bytes |  |
-| ROOTKIT | Curse | Mystery | –/– | curse | every byte minus the smallest |  |
-| LOCKDOWN | Defense Curl | Normal | –/– | defense curl | the first byte times 2 |  |
-| DISTORTION | Screech | Normal | –/85 | defense down 2 | the sum minus the largest byte |  |
-| ACID | Acid | Poison | 40/100 | defense down hit | the sum if every byte is under 150, otherwise 0 | K |
-| DISABLE | Disable | Normal | –/55 | disable | the last byte minus the first | K |
-| COPYPASTE | Double Kick | Fighting | 30/100 | double hit | the bytes, then the bytes again |  |
-| KERNELPANIC | Dragon Rage | Dragon | 1/100 | dragon rage | how many bytes, times 10 |  |
-| LOOP | Encore | Normal | –/100 | encore | a list as long as the bytes, every entry the first byte |  |
-| HONEYPOT | Sweet Scent | Normal | –/100 | evasion down | the largest even byte (0 if none) |  |
-| MIRROR | Double Team | Normal | –/– | evasion up | the bytes, then the bytes in reverse |  |
-| RM -RF | Self Destruct | Normal | 200/100 | explosion | the number 0 (nothing left) |  |
-| PANIC | Flail | Normal | 1/100 | flail | how many bytes are under 20 |  |
-| POPUP | Astonish | Ghost | 30/100 | flinch minimize hit | the byte at index (number of bytes ÷ 2, rounded down) |  |
-| COMPILE | Focus Energy | Normal | –/– | focus energy | the bytes joined into one string with nothing between them |  |
-| REDIRECT | Follow Me | Normal | –/100 | follow me | the index of the last byte |  |
-| DEBUGGER | Foresight | Normal | –/100 | foresight | the indexes of the bytes over 100 |  |
-| BROADCAST | Gust | Flying | 40/100 | gust | every byte plus the last byte |  |
-| PAIRPROGRAM | Helping Hand | Normal | –/100 | helping hand | the first byte times the second |  |
-| LEECH SEED | Leech Seed | Grass | –/90 | leech seed | the sum of the bytes at even indexes (0, 2, 4…) | S K |
-| THROW | Seismic Toss | Fighting | 1/100 | level damage | the foe's level |  |
-| UNDERFLOW | Low Kick | Fighting | 1/100 | low kick | the smallest byte minus 1 |  |
-| RNG | Magnitude | Ground | 1/100 | magnitude | the sum of the bytes mod 10 |  |
-| MINIMIZE | Minimize | Normal | –/– | minimize | the bytes with repeats removed (keep the first of each) | K |
-| GROUNDWIRE | Mud Sport | Ground | –/100 | mud sport | every byte, capped at 128 |  |
-| TRACEROUTE | Pursuit | Dark | 40/100 | pursuit | the index of the first byte over 100 (-1 if none) |  |
-| HOTFIX | Quick Attack | Normal | 40/100 | quick attack | the first byte |  |
-| RECURSION | Rage | Normal | 20/100 | rage | the sum of the digits of the sum of the bytes |  |
-| THRASH | Thrash | Normal | 90/100 | rampage | every byte times how many bytes | K |
-| SPINUP | Rapid Spin | Normal | 20/100 | rapid spin | the bytes with the first one moved to the end |  |
-| REFLECT | Reflect | Psychic | –/– | reflect | the names of the fields scan() returned, in order | K |
-| RECOVER | Recover | Normal | –/– | restore hp | the bytes exactly as scanned, before cleanup | K |
-| BACKTRACE | Revenge | Fighting | 60/100 | revenge | the bytes over 50, last to first |  |
-| FAILOVER | Whirlwind | Normal | –/100 | roar | the bytes with the last one moved to the front |  |
-| ROLLOUT | Rollout | Rock | 30/90 | rollout | the running totals (first byte, first two summed, first three…) | K |
-| DIALUP | Sonic Boom | Normal | 1/90 | sonicboom | how many bytes are over 20 |  |
-| UPGRADE | Growth | Normal | –/– | special attack up | the largest byte plus the smallest |  |
-| JAMMER | Metal Sound | Steel | –/85 | special defense down 2 | the bytes without the ones at indexes 2, 5, 8… |  |
-| STRINGIFY | String Shot | Bug | –/95 | speed down | the bytes as a JSON string |  |
-| BLUESCREEN | Scary Face | Normal | –/90 | speed down 2 | how many bytes are over 150 |  |
-| SPLASH | Splash | Normal | –/– | splash | no key at all: strike with nothing | K |
-| SSH | Teleport | Psychic | –/– | teleport | the foe's name |  |
-| DOUBLEFREE | Twineedle | Bug | 25/100 | twineedle | the first byte, twice (a list of two) |  |
-| HEATSINK | Water Sport | Water | –/100 | water sport | every byte, capped at 150 |  |
-| TIMEOUT | Yawn | Normal | –/100 | yawn | half the largest byte, rounded down |  |
+| LEAK | Leech Life | Bug | 20/100 | absorb | the sum of the last two numbers |  |
+| AUTOSCALE | Aerial Ace | Flying | 60/– | always hit | every number halved, rounded down |  |
+| SWIFT | Swift | Normal | 60/– | always hit | the first number plus 1 | K |
+| EXPOSE | Leer | Normal | –/100 | defense down | the index of the smallest number |  |
+| DOWNGRADE | Tail Whip | Normal | –/100 | defense down | the largest number | S |
+| HARDEN | Harden | Normal | –/– | defense up | the smallest number | K |
+| BACKUP | Withdraw | Water | –/– | defense up | the numbers in reverse order | S |
+| SPARK | Spark | Electric | 65/100 | paralyze hit | the largest number minus the smallest | K |
+| SURGE | Thunder Shock | Electric | 40/100 | paralyze hit | the largest number plus 1 |  |
+| WIPEDISC | Bubble | Water | 20/100 | speed down hit | every number replaced by 0 | S |
+| BRICK | Rock Tomb | Rock | 50/80 | speed down hit | the numbers sorted from smallest to largest |  |
+| BIND | Bind | Normal | 15/75 | trap | the first and last number, as a list of two | K |
+| WRAP | Wrap | Normal | 15/85 | trap | the numbers wrapped in another list | K |
+| ERRORMSG | Growl | Normal | –/100 | attack down | the text 'ERROR ' followed by how many numbers there are, e.g. 'ERROR 3' | S |
+| COLDSTORAGE | Aurora Beam | Ice | 65/100 | attack down hit | the 3 smallest numbers, smallest first |  |
+| HASH | Metal Claw | Steel | 50/95 | attack up hit | the sum of the numbers mod 256 | S |
+| BURNDISC | Ember | Fire | 40/100 | burn hit | every number plus 1 | S |
+| SPOOF | Camouflage | Normal | –/100 | camouflage | each number written as a string, like 42 → '42' (a list of strings) |  |
+| CHARGE | Charge | Electric | –/100 | charge | the largest number times 2 | K |
+| FEEDBACK | Supersonic | Normal | –/55 | confuse | the sum of the first two numbers |  |
+| ROOTKIT | Curse | Mystery | –/– | curse | every number minus the smallest |  |
+| LOCKDOWN | Defense Curl | Normal | –/– | defense curl | the first number times 2 |  |
+| DISTORTION | Screech | Normal | –/85 | defense down 2 | the sum minus the largest number |  |
+| ACID | Acid | Poison | 40/100 | defense down hit | the sum of the numbers if all of them are under 150, otherwise 0 | K |
+| DISABLE | Disable | Normal | –/55 | disable | the last number minus the first | K |
+| COPYPASTE | Double Kick | Fighting | 30/100 | double hit | the list followed by itself (twice as long) |  |
+| KERNELPANIC | Dragon Rage | Dragon | 1/100 | dragon rage | the length of the list times 10 |  |
+| LOOP | Encore | Normal | –/100 | encore | the counting numbers from 1 up to the length of the list ([1, 2, 3, …]) |  |
+| HONEYPOT | Sweet Scent | Normal | –/100 | evasion down | the largest even number (0 if none) |  |
+| MIRROR | Double Team | Normal | –/– | evasion up | the list followed by the same list reversed |  |
+| RM -RF | Self Destruct | Normal | 200/100 | explosion | always 0 (nothing left) |  |
+| PANIC | Flail | Normal | 1/100 | flail | how many numbers are under 20 |  |
+| POPUP | Astonish | Ghost | 30/100 | flinch minimize hit | the number at index (number of numbers ÷ 2, rounded down) |  |
+| COMPILE | Focus Energy | Normal | –/– | focus energy | the numbers joined into one string with nothing between them |  |
+| REDIRECT | Follow Me | Normal | –/100 | follow me | the index of the last number |  |
+| BREAKPOINT | Foresight | Normal | –/100 | foresight | the indexes of the numbers greater than 100 |  |
+| BROADCAST | Gust | Flying | 40/100 | gust | a list as long as the input where every entry is the first number |  |
+| PAIRPROGRAM | Helping Hand | Normal | –/100 | helping hand | the first number times the second number |  |
+| LEECH SEED | Leech Seed | Grass | –/90 | leech seed | the sum of the numbers at even indexes (0, 2, 4…) | S K |
+| SYSCALL | Seismic Toss | Fighting | 1/100 | level damage | the first number times 3 |  |
+| UNDERFLOW | Low Kick | Fighting | 1/100 | low kick | the smallest number minus 1 |  |
+| RNG | Magnitude | Ground | 1/100 | magnitude | the sum of the numbers mod 10 |  |
+| MINIMIZE | Minimize | Normal | –/– | minimize | the numbers with repeats removed (keep the first of each) | K |
+| GROUNDWIRE | Mud Sport | Ground | –/100 | mud sport | each number capped at 128 (numbers over 128 become 128) |  |
+| TRACEROUTE | Pursuit | Dark | 40/100 | pursuit | the index of the first number over 100 (-1 if none) |  |
+| HOTFIX | Quick Attack | Normal | 40/100 | quick attack | the first number |  |
+| RECURSION | Rage | Normal | 20/100 | rage | add up all the numbers, then add up the digits of that total (532 → 10) |  |
+| THRASH | Thrash | Normal | 90/100 | rampage | each number times the length of the list | K |
+| SPINUP | Rapid Spin | Normal | 20/100 | rapid spin | the numbers with the first one moved to the end |  |
+| REFLECT | Reflect | Psychic | –/– | reflect | each number mirrored around 100: 200 minus the number | K |
+| RECOVER | Recover | Normal | –/– | restore hp | how many numbers are greater than 50 | K |
+| BACKTRACE | Revenge | Fighting | 60/100 | revenge | the numbers over 50, last to first |  |
+| FAILOVER | Whirlwind | Normal | –/100 | roar | the numbers with the last one moved to the front |  |
+| ROLLOUT | Rollout | Rock | 30/90 | rollout | the running totals (first number, first two summed, first three…) | K |
+| DIALUP | Sonic Boom | Normal | 1/90 | sonicboom | how many numbers are over 20 |  |
+| UPGRADE | Growth | Normal | –/– | special attack up | the largest number plus the smallest |  |
+| JAMMER | Metal Sound | Steel | –/85 | special defense down 2 | the numbers without the ones at indexes 2, 5, 8… |  |
+| STRINGIFY | String Shot | Bug | –/95 | speed down | the numbers as a JSON string |  |
+| BLUESCREEN | Scary Face | Normal | –/90 | speed down 2 | how many numbers are over 150 |  |
+| SPLASH | Splash | Normal | –/– | splash | nothing: return without a value | K |
+| SSH | Teleport | Psychic | –/– | teleport | the list with the first and last numbers swapped |  |
+| DOUBLEFREE | Twineedle | Bug | 25/100 | twineedle | the first number, twice (a list of two) |  |
+| HEATSINK | Water Sport | Water | –/100 | water sport | each number capped at 150 (numbers over 150 become 150) |  |
+| TIMEOUT | Yawn | Normal | –/100 | yawn | half the largest number, rounded down |  |
