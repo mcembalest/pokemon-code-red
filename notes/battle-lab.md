@@ -33,5 +33,16 @@ Code: `models/lab/` (run.mjs = designs side by side; variants.mjs; formats.mjs =
 - journey (8 runs, ~110 turns each): learning + Pokédex .92 (L5 .77 → L17+ 1.0); tighter early .89 (L5 .69); learning only .77; fewer slots .76; nothing .66
 - hard moves (3B, plain data): SPINUP, FAILOVER, JAMMER, SHARDS, TROJAN, RM -RF, BREAKPOINT ≤ .5
 
+## Later runs (same session)
+- dual types, one function must read both formats: .45 (BUG/POISON .04–.13, ROCK/GROUND .63–.80, WATER/PSYCHIC .53–.82) → a wall, for gym leaders only
+- journeys with gym walls: every leader Pokémon → Brock .25, Misty .45 · only the ace (ONIX, STARMIE) +150 bytes → Brock .72, Misty .46 · + a one-line tip on telling the formats apart → **Brock .70, Misty .64**, rest ~.93 (journey 9, 12 runs)
+- without the tip, STARMIE ~0%: the 3B calls `.split` on the PSYCHIC object
+- paralysis as half budget (150 vs 300): .20 vs .95 → too harsh; ¾ budget ≈ .75–.80
+- foes (young, first time) attacking starters' formats: FIRE 1.00 · WATER .98 · GRASS .67 · POISON .54 → a format's difficulty acts as defense; FIRE may be too easy to read
+- Pokédex on "seen" ≈ on "caught" (seen slightly smoother)
+- cost: 4,032 moves ≈ 1.0M input + 0.24M output tokens → ~250 in / 60 out per move ≈ $0.004 per Pallet→Misty playthrough (Llama 3B list prices; foes would double it)
+- PSYCHIC "keys out of order" isn't observable in JS (integer-like keys always iterate in order) → its format is effectively "an object"; revisit
+- GitHub pushes failed with 500s for ~10 min mid-session; the REST git-data API is blocked by the proxy → just retry
+
 ## Open (owner)
-core rule · type formats · difficulty curve (late game ~100%) · statuses · foes writing code (defense = your own type's format) · hard moves
+core rule · type formats (FIRE too easy? POISON too hard at first?) · gym walls (aces only, with a tip: Brock .70, Misty .64) · difficulty curve (~.80 at L5 → ~.97 late) · statuses (FireRed's; optional paralysis = ¾ budget) · foes writing code (defense = your own type's format) · hard moves
