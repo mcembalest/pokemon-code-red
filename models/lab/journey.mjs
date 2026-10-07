@@ -108,7 +108,7 @@ async function journey(seed, policy) {
         if (outcome.hit && line && !(policy.dex && dex.has(t)) && await readsRight(line, data, clean)) { readers.delete(t); readers.set(t, line) }
         while (readers.size > slotsAt(level, policy)) readers.delete(readers.keys().next().value)
       }
-      turns.push({ segment, foe: foeName, type: t, both, level, move: move.name, temperature: +temperature.toFixed(2), budget, hit: outcome.hit, reason: outcome.reason ?? null, dex: dex.has(t), remembered: !!reader })
+      turns.push({ code: both ? outcome.code?.slice(0, 600) : undefined, segment, foe: foeName, type: t, both, level, move: move.name, temperature: +temperature.toFixed(2), budget, hit: outcome.hit, reason: outcome.reason ?? null, dex: dex.has(t), remembered: !!reader })
       xp += foeLevel; while (xp >= level * 6 && level < 21) { xp -= level * 6; level++ }
     }
     if ((caught || policy.dexSeen) && policy.dex) for (const ty of types) dex.add(ty) // dexSeen: seeing a species is enough (FireRed's 'seen')
