@@ -15,7 +15,9 @@ test('function judge: right code hits, wrong code misses', async () => {
   assert.match(v.prompt({ move: byName.SLICE, foe }).user, /hex dump/)
   assert.equal((await v.judge({ move: byName.SLICE, foe, code: "function slice(data) { return data.split(' ').map(h => parseInt(h, 16)).slice(0, 3) }" })).outcome, 'hit')
   assert.equal((await v.judge({ move: byName.SLICE, foe, code: "function slice(data) { return data.split(' ').slice(0, 3) }" })).outcome, 'miss')
-  assert.equal((await v.judge({ move: byName.SLICE, foe, code: 'const x = 1' })).reason, 'no function slice')
+  assert.equal((await v.judge({ move: byName.SLICE, foe, code: 'const x = 1' })).outcome, 'miss')
+  assert.equal((await v.judge({ move: byName.SLICE, foe, code: "const b = data.split(' ').map(h => parseInt(h, 16))\nreturn b.slice(0, 3)" })).outcome, 'hit')
+  assert.equal((await v.judge({ move: byName.SLICE, foe, code: "const b = data.split(' ').map(h => parseInt(h, 16))\nfunction slice(data) { return b.slice(0, 3) }" })).outcome, 'hit')
   const s = VARIANTS['format-steps']
   assert.equal((await s.judge({ move: byName.PING, foe, code: "const f = await tools.scan()\nawait tools.ping({ key: f.data.split(' ').length })" })).outcome, 'hit')
 })

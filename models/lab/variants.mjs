@@ -41,8 +41,10 @@ export function definedName(code, fn) {
 }
 
 async function judgeFunction({ move, foe, code, data }) {
-  const run = await runBlock(`${code}\nreturn ${definedName(code, move.fn)}(${JSON.stringify(data)})`, [])
-  if (!run.ok) return { outcome: 'miss', reason: /not defined/.test(run.error) ? `no function ${move.fn}` : run.error }
+  // The block may define the function, or just be its body (using `data`, ending in return): both count.
+  const name = definedName(code, move.fn)
+  const run = await runBlock(`return (function (data) {\n${code}\n;return typeof ${name} === 'function' ? ${name}(data) : undefined\n})(${JSON.stringify(data)})`, [])
+  if (!run.ok) return { outcome: 'miss', reason: run.error }
   const want = move.ref(foe.clean, scanObj(foe, 'bytes', data))
   return isDeepStrictEqual(run.value, want) ? { outcome: 'hit' } : { outcome: 'miss', reason: 'wrong answer', got: JSON.stringify(run.value)?.slice(0, 80), want: JSON.stringify(want)?.slice(0, 80) }
 }
