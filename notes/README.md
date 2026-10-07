@@ -15,6 +15,9 @@ Working notes. Outline + links + quotes. Not docs.
 | [backend.md](backend.md) | Cloudflare worker + D1, secrets, endpoints, player-side tracking |
 | [agents.md](agents.md) | agent framework v0, battle prototype, sim↔browser states |
 | [overnight-2026-10-06.md](overnight-2026-10-06.md) | what shipped overnight, what to try, what's unverified |
+| [plan-to-misty.md](plan-to-misty.md) | invite-ready prototype through Misty: done-means, decisions, build list |
+| [inventory-to-misty.md](inventory-to-misty.md) | every species, move, trainer up to Misty (generated from the game data) |
+| [models.md](models.md) | Workers AI model probe on the starter moves |
 | [sources.md](sources.md) | external links |
 
 Conventions
