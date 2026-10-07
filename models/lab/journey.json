@@ -1,12 +1,34 @@
 {
-  "note": "Journey 1: 6 CHARMANDERs each play Pallet → Misty (~110 turns). Policies: nothing / learn readers by fighting / Pokédex readers when caught / both.",
+  "note": "Journey 2: learning keeps a type reader only when it truly reads the data (no lucky habits); the remembered reader is shown in the turn; focus starts calmer (temperature 0.8 \u2192 0.3).",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "journeys": 6,
-  "defaults": { "startTemp": 1.0, "tempPerLevel": 0.05, "minTemp": 0.3, "budgetBase": 200, "budgetPerLevel": 10, "evolutionBudget": 100, "slotsBase": 2, "levelsPerSlot": 3, "evolutionSlots": 3 },
+  "defaults": {
+    "startTemp": 0.8,
+    "tempPerLevel": 0.03,
+    "minTemp": 0.3,
+    "budgetBase": 200,
+    "budgetPerLevel": 10,
+    "evolutionBudget": 100,
+    "slotsBase": 2,
+    "levelsPerSlot": 3,
+    "evolutionSlots": 3
+  },
   "policies": {
-    "nothing": { "learn": false, "dex": false },
-    "learn": { "learn": true, "dex": false },
-    "dex": { "learn": false, "dex": true },
-    "learn+dex": { "learn": true, "dex": true }
+    "nothing": {
+      "learn": false,
+      "dex": false
+    },
+    "learn": {
+      "learn": true,
+      "dex": false
+    },
+    "dex": {
+      "learn": false,
+      "dex": true
+    },
+    "learn+dex": {
+      "learn": true,
+      "dex": true
+    }
   }
 }

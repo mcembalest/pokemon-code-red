@@ -52,6 +52,11 @@ async function judge(move, code, data, clean) {
   return isDeepStrictEqual(run.value, move.ref(clean, {})) ? { hit: true } : { hit: false, reason: 'wrong answer' }
 }
 
+async function readsRight(line, data, clean) {
+  const run = await runBlock(`const data = ${JSON.stringify(data)}\n${line}\nreturn bytes`, [])
+  return run.ok && isDeepStrictEqual(run.value, clean)
+}
+
 async function journey(seed, policy) {
   const r = rng(seed)
   let level = 5, xp = 0
@@ -67,13 +72,14 @@ async function journey(seed, policy) {
       const data = FORMATS[t].encode(clean)
       const ex = [42, 13, 140, 77]
       const reader = policy.learn ? readers.get(t) : null
-      const memory = policy.learn ? [...readers].map(([ty, line]) => `How I read ${ty} data: ${line}`).join('\n') : ''
+      const memory = ''
       const budget = budgetAt(level, policy)
       const system = [`You are CHARMANDER, a level ${level} Pokémon. You fight by writing JavaScript.`, 'When your trainer calls a move, you write the code for it, then stop.',
         'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.', ...(memory ? ['', 'Your memory:', memory] : [])].join('\n')
       const user = [`Foe: ${foeName} Lv${foeLevel} (${types.join('/')}). Your trainer says: use ${move.name}!`, `Write the function: function ${move.fn}(data)`,
         `- data = the foe's bytes, this turn in ${t} format: ${FORMATS[t].note}. Example: ${show(example(t))} is [${EXAMPLE_BYTES.join(', ')}].`,
-        policy.dex && dex.has(t) ? `- Pokédex: ${t} data reads like this: ${HINTS[t]}` : '- First line of the function: const bytes = <read data into a list of numbers>',
+        policy.dex && dex.has(t) ? `- Pokédex: ${t} data reads like this: ${HINTS[t]}`
+          : reader ? `- You remember how you read ${t} data: ${reader}` : '- First line of the function: const bytes = <read data into a list of numbers>',
         `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(ex)} it returns ${JSON.stringify(move.ref(ex, {}))}.`,
         `- Byte budget: your whole code block must be at most ${budget} characters, comments included.`].join('\n')
       const temperature = focusAt(level, policy)
@@ -88,8 +94,8 @@ async function journey(seed, policy) {
       // learning: a hit teaches (or refreshes) how it read this type; a miss with a remembered reader forgets it
       if (policy.learn) {
         const line = outcome.code?.match(/const\s+bytes\s*=\s*[^\n;]+/)?.[0]
-        if (outcome.hit && line) { readers.delete(t); readers.set(t, line) }
-        else if (!outcome.hit && reader) readers.delete(t)
+        // keep a reader only if it really reads this type (checked on this turn's data): no lucky habits
+        if (outcome.hit && line && !(policy.dex && dex.has(t)) && await readsRight(line, data, clean)) { readers.delete(t); readers.set(t, line) }
         while (readers.size > slotsAt(level, policy)) readers.delete(readers.keys().next().value)
       }
       turns.push({ segment, foe: foeName, type: t, level, move: move.name, temperature: +temperature.toFixed(2), budget, hit: outcome.hit, reason: outcome.reason ?? null, dex: dex.has(t), remembered: !!reader })
