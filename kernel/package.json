@@ -2,13 +2,22 @@
   "name": "code-red-kernel",
   "private": true,
   "type": "module",
-  "description": "Pokémon Code Red agent kernel: a Pokémon is a pi-durable conversation; a move is one pi-codemode block.",
-  "exports": { ".": "./index.mjs" },
-  "scripts": { "test": "node --test test/*.test.mjs" },
+  "description": "Pok\u00e9mon Code Red agent kernel: a Pok\u00e9mon is a pi-durable conversation; a move is one pi-codemode block.",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "build": "node build.mjs",
+    "test:browser": "node build.mjs && python3 test/browser_smoke.py"
+  },
   "dependencies": {
     "@earendil-works/chord": "1.0.4",
     "@earendil-works/pi-ai": "1.0.4",
     "@earendil-works/pi-codemode": "1.0.4",
     "@earendil-works/pi-durable": "1.0.4"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

@@ -9,4 +9,5 @@ local/
 __pycache__/
 node_modules/
 player/dist/
+kernel/dist/
 .wrangler/

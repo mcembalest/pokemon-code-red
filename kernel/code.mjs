@@ -31,6 +31,11 @@ export function normalizeBlock(code) {
   return calls > 1 ? code : `${code}\nreturn await ${name}()`
 }
 
+// Where the sandbox finds QuickJS + its worker. Node: the package defaults. Browser: set by the host
+// (see browser/index.mjs) because a bundle has neither file on disk.
+let sandboxDefaults = {}
+export function configureSandbox(options) { sandboxDefaults = { ...options } }
+
 export const meter = (args, result) => JSON.stringify(args ?? {}).length + JSON.stringify(result ?? null).length
 
 /**
@@ -42,7 +47,7 @@ export const meter = (args, result) => JSON.stringify(args ?? {}).length + JSON.
 export async function runBlock(code, tools, { timeoutMs = 1500, sandboxOptions = {} } = {}) {
   const log = []
   const metered = tools.map(t => ({ ...t, execute: async (args, ctx) => { const out = await t.execute(args, ctx); log.push({ name: t.name, args, bytes: meter(args, out) }); return out } }))
-  const sb = new CodemodeSandbox({ tools: metered, timeoutMs, memoryLimitBytes: 32 << 20, ...sandboxOptions })
+  const sb = new CodemodeSandbox({ tools: metered, timeoutMs, memoryLimitBytes: 32 << 20, ...sandboxDefaults, ...sandboxOptions })
   let r
   try { r = await sb.execute(normalizeBlock(code)) } finally { await sb.close() }
   const spent = log.reduce((a, c) => a + c.bytes, 0)
