@@ -1,8 +1,21 @@
 {
-  "note": "Run 3: on the pi kernel (pi-durable conversation per Pokémon, pi-ai Workers AI, pi-codemode). Code block vs pi code tool; two ~3B models + 32B reference; situational rules on.",
+  "note": "Run 3b: run 3 again after fixing Workers AI quirks in the kernel (streamed numeric tokens were dropped \u2192 code lost its digits; array message content rejected). Code block vs pi code tool; Llama 3B, Granite micro, Qwen 32B reference; situational rules on.",
   "situational": true,
-  "level": 5, "samples": 16, "warmup": 12, "concurrency": 4,
-  "models": ["@cf/meta/llama-3.2-3b-instruct", "@cf/ibm-granite/granite-4.0-h-micro", "@cf/qwen/qwen2.5-coder-32b-instruct"],
-  "modes": ["block", "tool"],
-  "memory": [0, 2500]
+  "level": 5,
+  "samples": 16,
+  "warmup": 12,
+  "concurrency": 4,
+  "models": [
+    "@cf/meta/llama-3.2-3b-instruct",
+    "@cf/ibm-granite/granite-4.0-h-micro",
+    "@cf/qwen/qwen2.5-coder-32b-instruct"
+  ],
+  "modes": [
+    "block",
+    "tool"
+  ],
+  "memory": [
+    0,
+    2500
+  ]
 }
