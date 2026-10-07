@@ -32,7 +32,8 @@ const ROUTE = [
   ['Cerulean', 'ODDISH', ['GRASS', 'POISON'], 13, 3, true], ['Cerulean (rival)', 'ABRA', ['PSYCHIC'], 16, 3], ['Cerulean (rival)', 'SQUIRTLE', ['WATER'], 18, 4],
   ['Misty', 'STARYU', ['WATER'], 18, 5], ['Misty', 'STARMIE', ['WATER', 'PSYCHIC'], 21, 6],
 ]
-const MOVES_BY_LEVEL = [[1, 'SLICE'], [1, 'ERRORMSG'], [7, 'BURNDISC'], [13, 'HASH'], [16, 'TRUNCATE'], [19, 'SCRAMBLE']]
+// CHARMANDER's real learnset (Gen 3): Scratch, Growl, Ember 7, Metal Claw 13, Smokescreen 19
+const MOVES_BY_LEVEL = [[1, 'SLICE'], [1, 'ERRORMSG'], [7, 'BURNDISC'], [13, 'HASH'], [19, 'OBFUSCATE']]
 
 const focusAt = (L, p) => Math.max(p.minTemp, p.startTemp - p.tempPerLevel * (L - 5))
 const budgetAt = (L, p) => p.budgetBase + p.budgetPerLevel * L + (L >= 16 ? p.evolutionBudget : 0)
