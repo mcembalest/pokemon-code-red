@@ -41,7 +41,8 @@ Code: `models/lab/` (run.mjs = designs side by side; variants.mjs; formats.mjs =
 - foes (young, first time) attacking starters' formats: FIRE 1.00 · WATER .98 · GRASS .67 · POISON .54 → a format's difficulty acts as defense; FIRE may be too easy to read
 - Pokédex on "seen" ≈ on "caught" (seen slightly smoother)
 - cost: 4,032 moves ≈ 1.0M input + 0.24M output tokens → ~250 in / 60 out per move ≈ $0.004 per Pallet→Misty playthrough (Llama 3B list prices; foes would double it)
-- PSYCHIC "keys out of order" isn't observable in JS (integer-like keys always iterate in order) → its format is effectively "an object"; revisit
+- lab 15: FIRE → out-of-order write log `{at, value}`, PSYCHIC → jumbled `b0…` keys (integer keys can't be out of order in JS). Per type, 40 tries each, first time / known: NORMAL .63/.95 · FLYING .55/.93 · WATER 1/1 · GRASS .55/1 · ROCK .98/.93 · ELECTRIC .88/.95 · GROUND 1/1 · FIRE .50/.93 · POISON .13/.95 · BUG .58/.95 · PSYCHIC .50/.78 · FIGHTING .80/.82 · STEEL 1/.97 (overall .70/.94)
+- foes vs starters after the change: FIRE .56 · WATER 1.0 · GRASS .69 · POISON .40
 - GitHub pushes failed with 500s for ~10 min mid-session; the REST git-data API is blocked by the proxy → just retry
 
 ## Open (owner)
