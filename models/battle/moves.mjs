@@ -30,7 +30,7 @@ const TABLE = [
   ['Wing Attack', 'UPLOAD', "the bytes joined into one string with '-' between them", b => b.join('-')],
   // multi hit
   ['Double Slap', 'UNDO', 'the bytes without the first one', b => b.slice(1)],
-  ['Fury Attack', 'SPAM', 'the first byte, repeated 5 times', b => Array(5).fill(b[0])],
+  ['Fury Attack', 'SPAM', 'a list of 5 entries, each one the first byte', b => Array(5).fill(b[0])],
   ['Fury Swipes', 'BRUTEFORCE', 'the bytes that are under 50', b => b.filter(x => x < 50)],
   ['Icicle Spear', 'SNAPSHOT', 'a copy of the bytes, unchanged', b => [...b]],
   // sleep
@@ -57,12 +57,12 @@ const TABLE = [
   // paralyze
   ['Glare', 'BROWNOUT', 'the smallest byte times how many bytes', b => min(b) * b.length],
   ['Stun Spore', 'SPINLOCK', 'how many bytes are under 50', b => b.filter(x => x < 50).length],
-  ['Thunder Wave', 'POWERCUT', 'the bytes with the largest one removed', b => { const i = b.indexOf(max(b)); return b.filter((_, j) => j !== i) }],
+  ['Thunder Wave', 'POWERCUT', 'the bytes in their order, without the largest one', b => { const i = b.indexOf(max(b)); return b.filter((_, j) => j !== i) }],
   // poison hit / poison
   ['Poison Sting', 'INJECT', 'the bytes with a 1 added at the end', b => [...b, 1]],
   ['Sludge', 'MALWARE', 'every byte plus the first byte', b => b.map(x => x + b[0])],
   ['Smog', 'BOTNET', 'the sum of the bytes over 100', b => sum(b.filter(x => x > 100))],
-  ['Poison Gas', 'TROJAN', 'the bytes with the largest moved to the front', b => { const i = b.indexOf(max(b)); return [b[i], ...b.filter((_, j) => j !== i)] }],
+  ['Poison Gas', 'TROJAN', 'the bytes in their order, but with the largest moved to the front', b => { const i = b.indexOf(max(b)); return [b[i], ...b.filter((_, j) => j !== i)] }],
   ['Poison Powder', 'PAYLOAD', 'how many bytes are odd', b => b.filter(x => x % 2 === 1).length],
   // absorb
   ['Absorb', 'SCRAPE', 'half the sum, rounded down', b => Math.floor(sum(b) / 2)],

@@ -11,21 +11,21 @@ Source of truth: `models/battle/moves.mjs` (names, specs, reference answers) and
 
 ## Foe types before Misty
 
-| Type | Concept | Cleanup | Foes |
-|---|---|---|---|
-| NORMAL | files | nothing to clean | RATTATA, PIDGEY, SPEAROW, CLEFAIRY, JIGGLYPUFF |
-| FIRE | writes | drop every byte over 200 | CHARMANDER |
-| WATER | wipe | drop every 0 | SQUIRTLE, STARYU, STARMIE |
-| GRASS | sprawl | drop every byte under 10 | ODDISH, PARAS, BULBASAUR |
-| ELECTRIC | power | drop the largest byte (only that one) | PIKACHU, MAGNEMITE, VOLTORB |
-| FIGHTING | raw compute | keep only the first 5 bytes | MANKEY, MACHOP |
-| POISON | malware | drop every negative byte | WEEDLE, KAKUNA, ZUBAT, EKANS, NIDORAN, ODDISH, BULBASAUR |
-| GROUND | physical | drop the first byte | GEODUDE, ONIX, SANDSHREW |
-| FLYING | cloud | the bytes are text: turn each into a number | PIDGEY, SPEAROW, ZUBAT |
-| PSYCHIC | detection | reverse the bytes | STARMIE, ABRA, DROWZEE |
-| BUG | bugs | drop repeats: keep only the first of each value | CATERPIE, METAPOD, WEEDLE, KAKUNA, PARAS |
-| ROCK | hardware | drop every 255 | GEODUDE, ONIX |
-| STEEL | encryption | subtract 100 from every byte | MAGNEMITE |
+| Type | Concept | Cleanup | Why | Foes |
+|---|---|---|---|---|
+| NORMAL | files | nothing to clean | files: nothing to clean | RATTATA, PIDGEY, SPEAROW, CLEFAIRY, JIGGLYPUFF |
+| FIRE | writes | drop every byte over 200 | bytes over 200 are still being written | CHARMANDER |
+| WATER | wipe | drop every 0 | wiped bytes read 0 | SQUIRTLE, STARYU, STARMIE |
+| GRASS | sprawl | drop every byte under 10 | leftover fragments are under 10 | ODDISH, PARAS, BULBASAUR |
+| ELECTRIC | power | drop the largest byte (only that one) | the largest byte is a power spike | PIKACHU, MAGNEMITE, VOLTORB |
+| FIGHTING | raw compute | keep only the first 5 bytes | everything after the first 5 is flooding | MANKEY, MACHOP |
+| POISON | malware | drop every negative byte | infected bytes are negative | WEEDLE, KAKUNA, ZUBAT, EKANS, NIDORAN, ODDISH, BULBASAUR |
+| GROUND | physical | drop the first byte | the first byte is a hardware header | GEODUDE, ONIX, SANDSHREW |
+| FLYING | cloud | the bytes are numbers written as text ("42"): turn each into a number with Number() | cloud data arrives as text | PIDGEY, SPEAROW, ZUBAT |
+| PSYCHIC | detection | reverse the bytes | it sees you coming: bytes arrive reversed | STARMIE, ABRA, DROWZEE |
+| BUG | bugs | keep the first copy of each value and drop the later copies | bugs duplicate bytes | CATERPIE, METAPOD, WEEDLE, KAKUNA, PARAS |
+| ROCK | hardware | drop every 255 | burned-out cells read 255 | GEODUDE, ONIX |
+| STEEL | encryption | subtract 100 from every byte | encrypted: every byte arrives with 100 added | MAGNEMITE |
 
 ## Moves (103)
 
@@ -44,7 +44,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | FLUSH | Water Gun | Water | 40/100 | hit | every byte set to 0 |  |
 | UPLOAD | Wing Attack | Flying | 60/100 | hit | the bytes joined into one string with '-' between them |  |
 | UNDO | Double Slap | Normal | 15/85 | multi hit | the bytes without the first one |  |
-| SPAM | Fury Attack | Normal | 15/85 | multi hit | the first byte, repeated 5 times |  |
+| SPAM | Fury Attack | Normal | 15/85 | multi hit | a list of 5 entries, each one the first byte |  |
 | BRUTEFORCE | Fury Swipes | Normal | 18/80 | multi hit | the bytes that are under 50 |  |
 | SNAPSHOT | Icicle Spear | Ice | 10/100 | multi hit | a copy of the bytes, unchanged |  |
 | SUSPEND | Hypnosis | Psychic | –/60 | sleep | the bytes without the last one |  |
@@ -65,11 +65,11 @@ S = a starter learns it before Brock · K = FireRed name kept
 | TRUNCATE | Slash | Normal | 70/100 | high critical | the first half of the bytes (half rounded down) |  |
 | BROWNOUT | Glare | Normal | –/75 | paralyze | the smallest byte times how many bytes |  |
 | SPINLOCK | Stun Spore | Grass | –/75 | paralyze | how many bytes are under 50 |  |
-| POWERCUT | Thunder Wave | Electric | –/100 | paralyze | the bytes with the largest one removed |  |
+| POWERCUT | Thunder Wave | Electric | –/100 | paralyze | the bytes in their order, without the largest one |  |
 | INJECT | Poison Sting | Poison | 15/100 | poison hit | the bytes with a 1 added at the end |  |
 | MALWARE | Sludge | Poison | 65/100 | poison hit | every byte plus the first byte |  |
 | BOTNET | Smog | Poison | 20/70 | poison hit | the sum of the bytes over 100 |  |
-| TROJAN | Poison Gas | Poison | –/55 | poison | the bytes with the largest moved to the front |  |
+| TROJAN | Poison Gas | Poison | –/55 | poison | the bytes in their order, but with the largest moved to the front |  |
 | PAYLOAD | Poison Powder | Poison | –/75 | poison | how many bytes are odd |  |
 | SCRAPE | Absorb | Grass | 20/100 | absorb | half the sum, rounded down |  |
 | LEAK | Leech Life | Bug | 20/100 | absorb | the sum of the last two bytes |  |

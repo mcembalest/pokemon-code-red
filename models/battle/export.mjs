@@ -5,7 +5,7 @@ import { MOVES } from './moves.mjs'
 import { TYPES, FOES } from './types.mjs'
 
 const [md, json] = process.argv.slice(2)
-const typeRows = Object.entries(TYPES).map(([t, v]) => ({ type: t, concept: v.concept, rule: v.rule, foes: FOES.filter(f => f[1].includes(t)).map(f => f[0]) }))
+const typeRows = Object.entries(TYPES).map(([t, v]) => ({ type: t, concept: v.concept, rule: v.rule, why: v.why, foes: FOES.filter(f => f[1].includes(t)).map(f => f[0]) }))
 const moveRows = MOVES.map(({ ref, ...m }) => m)
 if (json) writeFileSync(json, JSON.stringify({ moves: moveRows, types: typeRows }))
 if (md) writeFileSync(md, [
@@ -17,8 +17,8 @@ if (md) writeFileSync(md, [
   '- miss = wrong answer · crash · timeout · over budget · never struck · struck twice',
   '- naming (owner): plain technical words that sound cool; a FireRed name that is already a tech word stays (★kept); GROWL → ERRORMSG; SCRATCH → SLICE because CUT is FireRed\'s HM',
   '- positions count from 0; ties → the first; "rounded down" = floor', '',
-  '## Foe types before Misty', '', '| Type | Concept | Cleanup | Foes |', '|---|---|---|---|',
-  ...typeRows.map(t => `| ${t.type} | ${t.concept} | ${t.rule} | ${t.foes.join(', ')} |`), '',
+  '## Foe types before Misty', '', '| Type | Concept | Cleanup | Why | Foes |', '|---|---|---|---|---|',
+  ...typeRows.map(t => `| ${t.type} | ${t.concept} | ${t.rule} | ${t.why} | ${t.foes.join(', ')} |`), '',
   `## Moves (${moveRows.length})`, '', 'S = a starter learns it before Brock · K = FireRed name kept', '',
   '| Move | Was | Type | Power/acc | Effect | The code computes | |', '|---|---|---|---|---|---|---|',
   ...moveRows.map(m => `| ${m.name} | ${m.firered} | ${m.type} | ${m.power}/${m.acc} | ${m.effect} | ${m.spec} | ${[m.starter && 'S', m.kept && 'K'].filter(Boolean).join(' ')} |`), '',
