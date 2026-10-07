@@ -1,5 +1,5 @@
 {
-  "note": "Journey 9 (final): Pok\u00e9dex on seen + verified learning; each leader's ace switches formats with +150 bytes; with vs without a one-line tip on telling the formats apart (the gym's 'lesson'). 12 journeys.",
+  "note": "Journey 10 (final, current formats): recommended rules vs no gym walls vs gym aces without the tip. 12 journeys.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "journeys": 12,
   "defaults": {
