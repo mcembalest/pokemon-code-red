@@ -119,6 +119,9 @@ export const VARIANTS = {
     },
     judge: ({ move, foe, code }) => judgeFunction({ move, foe, code, data: encoded(foe) }),
   },
+  // Gym battle: first-encounter format + the gym leader's rule (Brock: no loops; Misty: const only).
+  'fn-gym': gymVariant(false),
+  'fn-gym-dex': gymVariant(true),
   // Same, but only an example with its meaning (no description of the format).
   'fn-example': {
     prompt({ move, foe, memory }) {
@@ -203,6 +206,27 @@ function dualVariant(hint) {
         if (v.outcome !== 'hit') return { ...v, reason: `${v.reason} (${t} data)` }
       }
       return { outcome: 'hit' }
+    },
+  }
+}
+
+const GYM_RULE = { ROCK: 'ROCK', WATER: 'WATER' }
+function gymVariant(dex) {
+  return {
+    prompt({ move, foe, memory }) {
+      const ex = [42, 13, 140, 77], t = foe.types[0]
+      return {
+        system: persona(foe, [], memory),
+        user: [foeLine(move, foe), `Write the function: function ${move.fn}(data)`,
+          `- data = the foe's bytes in ${t} format: ${FORMATS[t].note}. Example: ${show(example(t))} is [${EXAMPLE_BYTES.join(', ')}].`,
+          dex ? `- Pokédex: ${t} data reads like this: ${HINTS[t]}` : '- First line of the function: const bytes = <read data into a list of numbers>',
+          `- ${move.fn} returns ${move.spec}${shapeNote(move)}. On the numbers ${JSON.stringify(ex)} it returns ${JSON.stringify(move.ref(ex, {})) ?? 'nothing'}.`,
+          `- Gym rule: ${LINT[t].rule}.`].join('\n'),
+      }
+    },
+    async judge({ move, foe, code }) {
+      if (!LINT[foe.types[0]].ok(code)) return { outcome: 'miss', reason: 'broke the gym rule' }
+      return judgeFunction({ move, foe, code, data: encoded(foe) })
     },
   }
 }

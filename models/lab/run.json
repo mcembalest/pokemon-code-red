@@ -1,5 +1,5 @@
 {
- "note": "Lab 8: learning types by fighting \u2014 first encounter (format note only, line 1 = const bytes = \u2026) vs after 2 warm-up battles per type, remembering only its own reader line per type; vs the Pok\u00e9dex hint.",
+ "note": "Lab 9: gym battles = the type's format + the leader's rule (Brock ROCK: no loops; Misty WATER: const only), first encounter vs Pok\u00e9dex; plus a Qwen 32B sanity check of the Pok\u00e9dex design on all moves.",
  "models": [
   "@cf/meta/llama-3.2-3b-instruct"
  ],
@@ -8,9 +8,10 @@
  "maxTokens": 500,
  "experiments": [
   {
-   "name": "first encounter",
+   "name": "gyms",
    "variants": [
-    "fn-format-conv"
+    "fn-gym",
+    "fn-gym-dex"
    ],
    "moves": [
     "SLICE",
@@ -22,94 +23,33 @@
     "LEECH SEED",
     "CRAWL",
     "HASH",
-    "BACKUP"
+    "BACKUP",
+    "SPARK",
+    "FORKBOMB",
+    "BOOTDRIVE",
+    "HARDEN"
    ],
    "types": [
-    "NORMAL",
-    "FLYING",
-    "WATER",
-    "GRASS",
-    "ROCK",
-    "ELECTRIC",
-    "GROUND",
-    "FIRE",
-    "POISON",
-    "BUG",
-    "PSYCHIC",
-    "FIGHTING",
-    "STEEL"
+    "ROCK/GROUND",
+    "WATER"
    ],
-   "samples": 3
+   "samples": 4
   },
   {
-   "name": "learned readers",
-   "variants": [
-    "fn-format-conv"
+   "name": "32B check",
+   "models": [
+    "@cf/qwen/qwen2.5-coder-32b-instruct"
    ],
-   "memory": 2,
-   "memoryKind": "readers",
-   "moves": [
-    "SLICE",
-    "PING",
-    "ERRORMSG",
-    "DOWNGRADE",
-    "BURNDISC",
-    "WIPEDISC",
-    "LEECH SEED",
-    "CRAWL",
-    "HASH",
-    "BACKUP"
-   ],
-   "types": [
-    "NORMAL",
-    "FLYING",
-    "WATER",
-    "GRASS",
-    "ROCK",
-    "ELECTRIC",
-    "GROUND",
-    "FIRE",
-    "POISON",
-    "BUG",
-    "PSYCHIC",
-    "FIGHTING",
-    "STEEL"
-   ],
-   "samples": 3
-  },
-  {
-   "name": "pokedex",
    "variants": [
     "fn-hint-ex"
    ],
-   "moves": [
-    "SLICE",
-    "PING",
-    "ERRORMSG",
-    "DOWNGRADE",
-    "BURNDISC",
-    "WIPEDISC",
-    "LEECH SEED",
-    "CRAWL",
-    "HASH",
-    "BACKUP"
-   ],
+   "moves": "all",
    "types": [
-    "NORMAL",
-    "FLYING",
-    "WATER",
-    "GRASS",
     "ROCK",
-    "ELECTRIC",
-    "GROUND",
-    "FIRE",
-    "POISON",
-    "BUG",
-    "PSYCHIC",
-    "FIGHTING",
-    "STEEL"
+    "WATER",
+    "PSYCHIC"
    ],
-   "samples": 3
+   "samples": 1
   }
  ]
 }
