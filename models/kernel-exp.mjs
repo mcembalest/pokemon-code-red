@@ -3,8 +3,9 @@
 //   mode 'block' — the Pokémon replies with a code block
 //   mode 'tool'  — the Pokémon calls pi's `code` tool (pi's code-mode convention)
 //   memory      — always-in-context notes from its own warm-up battles (shortest working code; moves it missed)
-//   CLOUDFLARE_API_KEY=… CLOUDFLARE_ACCOUNT_ID=… node kernel-exp.mjs kernel-exp.json > results.json
-import { readFileSync } from 'node:fs'
+//   CLOUDFLARE_API_KEY=… CLOUDFLARE_ACCOUNT_ID=… node kernel-exp.mjs kernel-exp.json results.json
+// Results are rewritten after every cell, so a timed-out run still leaves what it finished.
+import { readFileSync, writeFileSync } from 'node:fs'
 import { gameModels, modelRef, openKernel } from '../kernel/index.mjs'
 import { CONTRACTS, CRIT_SOURCE_CHARS, SITUATIONAL, makeFoe, moveBudget } from './contracts.mjs'
 
@@ -49,6 +50,7 @@ async function pool(jobs, mons, fn) {
 
 const rate = sel => Object.fromEntries(['miss', 'hit', 'crit'].map(k => [k, +(sel.filter(r => r.outcome === k).length / sel.length).toFixed(3)]))
 const results = { at: new Date().toISOString(), cfg, cells: [] }
+const save = () => writeFileSync(process.argv[3] ?? 'kernel-results.json', JSON.stringify(results, null, 2))
 for (const model of cfg.models) {
   for (const mode of cfg.modes) {
     const mons = await Promise.all(Array.from({ length: cfg.concurrency ?? 4 }, () => kernel.createMon({ species: 'CHARMANDER', level, memory: [], memoryLimit: 0 })))
@@ -72,10 +74,10 @@ for (const model of cfg.models) {
       const cell = { model, mode, memoryLimit, all: rate(rows), perMove: Object.fromEntries(MOVES.map(m => [m, rate(rows.filter(r => r.move === m))])),
         missReasons: reasons, p50ms: ms[Math.floor(ms.length / 2)], wallS: Math.round((Date.now() - t0) / 1000),
         examples: rows.filter(r => r.outcome === 'miss').slice(0, 6) }
-      results.cells.push(cell)
+      results.cells.push(cell); save()
       log(`${model.split('/').pop()} [${mode} mem=${memoryLimit}] ${JSON.stringify(cell.all)} p50 ${cell.p50ms}ms ${JSON.stringify(reasons)}`)
     }
   }
 }
+results.done = true; save()
 await kernel.close()
-process.stdout.write(JSON.stringify(results, null, 2))
