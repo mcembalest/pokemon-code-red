@@ -1,9 +1,35 @@
 {
-  "note": "Battle rule draft 2026-10-07: clean by foe type → compute the move → strike once. A = every move vs NORMAL; B = starter moves vs every foe type before Misty. No memory. Llama 3B + Qwen 32B reference.",
-  "models": ["@cf/meta/llama-3.2-3b-instruct", "@cf/qwen/qwen2.5-coder-32b-instruct"],
+  "note": "Battle rule draft, run 2: after fixing JSON-looking stream tokens ([] {} null true dropped) and showing the answer's shape (a number / a list / text). A = every move vs NORMAL; B = starter moves vs every foe type. No memory.",
+  "models": [
+    "@cf/meta/llama-3.2-3b-instruct",
+    "@cf/qwen/qwen2.5-coder-32b-instruct"
+  ],
   "concurrency": 6,
   "parts": [
-    { "name": "A: every move vs NORMAL", "moves": "all", "types": ["NORMAL"], "samples": 8 },
-    { "name": "B: starter moves vs every type", "moves": ["SLICE", "PING", "ERRORMSG", "DOWNGRADE", "BURNDISC", "WIPEDISC", "LEECH SEED", "CRAWL", "HASH", "BACKUP"], "types": "all", "samples": 4 }
+    {
+      "name": "A: every move vs NORMAL",
+      "moves": "all",
+      "types": [
+        "NORMAL"
+      ],
+      "samples": 8
+    },
+    {
+      "name": "B: starter moves vs every type",
+      "moves": [
+        "SLICE",
+        "PING",
+        "ERRORMSG",
+        "DOWNGRADE",
+        "BURNDISC",
+        "WIPEDISC",
+        "LEECH SEED",
+        "CRAWL",
+        "HASH",
+        "BACKUP"
+      ],
+      "types": "all",
+      "samples": 4
+    }
   ]
 }

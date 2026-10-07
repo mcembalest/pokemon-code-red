@@ -144,9 +144,15 @@ export const fnName = name => name.toLowerCase().replace(/[^a-z0-9]+/g, '_').rep
 
 export const STARTER_MOVES = new Set(['Scratch', 'Growl', 'Ember', 'Metal Claw', 'Tackle', 'Tail Whip', 'Bubble', 'Withdraw', 'Leech Seed', 'Vine Whip'])
 
+/** What kind of answer the key is, shown to the Pokémon next to the spec. */
+const shapeOf = ref => {
+  const v = ref([12, 40, 7, 33, 190], { name: 'RATTATA', level: 3, types: ['NORMAL'], status: 'none', bytes: [12, 40, 7, 33, 190] })
+  return v === undefined ? 'no key' : v === null ? 'null' : Array.isArray(v) ? 'a list' : typeof v === 'string' ? 'text' : 'a number'
+}
+
 export const MOVES = TABLE.map(([firered, name, spec, ref]) => {
   const [type, power, acc, effect] = FR[firered]
-  return { firered, name, fn: fnName(name), spec, ref, type, power, acc, effect, starter: STARTER_MOVES.has(firered), kept: name === firered.toUpperCase() }
+  return { firered, name, fn: fnName(name), spec, shape: shapeOf(ref), ref, type, power, acc, effect, starter: STARTER_MOVES.has(firered), kept: name === firered.toUpperCase() }
 })
 
 export const byName = Object.fromEntries(MOVES.map(m => [m.name, m]))

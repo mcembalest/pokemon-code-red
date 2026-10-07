@@ -30,7 +30,9 @@ export function turnText(move, foe) {
   const notes = foe.types.map((t, i) => `${i ? 'Then ' : ''}${t}: ${TYPES[t].rule}.`).join(' ')
   return {
     foeLine: `Foe: ${foe.name} Lv${foe.level} (${foe.types.join('/')}). Clean its bytes first. ${notes}`,
-    task: `strike once with ${move.spec}. Call tools.${move.fn}({ key }) exactly once.`,
+    task: move.shape === 'no key'
+      ? `${move.spec}. Call tools.${move.fn}() exactly once.`
+      : `key = ${move.spec} (${move.shape}). Call tools.${move.fn}({ key }) exactly once.`,
   }
 }
 

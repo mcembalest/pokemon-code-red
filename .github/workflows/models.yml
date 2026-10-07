@@ -71,6 +71,7 @@ jobs:
         run: |
           git diff --name-only HEAD~1 HEAD | grep -qx 'models/battle/exp.json' || { echo "battle/exp.json unchanged; skipping"; exit 0; }
           echo "ran=1" >> "$GITHUB_OUTPUT"
+          for m in @cf/meta/llama-3.2-3b-instruct @cf/qwen/qwen2.5-coder-32b-instruct; do echo "::notice title=stream probe::$(node ../kernel/scripts/stream-probe.mjs $m 2>&1 | tail -c 900)"; done
           node battle/exp.mjs battle/exp.json battle-results.json 2> battle-log.txt || { echo "::error title=battle::$(tail -c 1500 battle-log.txt | tr '\n' ' ')"; exit 1; }
           while read -r l; do echo "::notice title=battle::$l"; done < battle-log.txt
       - name: Publish results
