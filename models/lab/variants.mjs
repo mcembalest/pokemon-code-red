@@ -2,7 +2,7 @@
 import { isDeepStrictEqual } from 'node:util'
 import { renderDeclarations, runBlock } from '../../kernel/index.mjs'
 import { TYPES } from '../battle/types.mjs'
-import { EXAMPLE_BYTES, FORMATS, example, show } from './formats.mjs'
+import { EXAMPLE_BYTES, FORMATS, HINTS, example, show } from './formats.mjs'
 
 const persona = (foe, extra, memory) => [
   `You are CHARMANDER, a level ${foe.level} Pokémon. You fight by writing JavaScript.`,
@@ -76,6 +76,19 @@ export const VARIANTS = {
         system: persona(foe, [], memory),
         user: [foeLine(move, foe), `Write the function: function ${move.fn}(data)`,
           `- data = the foe's bytes in ${foe.types[0]} format: ${fmt(foe).note}. Example: ${show(example(foe.types[0]))} is [${EXAMPLE_BYTES.join(', ')}].`,
+          `- ${move.fn} returns ${move.spec}${shapeNote(move)}.`].join('\n'),
+      }
+    },
+    judge: ({ move, foe, code }) => judgeFunction({ move, foe, code, data: encoded(foe) }),
+  },
+  // Function + the type's format + a Pokédex hint: one line that reads the data.
+  'fn-hint': {
+    prompt({ move, foe, memory }) {
+      return {
+        system: persona(foe, [], memory),
+        user: [foeLine(move, foe), `Write the function: function ${move.fn}(data)`,
+          `- data = the foe's bytes in ${foe.types[0]} format: ${fmt(foe).note}. Example: ${show(example(foe.types[0]))} is [${EXAMPLE_BYTES.join(', ')}].`,
+          `- Pokédex: ${foe.types[0]} data reads like this: ${HINTS[foe.types[0]]}`,
           `- ${move.fn} returns ${move.spec}${shapeNote(move)}.`].join('\n'),
       }
     },

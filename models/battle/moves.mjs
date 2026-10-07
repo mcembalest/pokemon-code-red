@@ -18,7 +18,7 @@ const asc = b => [...b].sort((x, y) => x - y)
 /** [FireRed name, Code Red name, what the code must compute, answer] */
 const TABLE = [
   // hit
-  ['Tackle', 'PING', 'how many bytes there are', b => b.length],
+  ['Tackle', 'PING', 'how many numbers there are (the length of the list)', b => b.length],
   ['Scratch', 'SLICE', 'the first 3 bytes', b => b.slice(0, 3)],
   ['Pound', 'POKE', 'the second byte (index 1)', b => b[1]],
   ['Peck', 'FETCH', 'the last byte', b => b.at(-1)],
@@ -26,7 +26,7 @@ const TABLE = [
   ['Rock Throw', 'BOOTDRIVE', 'the sum of the bytes', b => sum(b)],
   ['Slam', 'FORKBOMB', 'each byte times 2', b => b.map(x => x * 2)],
   ['Vine Whip', 'CRAWL', 'the bytes at even indexes (0, 2, 4…)', b => b.filter((_, i) => i % 2 === 0)],
-  ['Water Gun', 'FLUSH', 'every byte set to 0', b => b.map(() => 0)],
+  ['Water Gun', 'FLUSH', 'an empty list', () => []],
   ['Wing Attack', 'UPLOAD', "the bytes joined into one string with '-' between them", b => b.join('-')],
   // multi hit
   ['Double Slap', 'UNDO', 'the bytes without the first one', b => b.slice(1)],
@@ -80,13 +80,13 @@ const TABLE = [
   ['Spark', 'SPARK', 'the largest byte minus the smallest', b => max(b) - min(b)],
   ['Thunder Shock', 'SURGE', 'the largest byte plus 1', b => max(b) + 1],
   // speed down hit
-  ['Bubble', 'WIPEDISC', 'an empty list', () => []],
+  ['Bubble', 'WIPEDISC', 'every number replaced by 0', b => b.map(() => 0)],
   ['Rock Tomb', 'BRICK', 'the bytes sorted from smallest to largest', b => asc(b)],
   // trap
   ['Bind', 'BIND', 'the first and last byte, as a list of two', b => [b[0], b.at(-1)]],
   ['Wrap', 'WRAP', 'the bytes wrapped in another list', b => [[...b]]],
   // one of a kind
-  ['Growl', 'ERRORMSG', "the text 'ERROR ' followed by how many bytes there are", b => `ERROR ${b.length}`],
+  ['Growl', 'ERRORMSG', "the text 'ERROR ' followed by how many numbers there are, e.g. 'ERROR 3'", b => `ERROR ${b.length}`],
   ['Aurora Beam', 'COLDSTORAGE', 'the 3 smallest bytes, smallest first', b => asc(b).slice(0, 3)],
   ['Metal Claw', 'HASH', 'the sum of the bytes mod 256', b => sum(b) % 256],
   ['Ember', 'BURNDISC', 'every byte plus 1', b => b.map(x => x + 1)],

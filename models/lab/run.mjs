@@ -36,7 +36,7 @@ async function ask(model, system, user) {
 async function episode({ model, variant, move, types, seed, memory }) {
   const foe = makeFoe(seed, types)
   const v = VARIANTS[variant]
-  const { system, user } = v.prompt({ move, foe, memory: memory?.[move.name] ?? '' })
+  const { system, user } = v.prompt({ move, foe, memory: memory ? memory(move, types) : '' })
   let res
   try { res = await ask(model, system, user) } catch (e) { res = { text: '', error: String(e.message ?? e) } }
   if (res.error) return { outcome: 'miss', reason: 'api: ' + res.error.slice(0, 120) }
@@ -66,11 +66,15 @@ for (const exp of cfg.experiments) {
     if (exp.memory) {
       // warm-up on other seeds → per move: its shortest code that hit (the Pokémon's own library)
       const warm = await pool(moves.flatMap(move => typeSets.flatMap(types => Array.from({ length: exp.memory }, (_, i) => ({ model, variant, move, types, seed: 990000 + i * 17 + types.join().length })))), cfg.concurrency ?? 8,
-        async j => ({ move: j.move.name, ...(await episode(j)) }))
-      memory = Object.fromEntries(moves.map(m => {
-        const wins = warm.filter(r => r.move === m.name && r.outcome === 'hit').sort((a, b) => a.codeLen - b.codeLen)
-        return [m.name, wins.length ? `Last time ${m.name} worked with this code:\n\`\`\`js\n${wins[0].code}\n\`\`\`` : '']
-      }))
+        async j => ({ move: j.move.name, types: j.types.join('/'), ...(await episode(j)) }))
+      // the Pokémon's own notes: its shortest working code per move, and per foe type (how it read that data)
+      const best = rows => rows.filter(r => r.outcome === 'hit').sort((a, b) => a.codeLen - b.codeLen)[0]
+      const byMove = Object.fromEntries(moves.map(m => [m.name, best(warm.filter(r => r.move === m.name))]))
+      const byType = Object.fromEntries(typeSets.map(t => [t[0], best(warm.filter(r => r.types.split('/')[0] === t[0]))]))
+      memory = (move, types) => [
+        byMove[move.name] && `My ${move.name} that worked (vs ${byMove[move.name].types}):\n\`\`\`js\n${byMove[move.name].code}\n\`\`\``,
+        byType[types[0]] && byType[types[0]] !== byMove[move.name] && `How I read ${types[0]} data last time (in ${byType[types[0]].move}):\n\`\`\`js\n${byType[types[0]].code}\n\`\`\``,
+      ].filter(Boolean).join('\n')
     }
     const t0 = Date.now()
     const rows = await pool(jobs.map(j => ({ ...j, memory })), cfg.concurrency ?? 8, async j => ({ move: j.move.name, types: j.types.join('/'), seed: j.seed, ...(await episode(j)) }))
