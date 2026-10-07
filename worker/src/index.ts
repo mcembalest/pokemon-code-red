@@ -5,6 +5,8 @@
 //   GET  /v1/me                       → {player}               (Bearer token)
 //   POST /v1/events    {events:[…]}   → {stored}               (progress tracking)
 //   POST /v1/llm       {messages,…}   → Anthropic response     (interim agent backend; recorded)
+//   POST /v1/ai/chat/completions       OpenAI-compatible Workers AI route for Pokémon models
+//                                      (pi-ai baseUrl = <api>/v1/ai, apiKey = session token; recorded)
 //   GET  /admin                       admin page (asks for ADMIN_TOKEN)
 //   /admin/api/*                      JSON for the admin page (Bearer ADMIN_TOKEN)
 import { adminPage } from './admin';
@@ -21,6 +23,12 @@ export interface Env {
   LLM_MAX_TOKENS: string;    // cap per call
   VERSION?: string;
   AGENTS?: string;           // "on" | "off"
+  AI?: { fetch?(input: string, init?: RequestInit): Promise<Response> }; // Workers AI binding
+  AI_MODELS: string;         // comma list of Workers AI model ids Pokémon may use
+  AI_MAX_TOKENS: string;     // cap per call
+  AI_DAILY_TOKENS: string;   // per player, rolling 24 h
+  AI_GATEWAY: string;        // AI Gateway id the binding routes through
+  AI_UPSTREAM_URL?: string;  // tests only: OpenAI-compatible base URL used instead of the binding
 }
 
 type Player = { id: string; name: string; created_at: number; last_seen: number };
@@ -36,12 +44,12 @@ class HttpError extends Error {
 }
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
     const cors = corsHeaders(req, env);
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     let res: Response;
     try {
-      res = await route(req, env);
+      res = await route(req, env, ctx);
     } catch (e) {
       if (e instanceof HttpError) res = json({ error: e.message }, e.status);
       else { console.error(e); res = json({ error: 'internal error' }, 500); }
@@ -52,16 +60,19 @@ export default {
   },
 };
 
-async function route(req: Request, env: Env): Promise<Response> {
+type Ctx = { waitUntil(p: Promise<unknown>): void } | undefined;
+
+async function route(req: Request, env: Env, ctx?: Ctx): Promise<Response> {
   const url = new URL(req.url);
   const p = url.pathname.replace(/\/+$/, '') || '/';
   const m = req.method;
 
-  if (p === '/health' && m === 'GET') return json({ ok: true, version: env.VERSION || 'dev', llm: !!env.ANTHROPIC_API_KEY, admin: !!env.ADMIN_TOKEN });
+  if (p === '/health' && m === 'GET') return json({ ok: true, version: env.VERSION || 'dev', llm: !!env.ANTHROPIC_API_KEY, ai: !!(env.AI?.fetch || env.AI_UPSTREAM_URL), admin: !!env.ADMIN_TOKEN });
   if (p === '/v1/join' && m === 'POST') return join(req, env);
   if (p === '/v1/me' && m === 'GET') return json({ player: await auth(req, env), features: features(env) });
   if (p === '/v1/events' && m === 'POST') return events(req, env);
   if (p === '/v1/llm' && m === 'POST') return llm(req, env, await auth(req, env));
+  if (p === '/v1/ai/chat/completions' && m === 'POST') return ai(req, env, await auth(req, env), ctx);
 
   if (p === '/admin' && m === 'GET') return new Response(adminPage, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
   if (p.startsWith('/admin/api/')) {
@@ -177,6 +188,72 @@ async function llm(req: Request, env: Env, player: Player): Promise<Response> {
   ).bind(player.id, t0, model, await sha256(reqText), reqText, resText.slice(0, 200_000), r.status, usage.input_tokens | 0, usage.output_tokens | 0, Date.now() - t0).run();
 
   return new Response(resText, { status: r.ok ? 200 : 502, headers: { 'content-type': 'application/json' } });
+}
+
+// ---------------------------------------------------------------- Workers AI (Pokémon models)
+
+const AI_FIELDS = ['messages', 'tools', 'tool_choice', 'temperature', 'top_p', 'stop', 'seed', 'stream'];
+
+async function ai(req: Request, env: Env, player: Player, ctx: Ctx): Promise<Response> {
+  if (!features(env).agents) throw new HttpError(403, 'agents are turned off');
+  const raw = await req.text();
+  if (raw.length > MAX_LLM_BODY) throw new HttpError(413, 'request too large');
+  let input: Record<string, unknown>;
+  try { input = JSON.parse(raw); } catch { throw new HttpError(400, 'invalid JSON'); }
+  const models = env.AI_MODELS.split(',').map((s) => s.trim()).filter(Boolean);
+  const model = String(input.model || '');
+  if (!models.includes(model)) throw new HttpError(400, `model must be one of: ${models.join(', ')}`);
+  if (!Array.isArray(input.messages) || input.messages.length === 0) throw new HttpError(400, 'messages required');
+
+  const since = Date.now() - DAY;
+  const used = await env.DB.prepare("SELECT COALESCE(SUM(input_tokens + output_tokens), 0) AS n FROM llm_calls WHERE player_id = ? AND at > ? AND model LIKE '@cf/%'")
+    .bind(player.id, since).first<{ n: number }>();
+  if ((used?.n || 0) >= (Number(env.AI_DAILY_TOKENS) || 400_000)) throw new HttpError(429, 'daily agent budget used up');
+
+  // Only the fields a Pokémon turn needs; output capped.
+  const cap = Number(env.AI_MAX_TOKENS) || 600;
+  const asked = Number(input.max_completion_tokens ?? input.max_tokens) || cap;
+  const upstream: Record<string, unknown> = { model, max_tokens: Math.min(asked, cap) };
+  for (const k of AI_FIELDS) if (input[k] !== undefined) upstream[k] = input[k];
+  if (upstream.stream) upstream.stream_options = { include_usage: true };
+  const reqText = JSON.stringify(upstream);
+
+  const t0 = Date.now();
+  const init: RequestInit = { method: 'POST', headers: { 'content-type': 'application/json' }, body: reqText };
+  let r: Response;
+  if (env.AI_UPSTREAM_URL) r = await fetch(`${env.AI_UPSTREAM_URL}/chat/completions`, init);
+  else if (env.AI?.fetch) r = await env.AI.fetch(`https://workers-binding.ai/ai-gateway/gateways/${env.AI_GATEWAY || 'default'}/workers-ai/v1/chat/completions`, init);
+  else throw new HttpError(503, 'Workers AI not configured');
+
+  const record = async (resText: string) => {
+    const usage = aiUsage(resText);
+    await env.DB.prepare(
+      'INSERT INTO llm_calls (player_id, at, model, request_hash, request, response, status, input_tokens, output_tokens, ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    ).bind(player.id, t0, model, await sha256(reqText), reqText.slice(0, 100_000), resText.slice(0, 100_000), r.status, usage.input, usage.output, Date.now() - t0).run();
+  };
+  const type = r.headers.get('content-type') || 'application/json';
+  if (!r.ok || !upstream.stream || !r.body) {
+    const resText = await r.text();
+    await record(resText);
+    return new Response(resText, { status: r.ok ? 200 : 502, headers: { 'content-type': type } });
+  }
+  // Stream through to the player; record the whole stream once it ends.
+  const [toPlayer, toLog] = r.body.tee();
+  const done = new Response(toLog).text().then(record).catch((e) => console.error('ai record', e));
+  if (ctx) ctx.waitUntil(done);
+  return new Response(toPlayer, { status: 200, headers: { 'content-type': type, 'cache-control': 'no-store' } });
+}
+
+/** Token usage from an OpenAI-style JSON body or SSE stream (last chunk carrying `usage`). */
+function aiUsage(text: string): { input: number; output: number } {
+  const pick = (u: { prompt_tokens?: number; completion_tokens?: number } | undefined) => u && { input: (u.prompt_tokens ?? 0) | 0, output: (u.completion_tokens ?? 0) | 0 };
+  try { const u = pick(JSON.parse(text).usage); if (u) return u; } catch { /* SSE */ }
+  let found = { input: 0, output: 0 };
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data:')) continue;
+    try { const u = pick(JSON.parse(line.slice(5).trim()).usage); if (u) found = u; } catch { /* [DONE] */ }
+  }
+  return found;
 }
 
 // ---------------------------------------------------------------- admin
@@ -310,13 +387,18 @@ export function originAllowed(origin: string, allowed: string): boolean {
   });
 }
 
+function sanitizeHeaderList(v: string | null): string {
+  return (v || '').split(',').map((h) => h.trim().toLowerCase()).filter((h) => /^[a-z0-9-]{1,64}$/.test(h)).slice(0, 40).join(', ');
+}
+
 function corsHeaders(req: Request, env: Env): Record<string, string> {
   const origin = req.headers.get('origin');
   if (!origin || !originAllowed(origin, env.ALLOWED_ORIGINS)) return { vary: 'Origin' };
   return {
     'access-control-allow-origin': origin,
     'access-control-allow-methods': 'GET, POST, OPTIONS',
-    'access-control-allow-headers': 'authorization, content-type',
+    // pi-ai's OpenAI client adds its own headers (x-stainless-*, session affinity): allow what an allowed origin asks for.
+    'access-control-allow-headers': sanitizeHeaderList(req.headers.get('access-control-request-headers')) || 'authorization, content-type',
     'access-control-max-age': '86400',
     vary: 'Origin',
   };

@@ -21,7 +21,21 @@ async function freePort() {
 before(async () => {
   mock = createServer((req, res) => {
     let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => {
-      mockCalls.push({ headers: req.headers, body: JSON.parse(b) });
+      mockCalls.push({ url: req.url, headers: req.headers, body: JSON.parse(b) });
+      if (req.url === '/ai/chat/completions') {
+        const body = JSON.parse(b);
+        if (body.stream) {
+          res.setHeader('content-type', 'text/event-stream');
+          res.write('data: {"choices":[{"index":0,"delta":{"role":"assistant","content":"```js\\nawait tools.scratch({slot:1})"}}]}\n\n');
+          res.write('data: {"choices":[{"index":0,"delta":{"content":"\\n```"},"finish_reason":"stop"}]}\n\n');
+          res.write('data: {"choices":[],"usage":{"prompt_tokens":200,"completion_tokens":20,"total_tokens":220}}\n\n');
+          res.end('data: [DONE]\n\n');
+        } else {
+          res.setHeader('content-type', 'application/json');
+          res.end(JSON.stringify({ id: 'c1', object: 'chat.completion', choices: [{ index: 0, message: { role: 'assistant', content: 'return 1' }, finish_reason: 'stop' }], usage: { prompt_tokens: 100, completion_tokens: 10 } }));
+        }
+        return;
+      }
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ id: 'msg_1', type: 'message', content: [{ type: 'tool_use', name: 'scan', input: {} }], usage: { input_tokens: 120, output_tokens: 30 } }));
     });
@@ -32,7 +46,8 @@ before(async () => {
   base = `http://127.0.0.1:${port}`;
   wrangler = spawn('npx', ['wrangler', 'dev', '--local', '--ip', '127.0.0.1', '--port', String(port), '--persist-to', persist,
     '--var', `ANTHROPIC_BASE_URL:http://127.0.0.1:${mock.address().port}`, '--var', 'ANTHROPIC_API_KEY:sk-test', '--var', `ADMIN_TOKEN:${ADMIN}`,
-    '--var', 'LLM_DAILY_TOKENS:300', '--var', 'VERSION:test'], { env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+    '--var', 'LLM_DAILY_TOKENS:300', '--var', 'VERSION:test',
+    '--var', `AI_UPSTREAM_URL:http://127.0.0.1:${mock.address().port}/ai`, '--var', 'AI_DAILY_TOKENS:400', '--var', 'AI_MAX_TOKENS:600'], { env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
   let log = ''; wrangler.stdout.on('data', (d) => (log += d)); wrangler.stderr.on('data', (d) => (log += d));
   for (let i = 0; i < 120; i++) {
     try { if ((await fetch(base + '/health')).ok) return; } catch {}
@@ -55,7 +70,7 @@ const call = (path, { token, body, method, origin } = {}) => fetch(base + path, 
 
 test('health', async () => {
   const j = await (await call('/health')).json();
-  assert.deepEqual(j, { ok: true, version: 'test', llm: true, admin: true });
+  assert.deepEqual(j, { ok: true, version: 'test', llm: true, ai: true, admin: true });
 });
 
 test('admin requires token', async () => {
@@ -150,6 +165,49 @@ test('llm proxy: forwards, records, enforces model + budget', async () => {
   // 150 tokens used, budget 300 → one more allowed, then 429
   assert.equal((await call('/v1/llm', { token, body: { messages: [{ role: 'user', content: 'again' }] } })).status, 200);
   assert.equal((await call('/v1/llm', { token, body: { messages: [{ role: 'user', content: 'again' }] } })).status, 429);
+});
+
+test('workers AI route: OpenAI-compatible, allowlisted, capped, streamed, recorded, budgeted', async () => {
+  const M = '@cf/meta/llama-3.2-3b-instruct';
+  const msgs = [{ role: 'system', content: 'You are CHARMANDER.' }, { role: 'user', content: 'use SCRATCH!' }];
+  assert.equal((await call('/v1/ai/chat/completions', { body: { model: M, messages: msgs } })).status, 401);
+  assert.equal((await call('/v1/ai/chat/completions', { token, body: { model: '@cf/qwen/qwen2.5-coder-32b-instruct', messages: msgs } })).status, 400);
+  assert.equal((await call('/v1/ai/chat/completions', { token, body: { model: M, messages: [] } })).status, 400);
+
+  const plain = await call('/v1/ai/chat/completions', { token, body: { model: M, messages: msgs, max_tokens: 99999, evil: 1, temperature: 0.8 } });
+  assert.equal(plain.status, 200);
+  assert.equal((await plain.json()).choices[0].message.content, 'return 1');
+  const sent = mockCalls.at(-1);
+  assert.equal(sent.url, '/ai/chat/completions');
+  assert.equal(sent.body.max_tokens, 600);
+  assert.equal(sent.body.evil, undefined);
+  assert.equal(sent.body.temperature, 0.8);
+
+  const streamed = await call('/v1/ai/chat/completions', { token, body: { model: M, messages: msgs, stream: true, tools: [{ type: 'function', function: { name: 'code', parameters: { type: 'object' } } }] } });
+  assert.equal(streamed.status, 200);
+  assert.match(streamed.headers.get('content-type'), /event-stream/);
+  const text = await streamed.text();
+  assert.match(text, /tools\.scratch/);
+  assert.match(text, /\[DONE\]/);
+  assert.deepEqual(mockCalls.at(-1).body.stream_options, { include_usage: true });
+  assert.equal(mockCalls.at(-1).body.tools[0].function.name, 'code');
+
+  // recorded (110 + 220 tokens); budget 400 → one more allowed, then 429
+  let calls = [];
+  for (let i = 0; i < 20 && calls.filter((c) => c.model === M).length < 2; i++) {
+    calls = (await (await call('/admin/api/llm', { token: ADMIN })).json()).calls;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  const mine = calls.filter((c) => c.model === M);
+  assert.deepEqual(mine.map((c) => c.input_tokens + c.output_tokens).sort(), [110, 220]);
+  assert.equal((await call('/v1/ai/chat/completions', { token, body: { model: M, messages: msgs } })).status, 200);
+  assert.equal((await call('/v1/ai/chat/completions', { token, body: { model: M, messages: msgs } })).status, 429);
+});
+
+test('cors: preflight allows the headers an allowed origin asks for', async () => {
+  const pre = await fetch(base + '/v1/ai/chat/completions', { method: 'OPTIONS', headers: { origin: 'https://maxcembalest.com', 'access-control-request-headers': 'authorization, content-type, x-stainless-os, bad header!' } });
+  assert.equal(pre.status, 204);
+  assert.equal(pre.headers.get('access-control-allow-headers'), 'authorization, content-type, x-stainless-os');
 });
 
 test('cors: allowed origins only', async () => {
