@@ -70,3 +70,15 @@ miss rate (lower is better):
 - Granite ≈ Llama 3B on quality, 5× slower → **Llama 3.2 3B stays the one model**
 - SCRATCH (situational) still ~100% miss for both 3Bs → D1 decision
 - first attempt (run 3a) was void: Workers AI streams numeric tokens as JSON numbers and pi-ai drops them → every block lost its digits. Fixed in `kernel/cf-fetch.mjs` (also flattens array message content, which Granite rejected)
+
+## Battle rule runs (2026-10-07) — clean by foe type → compute the move → strike once
+`models/battle/` (moves.mjs = 103 renamed moves with reference answers; types.mjs = 13 foe-type cleanups; exp.mjs) · no memory unless noted · hit rate (higher is better)
+
+| run | 3B: moves vs NORMAL | 3B: starter moves × all types | 32B: moves vs NORMAL | 32B: starter × types |
+|---|---|---|---|---|
+| 1 (stream bug: `[] {} null true` tokens dropped) | .21 | .10 | .72 | .68 |
+| 2 (fixed; answer shape shown) | .41 | .23 | .93 | .66 |
+
+- run 2: the 32B hits 93% of moves → specs are mostly clear; the misses pointed at wording (POKE "position 1", FORKBOMB "doubled", LOOP, BRUTEFORCE) → reworded
+- both models mostly **ignored the type cleanup** when it sat in the foe line → run 3 gives the turn as steps: scan / clean / key / strike
+- Workers AI streams: Llama sends the token `null` as `"content": null` (recoverable); Qwen's `null` never arrives → no move's answer is null
