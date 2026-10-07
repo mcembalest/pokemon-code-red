@@ -116,6 +116,32 @@ export const VARIANTS = {
     },
     judge: ({ move, foe, code }) => judgeFunction({ move, foe, code, data: encoded(foe) }),
   },
+  // Plain function + one worked example of the move (input → output), like a move description with a demo.
+  'fn-plain-ex': {
+    prompt({ move, foe, memory }) {
+      const ex = [42, 13, 140, 77]
+      return {
+        system: persona(foe, [], memory),
+        user: [foeLine(move, foe), `Write the function: function ${move.fn}(bytes)`, '- bytes = the foe\'s bytes, a list of numbers.',
+          `- ${move.fn} returns ${move.spec}${shapeNote(move)}.`, `- Example: ${move.fn}(${JSON.stringify(ex)}) returns ${JSON.stringify(move.ref(ex, {})) ?? 'nothing'}.`].join('\n'),
+      }
+    },
+    judge: ({ move, foe, code }) => judgeFunction({ move, foe, code, data: [...foe.clean] }),
+  },
+  // Function + type format + Pokédex hint + a worked example of the move.
+  'fn-hint-ex': {
+    prompt({ move, foe, memory }) {
+      const ex = [42, 13, 140, 77]
+      return {
+        system: persona(foe, [], memory),
+        user: [foeLine(move, foe), `Write the function: function ${move.fn}(data)`,
+          `- data = the foe's bytes in ${foe.types[0]} format: ${fmt(foe).note}. Example: ${show(example(foe.types[0]))} is [${EXAMPLE_BYTES.join(', ')}].`,
+          `- Pokédex: ${foe.types[0]} data reads like this: ${HINTS[foe.types[0]]}`,
+          `- ${move.fn} returns ${move.spec}${shapeNote(move)}. On the numbers ${JSON.stringify(ex)} it returns ${JSON.stringify(move.ref(ex, {})) ?? 'nothing'}.`].join('\n'),
+      }
+    },
+    judge: ({ move, foe, code }) => judgeFunction({ move, foe, code, data: encoded(foe) }),
+  },
   // Plain function on a plain list (no type twist): how hard is the move alone, in function form?
   'fn-plain': {
     prompt({ move, foe, memory }) {

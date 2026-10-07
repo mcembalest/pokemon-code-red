@@ -1,10 +1,10 @@
 {
-  "note": "Lab 4: function framing, 25 hard specs rewritten (plain words, 'numbers' not 'bytes', no foe-dependent moves); all moves plain / with Pokédex hint / first encounter (format note only).",
+  "note": "Lab 5: each move shows one worked example (input → output); keyword names fixed (DEBUGGER→BREAKPOINT, THROW→SYSCALL); BROADCAST/LOOP/SPOOF/INJECT/RM -RF reworded to fit their names.",
   "models": ["@cf/meta/llama-3.2-3b-instruct"],
   "concurrency": 12, "temperature": 0.7, "maxTokens": 500,
   "experiments": [
-    { "name": "all moves", "variants": ["fn-plain"], "moves": "all", "types": ["NORMAL"], "samples": 4 },
-    { "name": "all moves × types", "variants": ["fn-hint", "fn-format"], "moves": "all",
+    { "name": "all moves", "variants": ["fn-plain", "fn-plain-ex"], "moves": "all", "types": ["NORMAL"], "samples": 4 },
+    { "name": "all moves × types", "variants": ["fn-hint-ex"], "moves": "all",
       "types": ["FLYING", "WATER", "GRASS", "ROCK", "ELECTRIC", "GROUND", "FIRE", "POISON", "BUG", "PSYCHIC", "FIGHTING", "STEEL"], "samples": 1 }
   ]
 }

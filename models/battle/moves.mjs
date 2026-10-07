@@ -59,7 +59,7 @@ const TABLE = [
   ['Stun Spore', 'SPINLOCK', 'how many numbers are under 50', b => b.filter(x => x < 50).length],
   ['Thunder Wave', 'POWERCUT', 'the numbers in their order, without the largest one', b => { const i = b.indexOf(max(b)); return b.filter((_, j) => j !== i) }],
   // poison hit / poison
-  ['Poison Sting', 'INJECT', 'the numbers with a 1 added at the end', b => [...b, 1]],
+  ['Poison Sting', 'INJECT', 'the list with one extra number, 1, appended at the end', b => [...b, 1]],
   ['Sludge', 'MALWARE', 'every number plus the first number', b => b.map(x => x + b[0])],
   ['Smog', 'BOTNET', 'the sum of only the numbers greater than 100', b => sum(b.filter(x => x > 100))],
   ['Poison Gas', 'TROJAN', 'the numbers in their order, but with the largest moved to the front', b => { const i = b.indexOf(max(b)); return [b[i], ...b.filter((_, j) => j !== i)] }],
@@ -90,7 +90,7 @@ const TABLE = [
   ['Aurora Beam', 'COLDSTORAGE', 'the 3 smallest numbers, smallest first', b => asc(b).slice(0, 3)],
   ['Metal Claw', 'HASH', 'the sum of the numbers mod 256', b => sum(b) % 256],
   ['Ember', 'BURNDISC', 'every number plus 1', b => b.map(x => x + 1)],
-  ['Camouflage', 'SPOOF', 'each number turned into text (a list of strings)', b => b.map(String)],
+  ['Camouflage', 'SPOOF', "each number written as a string, like 42 → '42' (a list of strings)", b => b.map(String)],
   ['Charge', 'CHARGE', 'the largest number times 2', b => max(b) * 2],
   ['Supersonic', 'FEEDBACK', 'the sum of the first two numbers', b => b[0] + b[1]],
   ['Curse', 'ROOTKIT', 'every number minus the smallest', b => b.map(x => x - min(b))],
@@ -100,19 +100,19 @@ const TABLE = [
   ['Disable', 'DISABLE', 'the last number minus the first', b => b.at(-1) - b[0]],
   ['Double Kick', 'COPYPASTE', 'the list followed by itself (twice as long)', b => [...b, ...b]],
   ['Dragon Rage', 'KERNELPANIC', 'the length of the list times 10', b => b.length * 10],
-  ['Encore', 'LOOP', 'a list with as many entries as the input, every entry equal to the first number', b => b.map(() => b[0])],
+  ['Encore', 'LOOP', 'the counting numbers from 1 up to the length of the list ([1, 2, 3, …])', b => b.map((_, i) => i + 1)],
   ['Sweet Scent', 'HONEYPOT', 'the largest even number (0 if none)', b => { const e = b.filter(x => x % 2 === 0); return e.length ? max(e) : 0 }],
   ['Double Team', 'MIRROR', 'the list followed by the same list reversed', b => [...b, ...[...b].reverse()]],
-  ['Self Destruct', 'RM -RF', 'the number 0 (nothing left)', () => 0],
+  ['Self Destruct', 'RM -RF', 'always 0 (nothing left)', () => 0],
   ['Flail', 'PANIC', 'how many numbers are under 20', b => b.filter(x => x < 20).length],
   ['Astonish', 'POPUP', 'the number at index (number of numbers ÷ 2, rounded down)', b => b[Math.floor(b.length / 2)]],
   ['Focus Energy', 'COMPILE', 'the numbers joined into one string with nothing between them', b => b.join('')],
   ['Follow Me', 'REDIRECT', 'the index of the last number', b => b.length - 1],
-  ['Foresight', 'DEBUGGER', 'the indexes of the numbers greater than 100', b => b.flatMap((x, i) => (x > 100 ? [i] : []))],
-  ['Gust', 'BROADCAST', 'each number plus the last number', b => b.map(x => x + b.at(-1))],
+  ['Foresight', 'BREAKPOINT', 'the indexes of the numbers greater than 100', b => b.flatMap((x, i) => (x > 100 ? [i] : []))],
+  ['Gust', 'BROADCAST', 'a list as long as the input where every entry is the first number', b => b.map(() => b[0])],
   ['Helping Hand', 'PAIRPROGRAM', 'the first number times the second number', b => b[0] * b[1]],
   ['Leech Seed', 'LEECH SEED', 'the sum of the numbers at even indexes (0, 2, 4…)', b => sum(b.filter((_, i) => i % 2 === 0))],
-  ['Seismic Toss', 'THROW', 'the first number times 3', b => b[0] * 3],
+  ['Seismic Toss', 'SYSCALL', 'the first number times 3', b => b[0] * 3],
   ['Low Kick', 'UNDERFLOW', 'the smallest number minus 1', b => min(b) - 1],
   ['Magnitude', 'RNG', 'the sum of the numbers mod 10', b => sum(b) % 10],
   ['Minimize', 'MINIMIZE', 'the numbers with repeats removed (keep the first of each)', b => [...new Set(b)]],
@@ -140,7 +140,8 @@ const TABLE = [
 ]
 
 /** Function name the code calls: KILL -9 → kill_9, LEECH SEED → leech_seed. */
-export const fnName = name => name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+const RESERVED = new Set(['break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'let', 'static', 'enum', 'await'])
+export const fnName = name => { const f = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); if (RESERVED.has(f)) throw new Error(`${name}: function name is a JavaScript keyword`); return f }
 
 export const STARTER_MOVES = new Set(['Scratch', 'Growl', 'Ember', 'Metal Claw', 'Tackle', 'Tail Whip', 'Bubble', 'Withdraw', 'Leech Seed', 'Vine Whip'])
 
