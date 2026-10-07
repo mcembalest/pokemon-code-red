@@ -16,8 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: 'kernel/package-lock.json
-            models/package-lock.json' }
+        with: { node-version: 22 }
       - run: (cd kernel && npm ci --no-audit --no-fund) && (cd models && npm ci --no-audit --no-fund)
       - name: Lab
         working-directory: models
