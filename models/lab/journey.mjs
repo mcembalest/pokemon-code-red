@@ -111,7 +111,7 @@ async function journey(seed, policy) {
       turns.push({ segment, foe: foeName, type: t, both, level, move: move.name, temperature: +temperature.toFixed(2), budget, hit: outcome.hit, reason: outcome.reason ?? null, dex: dex.has(t), remembered: !!reader })
       xp += foeLevel; while (xp >= level * 6 && level < 21) { xp -= level * 6; level++ }
     }
-    if (caught && policy.dex) for (const ty of types) dex.add(ty)
+    if ((caught || policy.dexSeen) && policy.dex) for (const ty of types) dex.add(ty) // dexSeen: seeing a species is enough (FireRed's 'seen')
   }
   return { turns, finalLevel: level, readers: Object.fromEntries(readers) }
 }

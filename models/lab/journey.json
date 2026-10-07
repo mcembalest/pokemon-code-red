@@ -1,5 +1,5 @@
 {
-  "note": "Journey 6 (final check): recommended rules \u2014 learning + Pok\u00e9dex; only each leader's ace (ONIX, STARMIE) switches formats, +150 bytes at gyms. 12 journeys; token usage recorded.",
+  "note": "Journey 7: Pok\u00e9dex readers from seeing a species (FireRed 'seen') instead of catching; with and without the leaders' ace switching formats. 12 journeys.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "journeys": 12,
   "defaults": {
@@ -14,16 +14,18 @@
     "evolutionSlots": 3
   },
   "policies": {
-    "recommended": {
+    "seen, ace walls": {
       "learn": true,
       "dex": true,
+      "dexSeen": true,
       "gymBoth": true,
       "aceOnly": true,
       "gymBudgetBonus": 150
     },
-    "no walls": {
+    "seen, no walls": {
       "learn": true,
-      "dex": true
+      "dex": true,
+      "dexSeen": true
     }
   }
 }
