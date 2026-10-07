@@ -203,7 +203,7 @@ function dualVariant(hint) {
         system: persona(foe, [], memory),
         user: [foeLine(move, foe), `Write the function: function ${move.fn}(data)`,
           `- data = the foe's bytes. A ${foe.types.join('/')} foe sends ${foe.types.length > 1 ? 'either format; your function must handle both' : 'this format'}:`, ...lines,
-          `- ${move.fn} returns ${move.spec}${shapeNote(move)}.`].join('\n'),
+          `- ${move.fn} returns ${move.spec}${shapeNote(move)}. On the numbers [42,13,140,77] it returns ${JSON.stringify(move.ref([42, 13, 140, 77], {})) ?? 'nothing'}.`].join('\n'),
       }
     },
     async judge({ move, foe, code }) {

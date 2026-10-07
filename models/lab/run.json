@@ -1,17 +1,48 @@
 {
- "note": "Lab 11: status conditions as code rules (paralyzed: single return; poisoned: no Math; burned: \u22643 lines; confused: temperature +0.5) on Pok\u00e9dex turns; final per-move difficulty (all moves, with worked example).",
+ "note": "Lab 12: gym walls \u2014 one function must read both formats of a dual type (with readers, and first time); paralysis = half byte budget.",
  "models": [
   "@cf/meta/llama-3.2-3b-instruct"
  ],
  "concurrency": 12,
  "temperature": 0.5,
- "maxTokens": 500,
+ "maxTokens": 600,
  "experiments": [
   {
-   "name": "healthy",
+   "name": "dual: both formats",
+   "variants": [
+    "fn-dual-hint",
+    "fn-dual-format"
+   ],
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL/FLYING",
+    "BUG/POISON",
+    "ROCK/GROUND",
+    "POISON/FLYING",
+    "GRASS/POISON",
+    "BUG/GRASS",
+    "WATER/PSYCHIC",
+    "ELECTRIC/STEEL"
+   ],
+   "samples": 3
+  },
+  {
+   "name": "healthy 300",
    "variants": [
     "fn-hint-ex"
    ],
+   "budget": 300,
    "moves": [
     "SLICE",
     "PING",
@@ -42,47 +73,11 @@
    "samples": 2
   },
   {
-   "name": "status",
-   "variants": [
-    "st-paralyzed",
-    "st-poisoned",
-    "st-burned"
-   ],
-   "moves": [
-    "SLICE",
-    "PING",
-    "ERRORMSG",
-    "DOWNGRADE",
-    "BURNDISC",
-    "WIPEDISC",
-    "LEECH SEED",
-    "CRAWL",
-    "HASH",
-    "BACKUP"
-   ],
-   "types": [
-    "NORMAL",
-    "FLYING",
-    "WATER",
-    "GRASS",
-    "ROCK",
-    "ELECTRIC",
-    "GROUND",
-    "FIRE",
-    "POISON",
-    "BUG",
-    "PSYCHIC",
-    "FIGHTING",
-    "STEEL"
-   ],
-   "samples": 2
-  },
-  {
-   "name": "confused",
+   "name": "paralyzed 150",
    "variants": [
     "fn-hint-ex"
    ],
-   "temperature": 1.0,
+   "budget": 150,
    "moves": [
     "SLICE",
     "PING",
@@ -111,17 +106,6 @@
     "STEEL"
    ],
    "samples": 2
-  },
-  {
-   "name": "all moves",
-   "variants": [
-    "fn-plain-ex"
-   ],
-   "moves": "all",
-   "types": [
-    "NORMAL"
-   ],
-   "samples": 6
   }
  ]
 }
