@@ -1,18 +1,18 @@
 {
- "note": "Lab 9: gym battles = the type's format + the leader's rule (Brock ROCK: no loops; Misty WATER: const only), first encounter vs Pok\u00e9dex; plus a Qwen 32B sanity check of the Pok\u00e9dex design on all moves.",
+ "note": "Lab 10: 'focus' (temperature) \u00d7 byte budget (code size) on first encounters \u2014 knobs for how a young Pok\u00e9mon fumbles and grows.",
  "models": [
   "@cf/meta/llama-3.2-3b-instruct"
  ],
  "concurrency": 12,
- "temperature": 0.7,
  "maxTokens": 500,
  "experiments": [
   {
-   "name": "gyms",
+   "name": "temp 0.2 budget 250",
    "variants": [
-    "fn-gym",
-    "fn-gym-dex"
+    "fn-format-conv"
    ],
+   "temperature": 0.2,
+   "budget": 250,
    "moves": [
     "SLICE",
     "PING",
@@ -23,33 +23,276 @@
     "LEECH SEED",
     "CRAWL",
     "HASH",
-    "BACKUP",
-    "SPARK",
-    "FORKBOMB",
-    "BOOTDRIVE",
-    "HARDEN"
+    "BACKUP"
    ],
    "types": [
-    "ROCK/GROUND",
-    "WATER"
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
    ],
-   "samples": 4
+   "samples": 2
   },
   {
-   "name": "32B check",
-   "models": [
-    "@cf/qwen/qwen2.5-coder-32b-instruct"
-   ],
+   "name": "temp 0.2 budget 350",
    "variants": [
-    "fn-hint-ex"
+    "fn-format-conv"
    ],
-   "moves": "all",
+   "temperature": 0.2,
+   "budget": 350,
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
    "types": [
-    "ROCK",
+    "NORMAL",
+    "FLYING",
     "WATER",
-    "PSYCHIC"
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
    ],
-   "samples": 1
+   "samples": 2
+  },
+  {
+   "name": "temp 0.7 budget 250",
+   "variants": [
+    "fn-format-conv"
+   ],
+   "temperature": 0.7,
+   "budget": 250,
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 2
+  },
+  {
+   "name": "temp 0.7 budget 350",
+   "variants": [
+    "fn-format-conv"
+   ],
+   "temperature": 0.7,
+   "budget": 350,
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 2
+  },
+  {
+   "name": "temp 1.0 budget 250",
+   "variants": [
+    "fn-format-conv"
+   ],
+   "temperature": 1.0,
+   "budget": 250,
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 2
+  },
+  {
+   "name": "temp 1.0 budget 350",
+   "variants": [
+    "fn-format-conv"
+   ],
+   "temperature": 1.0,
+   "budget": 350,
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 2
+  },
+  {
+   "name": "temp 1.3 budget 250",
+   "variants": [
+    "fn-format-conv"
+   ],
+   "temperature": 1.3,
+   "budget": 250,
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 2
+  },
+  {
+   "name": "temp 1.3 budget 350",
+   "variants": [
+    "fn-format-conv"
+   ],
+   "temperature": 1.3,
+   "budget": 350,
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 2
   }
  ]
 }
