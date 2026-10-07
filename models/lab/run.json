@@ -1,10 +1,186 @@
 {
-  "note": "Lab 5: each move shows one worked example (input → output); keyword names fixed (DEBUGGER→BREAKPOINT, THROW→SYSCALL); BROADCAST/LOOP/SPOOF/INJECT/RM -RF reworded to fit their names.",
-  "models": ["@cf/meta/llama-3.2-3b-instruct"],
-  "concurrency": 12, "temperature": 0.7, "maxTokens": 500,
-  "experiments": [
-    { "name": "all moves", "variants": ["fn-plain", "fn-plain-ex"], "moves": "all", "types": ["NORMAL"], "samples": 4 },
-    { "name": "all moves × types", "variants": ["fn-hint-ex"], "moves": "all",
-      "types": ["FLYING", "WATER", "GRASS", "ROCK", "ELECTRIC", "GROUND", "FIRE", "POISON", "BUG", "PSYCHIC", "FIGHTING", "STEEL"], "samples": 1 }
-  ]
+ "note": "Lab 6: byte budget as max code size (200/300/450 chars); the Pok\u00e9mon's own memory (its working code per move and per foe type) with the Pok\u00e9dex hint and on first encounters.",
+ "models": [
+  "@cf/meta/llama-3.2-3b-instruct"
+ ],
+ "concurrency": 12,
+ "temperature": 0.7,
+ "maxTokens": 500,
+ "experiments": [
+  {
+   "name": "budget 200",
+   "variants": [
+    "fn-hint-ex"
+   ],
+   "budget": 200,
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 2
+  },
+  {
+   "name": "budget 300",
+   "variants": [
+    "fn-hint-ex"
+   ],
+   "budget": 300,
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 2
+  },
+  {
+   "name": "budget 450",
+   "variants": [
+    "fn-hint-ex"
+   ],
+   "budget": 450,
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 2
+  },
+  {
+   "name": "memory",
+   "variants": [
+    "fn-hint-ex",
+    "fn-format"
+   ],
+   "memory": 2,
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 2
+  },
+  {
+   "name": "no memory",
+   "variants": [
+    "fn-format"
+   ],
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 2
+  }
+ ]
 }

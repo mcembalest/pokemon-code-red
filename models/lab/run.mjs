@@ -33,15 +33,17 @@ async function ask(model, system, user) {
   return { text, ms: Date.now() - t0, error: reply.stopReason === 'error' ? reply.errorMessage : null }
 }
 
-async function episode({ model, variant, move, types, seed, memory }) {
+async function episode({ model, variant, move, types, seed, memory, budget }) {
   const foe = makeFoe(seed, types)
   const v = VARIANTS[variant]
-  const { system, user } = v.prompt({ move, foe, memory: memory ? memory(move, types) : '' })
+  let { system, user } = v.prompt({ move, foe, memory: memory ? memory(move, types) : '' })
+  if (budget) user += `\n- Byte budget: your whole code block must be at most ${budget} characters, comments included.`
   let res
   try { res = await ask(model, system, user) } catch (e) { res = { text: '', error: String(e.message ?? e) } }
   if (res.error) return { outcome: 'miss', reason: 'api: ' + res.error.slice(0, 120) }
   const { code, reason } = extractCode(res.text)
   if (code === null) return { outcome: 'miss', reason, ms: res.ms }
+  if (budget && code.length > budget) return { outcome: 'miss', reason: 'over byte budget', ms: res.ms, codeLen: code.length, code: code.slice(0, 700) }
   const verdict = await v.judge({ move, foe, code })
   return { ...verdict, ms: res.ms, codeLen: code.length, code: code.slice(0, 700) }
 }
@@ -61,11 +63,11 @@ for (const exp of cfg.experiments) {
   const moves = exp.moves === 'all' ? MOVES : exp.moves.map(n => byName[n])
   const typeSets = exp.types.map(s => s.split('/'))
   for (const model of exp.models ?? cfg.models) for (const variant of exp.variants) {
-    const jobs = moves.flatMap(move => typeSets.flatMap(types => Array.from({ length: exp.samples }, (_, i) => ({ model, variant, move, types, seed: 70000 + i * 131 + types.join().length }))))
+    const jobs = moves.flatMap(move => typeSets.flatMap(types => Array.from({ length: exp.samples }, (_, i) => ({ model, variant, move, types, budget: exp.budget, seed: 70000 + i * 131 + types.join().length }))))
     let memory = null
     if (exp.memory) {
       // warm-up on other seeds → per move: its shortest code that hit (the Pokémon's own library)
-      const warm = await pool(moves.flatMap(move => typeSets.flatMap(types => Array.from({ length: exp.memory }, (_, i) => ({ model, variant, move, types, seed: 990000 + i * 17 + types.join().length })))), cfg.concurrency ?? 8,
+      const warm = await pool(moves.flatMap(move => typeSets.flatMap(types => Array.from({ length: exp.memory }, (_, i) => ({ model, variant, move, types, budget: exp.budget, seed: 990000 + i * 17 + types.join().length })))), cfg.concurrency ?? 8,
         async j => ({ move: j.move.name, types: j.types.join('/'), ...(await episode(j)) }))
       // the Pokémon's own notes: its shortest working code per move, and per foe type (how it read that data)
       const best = rows => rows.filter(r => r.outcome === 'hit').sort((a, b) => a.codeLen - b.codeLen)[0]
@@ -79,7 +81,7 @@ for (const exp of cfg.experiments) {
     const t0 = Date.now()
     const rows = await pool(jobs.map(j => ({ ...j, memory })), cfg.concurrency ?? 8, async j => ({ move: j.move.name, types: j.types.join('/'), seed: j.seed, ...(await episode(j)) }))
     const cell = {
-      exp: exp.name, model: model.split('/').pop(), variant, memory: !!exp.memory, n: rows.length, hit: rate(rows), reasons: reasons(rows), wallS: Math.round((Date.now() - t0) / 1000),
+      exp: exp.name, model: model.split('/').pop(), variant, memory: !!exp.memory, budget: exp.budget ?? null, n: rows.length, hit: rate(rows), reasons: reasons(rows), wallS: Math.round((Date.now() - t0) / 1000),
       p50ms: rows.map(r => r.ms ?? 0).sort((a, b) => a - b)[Math.floor(rows.length / 2)],
       codeLen: Math.round(rows.filter(r => r.codeLen).reduce((a, r) => a + r.codeLen, 0) / Math.max(1, rows.filter(r => r.codeLen).length)),
       perMove: Object.fromEntries(moves.map(m => [m.name, rate(rows.filter(r => r.move === m.name))])),
