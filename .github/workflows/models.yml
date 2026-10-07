@@ -1,8 +1,9 @@
 name: models
-# Probe Workers AI models on the starter moves (models/). Runs when models/probe.json changes.
+# Workers AI experiments on the starter moves (models/, on the pi kernel in kernel/).
+# Each experiment runs only when its config changes: probe.json, scaffold.json, kernel-exp.json.
 on:
   push:
-    paths: ['models/**', '.github/workflows/models.yml']
+    paths: ['models/**', 'kernel/**', '.github/workflows/models.yml']
 permissions:
   contents: write
 jobs:
@@ -14,6 +15,9 @@ jobs:
         with: { fetch-depth: 2 }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
+      - name: Tests (kernel)
+        working-directory: kernel
+        run: npm ci && npm test
       - name: Tests (sandbox scoring)
         working-directory: models
         run: npm ci && npm test
@@ -41,10 +45,22 @@ jobs:
           set -o pipefail
           node scaffold.mjs scaffold.json > scaffold-results.json 2> scaffold-log.txt || { echo "::error title=scaffold::$(tail -c 1500 scaffold-log.txt | tr '\n' ' ')"; exit 1; }
           while read -r l; do echo "::notice title=scaffold::$l"; done < scaffold-log.txt
+      - name: Kernel experiment
+        id: kernel
+        working-directory: models
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          git diff --name-only HEAD~1 HEAD | grep -qx 'models/kernel-exp.json' || { echo "kernel-exp.json unchanged; skipping"; exit 0; }
+          echo "ran=1" >> "$GITHUB_OUTPUT"
+          set -o pipefail
+          node kernel-exp.mjs kernel-exp.json > kernel-results.json 2> kernel-log.txt || { echo "::error title=kernel::$(tail -c 1500 kernel-log.txt | tr '\n' ' ')"; exit 1; }
+          while read -r l; do echo "::notice title=kernel::$l"; done < kernel-log.txt
       - name: Publish results
-        if: always() && (steps.probe.outputs.ran || steps.scaffold.outputs.ran)
+        if: always() && (steps.probe.outputs.ran || steps.scaffold.outputs.ran || steps.kernel.outputs.ran)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view model-probe >/dev/null 2>&1 || gh release create model-probe --prerelease --title "Workers AI model probe" --notes "Outputs of .github/workflows/models.yml. Safe to delete."
-          for f in models/probe-results.json models/probe-log.txt models/scaffold-results.json models/scaffold-log.txt; do [ -f "$f" ] && gh release upload model-probe "$f" --clobber; done
+          for f in models/probe-results.json models/probe-log.txt models/scaffold-results.json models/scaffold-log.txt models/kernel-results.json models/kernel-log.txt; do [ -f "$f" ] && gh release upload model-probe "$f" --clobber; done

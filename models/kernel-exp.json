@@ -1,0 +1,8 @@
+{
+  "note": "Run 3: on the pi kernel (pi-durable conversation per Pokémon, pi-ai Workers AI, pi-codemode). Code block vs pi code tool; two ~3B models + 32B reference; situational rules on.",
+  "situational": true,
+  "level": 5, "samples": 16, "warmup": 12, "concurrency": 4,
+  "models": ["@cf/meta/llama-3.2-3b-instruct", "@cf/ibm-granite/granite-4.0-h-micro", "@cf/qwen/qwen2.5-coder-32b-instruct"],
+  "modes": ["block", "tool"],
+  "memory": [0, 2500]
+}

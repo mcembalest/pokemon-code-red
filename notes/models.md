@@ -36,3 +36,26 @@
 - crash-retries barely help (most misses are wrong logic, not crashes)
 - 1B: memory helps a little; gemma-2b (LoRA-capable base on Workers AI) unusable as-is
 - caveat: here a move's task is identical every battle → memory = cached solution → never misses again. For the game: memory must help without trivializing (capacity limits, newly learned moves start blank, tasks that vary with the situation)
+
+## Scaffold run 2 (2026-10-07) — situational tasks + memory size limits
+tasks now vary with foe type/status/guarded slots (`SITUATIONAL` in contracts.mjs) · memory = same warm-up notes, cut to whole entries under the limit
+
+| model | plain | mem 400 | mem 1000 | mem 2500 |
+|---|---|---|---|---|
+| llama-3.2-3b | miss .63 | .72 | .59 | **.42** |
+| llama-3.2-1b | .98 | 1.0 | .98 | 1.0 |
+| qwen2.5-coder-32b | .13 | **0** | 0 | 0 |
+
+3B per move, miss at mem 2500: SCRATCH 1.0 · TACKLE .44 · GROWL .19 · TAIL WHIP .06
+
+- situational rules hurt the 3B a lot (plain .38 → .63); the 32B barely notices
+- memory still helps the 3B, and more memory helps more → memory limit is a real growth knob
+- memory no longer trivializes moves: a remembered solution must be adapted to this foe
+- SCRATCH (filter guarded, sort, take 2–3) is out of reach for the 3B at L5 even with memory → fine for a starter's *first* move? or simplify; a design call (D1)
+- 1B is out
+
+## Run 3 (queued) — on the pi kernel
+`models/kernel-exp.mjs` on `kernel/` · a Pokémon = pi-durable conversation · model via pi-ai Workers AI provider · move = pi-codemode block
+- A/B: code block reply vs pi's `code` tool call (pi's code-mode convention)
+- adds granite-4.0-h-micro (~3B, in pi-ai's catalog, built for tool calls)
+- temperature: provider default (pi-durable exposes no temperature knob) — differs from runs 1–2 (0.8)
