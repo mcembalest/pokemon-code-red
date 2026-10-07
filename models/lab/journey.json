@@ -1,5 +1,5 @@
 {
-  "note": "Journey 3: tuning the curve \u2014 default (journey 2 learn+dex), tighter budgets + less focus early, fewer memory slots; 8 journeys each.",
+  "note": "Journey 4: real CHARMANDER learnset; gym leaders' dual-type Pok\u00e9mon switch formats (one function must read both); paralysis not modeled. 8 journeys.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "journeys": 8,
   "defaults": {
@@ -18,23 +18,18 @@
       "learn": true,
       "dex": true
     },
-    "tight": {
+    "learn+dex, gym walls": {
       "learn": true,
       "dex": true,
+      "gymBoth": true
+    },
+    "tight, gym walls": {
+      "learn": true,
+      "dex": true,
+      "gymBoth": true,
       "budgetBase": 170,
       "startTemp": 0.95,
       "tempPerLevel": 0.04
-    },
-    "few slots": {
-      "learn": true,
-      "dex": false,
-      "slotsBase": 1,
-      "levelsPerSlot": 5,
-      "evolutionSlots": 2
-    },
-    "learn only": {
-      "learn": true,
-      "dex": false
     }
   }
 }

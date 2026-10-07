@@ -68,7 +68,9 @@ async function journey(seed, policy) {
     for (let k = 0; k < nTurns; k++) {
       const known = MOVES_BY_LEVEL.filter(([l]) => l <= level).map(([, n]) => byName[n]).filter(m => m.name !== 'ERRORMSG' || r() < 0.25)
       const move = known[Math.floor(r() * known.length)]
+      const both = policy.gymBoth && types.length > 1 && ['Brock', 'Misty'].includes(segment) // gym leaders switch formats mid-battle
       const t = types[Math.floor(r() * types.length)] // a dual-type foe sends either format
+      const turnTypes = both ? types : [t]
       const clean = cleanBytes(r, [t])
       const data = FORMATS[t].encode(clean)
       const ex = [42, 13, 140, 77]
@@ -76,11 +78,13 @@ async function journey(seed, policy) {
       const memory = ''
       const budget = budgetAt(level, policy)
       const system = [`You are CHARMANDER, a level ${level} Pokémon. You fight by writing JavaScript.`, 'When your trainer calls a move, you write the code for it, then stop.',
-        'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.', ...(memory ? ['', 'Your memory:', memory] : [])].join('\n')
-      const user = [`Foe: ${foeName} Lv${foeLevel} (${types.join('/')}). Your trainer says: use ${move.name}!`, `Write the function: function ${move.fn}(data)`,
-        `- data = the foe's bytes, this turn in ${t} format: ${FORMATS[t].note}. Example: ${show(example(t))} is [${EXAMPLE_BYTES.join(', ')}].`,
-        policy.dex && dex.has(t) ? `- Pokédex: ${t} data reads like this: ${HINTS[t]}`
-          : reader ? `- You remember how you read ${t} data: ${reader}` : '- First line of the function: const bytes = <read data into a list of numbers>',
+        'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.'].join('\n')
+      const know = ty => policy.dex && dex.has(ty) ? `Pokédex: ${ty} data reads like this: ${HINTS[ty]}` : (policy.learn && readers.get(ty)) ? `You remember how you read ${ty} data: ${readers.get(ty)}` : null
+      const formatLines = both
+        ? [`- data = the foe's bytes. ${foeName} switches formats, so your function must read both:`, ...types.map(ty => `  - ${ty} format: ${FORMATS[ty].note}. Example: ${show(example(ty))} is [${EXAMPLE_BYTES.join(', ')}].${know(ty) ? ' ' + know(ty) : ''}`)]
+        : [`- data = the foe's bytes, this turn in ${t} format: ${FORMATS[t].note}. Example: ${show(example(t))} is [${EXAMPLE_BYTES.join(', ')}].`,
+          know(t) ? `- ${know(t)}` : '- First line of the function: const bytes = <read data into a list of numbers>']
+      const user = [`Foe: ${foeName} Lv${foeLevel} (${types.join('/')}). Your trainer says: use ${move.name}!`, `Write the function: function ${move.fn}(data)`, ...formatLines,
         `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(ex)} it returns ${JSON.stringify(move.ref(ex, {}))}.`,
         `- Byte budget: your whole code block must be at most ${budget} characters, comments included.`].join('\n')
       const temperature = focusAt(level, policy)
@@ -90,7 +94,10 @@ async function journey(seed, policy) {
         const { code, reason } = extractCode(text)
         if (code === null) outcome = { hit: false, reason }
         else if (code.length > budget) outcome = { hit: false, reason: 'over byte budget', code }
-        else outcome = { ...(await judge(move, code, data, clean)), code }
+        else {
+          outcome = { ...(await judge(move, code, data, clean)), code }
+          for (const ty of turnTypes) if (outcome.hit && ty !== t) outcome = { ...(await judge(move, code, FORMATS[ty].encode(clean), clean)), code }
+        }
       } catch (e) { outcome = { hit: false, reason: 'api: ' + String(e.message).slice(0, 80) } }
       // learning: a hit teaches (or refreshes) how it read this type; a miss with a remembered reader forgets it
       if (policy.learn) {
@@ -99,7 +106,7 @@ async function journey(seed, policy) {
         if (outcome.hit && line && !(policy.dex && dex.has(t)) && await readsRight(line, data, clean)) { readers.delete(t); readers.set(t, line) }
         while (readers.size > slotsAt(level, policy)) readers.delete(readers.keys().next().value)
       }
-      turns.push({ segment, foe: foeName, type: t, level, move: move.name, temperature: +temperature.toFixed(2), budget, hit: outcome.hit, reason: outcome.reason ?? null, dex: dex.has(t), remembered: !!reader })
+      turns.push({ segment, foe: foeName, type: t, both, level, move: move.name, temperature: +temperature.toFixed(2), budget, hit: outcome.hit, reason: outcome.reason ?? null, dex: dex.has(t), remembered: !!reader })
       xp += foeLevel; while (xp >= level * 6 && level < 21) { xp -= level * 6; level++ }
     }
     if (caught && policy.dex) for (const ty of types) dex.add(ty)
