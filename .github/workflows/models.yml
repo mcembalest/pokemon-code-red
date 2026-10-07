@@ -1,6 +1,6 @@
 name: models
 # Workers AI experiments on the starter moves (models/, on the pi kernel in kernel/).
-# Each experiment runs only when its config changes: probe.json, scaffold.json, kernel-exp.json.
+# Each experiment runs only when its config changes: probe.json, scaffold.json, kernel-exp.json, battle/exp.json.
 on:
   push:
     paths: ['models/**', 'kernel/**', '.github/workflows/models.yml']
@@ -62,10 +62,21 @@ jobs:
           set -o pipefail
           node kernel-exp.mjs kernel-exp.json kernel-results.json 2> kernel-log.txt || { echo "::error title=kernel::$(tail -c 1500 kernel-log.txt | tr '\n' ' ')"; exit 1; }
           while read -r l; do echo "::notice title=kernel::$l"; done < kernel-log.txt
+      - name: Battle rule experiment
+        id: battle
+        working-directory: models
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          git diff --name-only HEAD~1 HEAD | grep -qx 'models/battle/exp.json' || { echo "battle/exp.json unchanged; skipping"; exit 0; }
+          echo "ran=1" >> "$GITHUB_OUTPUT"
+          node battle/exp.mjs battle/exp.json battle-results.json 2> battle-log.txt || { echo "::error title=battle::$(tail -c 1500 battle-log.txt | tr '\n' ' ')"; exit 1; }
+          while read -r l; do echo "::notice title=battle::$l"; done < battle-log.txt
       - name: Publish results
-        if: always() && (steps.probe.outputs.ran || steps.scaffold.outputs.ran || steps.kernel.outputs.ran)
+        if: always() && (steps.probe.outputs.ran || steps.scaffold.outputs.ran || steps.kernel.outputs.ran || steps.battle.outputs.ran)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view model-probe >/dev/null 2>&1 || gh release create model-probe --prerelease --title "Workers AI model probe" --notes "Outputs of .github/workflows/models.yml. Safe to delete."
-          for f in models/probe-results.json models/probe-log.txt models/scaffold-results.json models/scaffold-log.txt models/kernel-results.json models/kernel-log.txt; do [ -f "$f" ] && gh release upload model-probe "$f" --clobber; done
+          for f in models/probe-results.json models/probe-log.txt models/scaffold-results.json models/scaffold-log.txt models/kernel-results.json models/kernel-log.txt models/battle-results.json models/battle-log.txt; do [ -f "$f" ] && gh release upload model-probe "$f" --clobber; done
