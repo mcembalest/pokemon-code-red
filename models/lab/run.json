@@ -1,111 +1,32 @@
 {
- "note": "Lab 12: gym walls \u2014 one function must read both formats of a dual type (with readers, and first time); paralysis = half byte budget.",
+ "note": "Lab 13: the foe's side \u2014 wild Pok\u00e9mon (young: focus 1.0, first time reading you) attacking each starter's type format.",
  "models": [
   "@cf/meta/llama-3.2-3b-instruct"
  ],
  "concurrency": 12,
- "temperature": 0.5,
- "maxTokens": 600,
+ "temperature": 1.0,
+ "maxTokens": 500,
  "experiments": [
   {
-   "name": "dual: both formats",
+   "name": "foes vs starters",
    "variants": [
-    "fn-dual-hint",
-    "fn-dual-format"
+    "fn-format-conv"
    ],
    "moves": [
-    "SLICE",
     "PING",
-    "ERRORMSG",
     "DOWNGRADE",
-    "BURNDISC",
-    "WIPEDISC",
-    "LEECH SEED",
-    "CRAWL",
-    "HASH",
-    "BACKUP"
+    "SLICE",
+    "POKE",
+    "SWIFT",
+    "FETCH"
    ],
    "types": [
-    "NORMAL/FLYING",
-    "BUG/POISON",
-    "ROCK/GROUND",
-    "POISON/FLYING",
-    "GRASS/POISON",
-    "BUG/GRASS",
-    "WATER/PSYCHIC",
-    "ELECTRIC/STEEL"
-   ],
-   "samples": 3
-  },
-  {
-   "name": "healthy 300",
-   "variants": [
-    "fn-hint-ex"
-   ],
-   "budget": 300,
-   "moves": [
-    "SLICE",
-    "PING",
-    "ERRORMSG",
-    "DOWNGRADE",
-    "BURNDISC",
-    "WIPEDISC",
-    "LEECH SEED",
-    "CRAWL",
-    "HASH",
-    "BACKUP"
-   ],
-   "types": [
-    "NORMAL",
-    "FLYING",
+    "FIRE",
     "WATER",
     "GRASS",
-    "ROCK",
-    "ELECTRIC",
-    "GROUND",
-    "FIRE",
-    "POISON",
-    "BUG",
-    "PSYCHIC",
-    "FIGHTING",
-    "STEEL"
+    "POISON"
    ],
-   "samples": 2
-  },
-  {
-   "name": "paralyzed 150",
-   "variants": [
-    "fn-hint-ex"
-   ],
-   "budget": 150,
-   "moves": [
-    "SLICE",
-    "PING",
-    "ERRORMSG",
-    "DOWNGRADE",
-    "BURNDISC",
-    "WIPEDISC",
-    "LEECH SEED",
-    "CRAWL",
-    "HASH",
-    "BACKUP"
-   ],
-   "types": [
-    "NORMAL",
-    "FLYING",
-    "WATER",
-    "GRASS",
-    "ROCK",
-    "ELECTRIC",
-    "GROUND",
-    "FIRE",
-    "POISON",
-    "BUG",
-    "PSYCHIC",
-    "FIGHTING",
-    "STEEL"
-   ],
-   "samples": 2
+   "samples": 8
   }
  ]
 }
