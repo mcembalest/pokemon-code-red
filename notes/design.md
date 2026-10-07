@@ -53,7 +53,9 @@ Living doc. Decisions = settled (owner). Open = not yet. Seeds = ideas to react 
   - model = pi-ai, Workers AI provider (pi's catalog + Llama 3.2 3B/1B, Qwen Coder 32B added)
   - move hand-off: code block reply, or pi's `code` tool call → A/B in run 3 (`notes/models.md`)
   - in-battle state (current move's battle functions) is not durable, by design
-  - not yet: browser build of the kernel, save-file storage (SQLite/JSONL core), Worker-side model route (pi-ai has a Workers AI binding API)
+  - browser bundle (`kernel/build.mjs`): kernel.js ~200 KB gz + QuickJS wasm ~640 KB (lazy-load when agents are on); Chromium smoke test in CI
+  - model route live: Worker `POST /v1/ai/chat/completions` (OpenAI-compatible; AI binding → AI Gateway; session token = API key) → browser pi-ai provider `gameApiProvider`
+  - not yet: wired into the player; save-file storage (pi-durable SQLite/JSONL core → the cloud save); iOS Safari check
 
 ## Battle decisions (owner, 2026-10-06)
 - **Player picks the move** (FIGHT → move, as in FireRed). **The Pokémon writes the code for it at inference time.** Bad code is one reason a move can miss
