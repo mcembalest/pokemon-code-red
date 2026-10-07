@@ -4,7 +4,7 @@
 // Also importable: scoreCompletion(), promptFor().
 import { CodemodeSandbox, renderDeclarations } from '@earendil-works/pi-codemode'
 import { createInterface } from 'node:readline'
-import { CONTRACTS, CRIT_SOURCE_CHARS, makeFoe, moveBudget } from './contracts.mjs'
+import { CONTRACTS, CRIT_SOURCE_CHARS, SITUATIONAL, makeFoe, moveBudget } from './contracts.mjs'
 
 export const REWARD = { miss: 0, hit: 1, crit: 1.3 }
 
@@ -35,8 +35,9 @@ export function normalizeBlock(code) {
   return calls > 1 ? code : `${code}\nreturn await ${name}()`
 }
 
-export function promptFor(move, { species = 'CHARMANDER', level = 5, foe, memory = '' } = {}) {
+export function promptFor(move, { species = 'CHARMANDER', level = 5, foe, memory = '', situational = false } = {}) {
   const contract = CONTRACTS[move]
+  const task = situational ? SITUATIONAL[move].task : contract.task
   const declarations = renderDeclarations({ tools: contract.tools(makeFoe(1), []) })
   const system = [
     `You are ${species}, a level ${level} Pokémon. You fight by writing code.`,
@@ -48,7 +49,7 @@ export function promptFor(move, { species = 'CHARMANDER', level = 5, foe, memory
     declarations,
     ...(memory ? ['', 'Your memory (what you have learned so far):', memory] : []),
   ].join('\n')
-  const user = `${foe ? `Foe: ${foe.name} Lv${foe.level}. ` : ''}Your trainer says: use ${move}!\n${move}: ${contract.task}`
+  const user = `${foe ? `Foe: ${foe.name} Lv${foe.level}. ` : ''}Your trainer says: use ${move}!\n${move}: ${task}`
   return { system, user }
 }
 
@@ -57,7 +58,7 @@ async function getSandbox(tools) {
   return new CodemodeSandbox({ tools, timeoutMs: 1500, memoryLimitBytes: 32 << 20 })
 }
 
-export async function scoreCompletion({ move, seed, level = 5, completion }) {
+export async function scoreCompletion({ move, seed, level = 5, completion, situational = false }) {
   const contract = CONTRACTS[move]
   if (!contract) return { reward: 0, outcome: 'miss', reason: `unknown move ${move}` }
   const { code, reason } = extractCode(completion)
@@ -72,7 +73,7 @@ export async function scoreCompletion({ move, seed, level = 5, completion }) {
   const base = { calls: log.length, spent, budget, codeBytes: Buffer.byteLength(code), code }
   if (!result.ok) return { ...base, reward: 0, outcome: 'miss', reason: `${result.error.kind}: ${result.error.message}`.slice(0, 200) }
   if (spent > budget) return { ...base, reward: 0, outcome: 'miss', reason: 'over byte budget' }
-  const verdict = contract.judge(foe, log)
+  const verdict = (situational ? SITUATIONAL[move] : contract).judge(foe, log)
   if (!verdict.ok) return { ...base, reward: 0, outcome: 'miss', reason: 'did not do the move\'s job' }
   const crit = verdict.minimal && code.length <= CRIT_SOURCE_CHARS
   return { ...base, reward: crit ? REWARD.crit : REWARD.hit, outcome: crit ? 'crit' : 'hit', reason: null }

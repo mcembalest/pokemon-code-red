@@ -32,12 +32,12 @@ async function pool(items, n, fn) {
 
 /** One move, with up to `retries` rewrites after a crash. */
 async function attempt(model, move, seed, { memory = '', retries = 0 }) {
-  const { system, user } = promptFor(move, { level: cfg.level ?? 5, foe: makeFoe(seed), memory })
+  const { system, user } = promptFor(move, { level: cfg.level ?? 5, foe: makeFoe(seed), memory, situational: !!cfg.situational })
   const messages = [{ role: 'system', content: system }, { role: 'user', content: user }]
   let score, completion = '', tries = 0
   for (; tries <= retries; tries++) {
     try { completion = await chat(model, messages) } catch (e) { return { outcome: 'miss', reason: 'api: ' + e.message, tries: tries + 1 } }
-    score = await scoreCompletion({ move, seed, level: cfg.level ?? 5, completion })
+    score = await scoreCompletion({ move, seed, level: cfg.level ?? 5, completion, situational: !!cfg.situational })
     const crashed = score.outcome === 'miss' && /^(script|timeout)/.test(score.reason ?? '')
     if (!crashed || tries === retries) break
     messages.push({ role: 'assistant', content: completion }, { role: 'user', content: `Your code crashed: ${score.reason}. Fix it. Reply with only the code block.` })
@@ -57,20 +57,24 @@ async function buildMemory(model) {
     if (wins.length) notes.push(`- ${move} worked (${wins.length}/${mine.length} times). My best version:\n${'```js\n' + wins[0].code.trim() + '\n```'}`)
     else notes.push(`- ${move} missed every time so far (${misses}/${mine.length}). Read the task carefully; do exactly what it says.`)
   }
-  return notes.join('\n').slice(0, cfg.memory_chars ?? 2000)
+  return notes
 }
+
+/** Whole entries only, until the memory size limit is reached (a young Pokémon can't remember everything). */
+const fit = (notes, limit) => { const out = []; let n = 0; for (const e of notes) { if (n + e.length + 1 > limit) continue; out.push(e); n += e.length + 1 } return out.join('\n') }
 
 const rate = sel => Object.fromEntries(['miss', 'hit', 'crit'].map(k => [k, +(sel.filter(r => r.outcome === k).length / sel.length).toFixed(3)]))
 const results = { at: new Date().toISOString(), cfg, cells: [] }
 for (const model of cfg.models) {
   let memory = null
   for (const sc of cfg.scaffolds) {
-    if (sc.memory && memory === null) { memory = await buildMemory(model).catch(e => (log('memory failed', e.message), '')); log(model, 'memory', memory.length, 'chars') }
+    if (sc.memory && memory === null) { memory = await buildMemory(model).catch(e => (log('memory failed', e.message), [])); log(model, 'memory entries', memory.length, 'chars', memory.join('').length) }
+    const mem = sc.memory ? fit(memory, sc.memory_chars ?? cfg.memory_chars ?? 2000) : ''
     const jobs = MOVES.flatMap(move => Array.from({ length: cfg.samples }, (_, i) => ({ move, seed: 100000 + i })))
     const t0 = Date.now()
-    const rows = await pool(jobs, cfg.concurrency ?? 4, ({ move, seed }) => attempt(model, move, seed, { memory: sc.memory ? memory : '', retries: sc.retries ?? 0 }).then(r => ({ move, ...r })))
+    const rows = await pool(jobs, cfg.concurrency ?? 4, ({ move, seed }) => attempt(model, move, seed, { memory: mem, retries: sc.retries ?? 0 }).then(r => ({ move, ...r })))
     const cell = { model, scaffold: sc.name, all: rate(rows), perMove: Object.fromEntries(MOVES.map(m => [m, rate(rows.filter(r => r.move === m))])),
-      avgTries: +(rows.reduce((a, r) => a + r.tries, 0) / rows.length).toFixed(2), wallS: Math.round((Date.now() - t0) / 1000), memory: sc.memory ? memory : undefined }
+      avgTries: +(rows.reduce((a, r) => a + r.tries, 0) / rows.length).toFixed(2), wallS: Math.round((Date.now() - t0) / 1000), memoryChars: mem.length, memory: mem || undefined }
     results.cells.push(cell)
     log(`${model.split('/').pop()} [${sc.name}] ${JSON.stringify(cell.all)} tries ${cell.avgTries}`)
   }

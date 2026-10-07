@@ -17,7 +17,7 @@ test('SCRATCH: correct → hit/crit; wrong slots → miss; crash → miss; over 
   const good = `const f = await tools.scan()\nconst s = f.bytes.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]).slice(0, 3)\nfor (const [, i] of s) await tools.scratch({ slot: i })`
   const r = await scoreCompletion({ move: 'SCRATCH', seed: 7, completion: block(good) })
   assert.equal(r.outcome, 'crit', JSON.stringify(r))
-  const verbose = `// fire fire fire\n// let me think about the bytes very carefully here before scratching anything at all\nconst f = await tools.scan()\nawait tools.scan()\nconst s = f.bytes.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]).slice(0, 3)\nfor (const [, i] of s) await tools.scratch({ slot: i })`
+  const verbose = `// fire fire fire\n// let me think about the bytes very carefully here before scratching anything at all\nconst f = await tools.scan()\nconst s = f.bytes.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]).slice(0, 3)\nfor (const [, i] of s) await tools.scratch({ slot: i })`
   assert.equal((await scoreCompletion({ move: 'SCRATCH', seed: 7, completion: block(verbose) })).outcome, 'hit')
   const wrong = `await tools.scan(); await tools.scratch({ slot: 0 }); await tools.scratch({ slot: 1 }); await tools.scratch({ slot: 2 })`
   const foe = makeFoe(7)
@@ -57,4 +57,25 @@ test('uncalled single function gets called; called or multiple left alone', asyn
   assert.equal(r.outcome, 'crit', JSON.stringify(r))
   const prose = await scoreCompletion({ move: 'GROWL', seed: 3, completion: 'I will growl at the foe now.' })
   assert.equal(prose.outcome, 'miss')
+})
+
+test('situational rules: correct branching code hits; naive code misses where the situation differs', async () => {
+  const { makeFoe } = await import('../contracts.mjs')
+  const smart = {
+    SCRATCH: "const f = await tools.scan({})\nconst k = f.status === 'asleep' ? 2 : 3\nconst c = f.bytes.map((v, i) => [v, i]).filter(([, i]) => !f.guarded.includes(i)).sort((a, b) => a[0] - b[0]).slice(0, k)\nfor (const [, i] of c) await tools.scratch({ slot: i })",
+    TACKLE: "const f = await tools.scan({})\nlet s = f.bytes.reduce((a, b) => a + b, 0)\nif (f.type === 'ROCK') s -= Math.max(...f.bytes)\nif (f.status === 'paralyzed') s *= 2\nawait tools.tackle({ force: s })",
+    GROWL: "const s = await tools.stats({})\nawait tools.growl({ amount: s.status === 'asleep' ? 0 : Math.ceil(s.attack / (s.type === 'FIRE' ? 2 : 4)) })",
+    'TAIL WHIP': "const s = await tools.stats({})\nawait tools.tail_whip({ amount: Math.floor(s.defense / 4) + s.guarded + (s.status === 'poisoned' ? 2 : 0) })",
+  }
+  const naive = "const { bytes } = await tools.scan({})\nawait tools.tackle({ force: bytes.reduce((a, b) => a + b, 0) })"
+  let naiveMiss = 0
+  for (let seed = 0; seed < 40; seed++) {
+    for (const [move, code] of Object.entries(smart)) {
+      const r = await scoreCompletion({ move, seed, completion: '```js\n' + code + '\n```', situational: true })
+      assert.notEqual(r.outcome, 'miss', `${move} seed ${seed} ${JSON.stringify(makeFoe(seed))} ${r.reason}`)
+    }
+    const n = await scoreCompletion({ move: 'TACKLE', seed, completion: '```js\n' + naive + '\n```', situational: true })
+    if (n.outcome === 'miss') naiveMiss++
+  }
+  assert.ok(naiveMiss > 5 && naiveMiss < 35, `naive TACKLE should miss only in some situations, missed ${naiveMiss}/40`)
 })
