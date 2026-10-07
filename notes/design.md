@@ -47,6 +47,13 @@ Living doc. Decisions = settled (owner). Open = not yet. Seeds = ideas to react 
 - pi 1.0 (`@earendil-works/*`, pinned exact): `pi-codemode` (one move = one code block in QuickJS, tool calls metered in bytes), `pi-durable` (a Pokémon = a conversation: identity, history, docs, moves as tools), `pi-ai` (Sonnet via the worker now; local model later)
 - browser spikes ok in Chromium: codemode via ~40-line `node:worker_threads` shim (~26 KB + 287 KB wasm gz); durable with MemoryStorage + faux model (~103 KB gz). iOS Safari untested
 - open: language runtimes for C/Go/Python (codemode is JS/QuickJS only)
+- built 2026-10-07 (`kernel/`, owner: "pi ecosystem by default for everything"):
+  - Pokémon = pi-durable conversation; its self (species, level, language, memory, memory limit) = conversation doc `code-red.mon`, rendered into its system prompt
+  - battle = `reset()` (fresh context, same self); move = one turn; judging stays in the game
+  - model = pi-ai, Workers AI provider (pi's catalog + Llama 3.2 3B/1B, Qwen Coder 32B added)
+  - move hand-off: code block reply, or pi's `code` tool call → A/B in run 3 (`notes/models.md`)
+  - in-battle state (current move's battle functions) is not durable, by design
+  - not yet: browser build of the kernel, save-file storage (SQLite/JSONL core), Worker-side model route (pi-ai has a Workers AI binding API)
 
 ## Battle decisions (owner, 2026-10-06)
 - **Player picks the move** (FIGHT → move, as in FireRed). **The Pokémon writes the code for it at inference time.** Bad code is one reason a move can miss
