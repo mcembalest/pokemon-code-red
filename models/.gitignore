@@ -1,3 +1,5 @@
 node_modules/
 probe-results.json
 probe-log.txt
+scaffold-results.json
+scaffold-log.txt

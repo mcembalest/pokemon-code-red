@@ -29,10 +29,22 @@ jobs:
           set -o pipefail
           node probe.mjs probe.json > probe-results.json 2> probe-log.txt || { echo "::error title=probe::$(tail -c 1500 probe-log.txt | tr '\n' ' ')"; exit 1; }
           while read -r l; do echo "::notice title=probe::$l"; done < probe-log.txt
+      - name: Scaffold experiment
+        id: scaffold
+        working-directory: models
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          git diff --name-only HEAD~1 HEAD | grep -qx 'models/scaffold.json' || { echo "scaffold.json unchanged; skipping"; exit 0; }
+          echo "ran=1" >> "$GITHUB_OUTPUT"
+          set -o pipefail
+          node scaffold.mjs scaffold.json > scaffold-results.json 2> scaffold-log.txt || { echo "::error title=scaffold::$(tail -c 1500 scaffold-log.txt | tr '\n' ' ')"; exit 1; }
+          while read -r l; do echo "::notice title=scaffold::$l"; done < scaffold-log.txt
       - name: Publish results
-        if: always() && steps.probe.outputs.ran
+        if: always() && (steps.probe.outputs.ran || steps.scaffold.outputs.ran)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view model-probe >/dev/null 2>&1 || gh release create model-probe --prerelease --title "Workers AI model probe" --notes "Outputs of .github/workflows/models.yml. Safe to delete."
-          for f in models/probe-results.json models/probe-log.txt; do [ -f "$f" ] && gh release upload model-probe "$f" --clobber; done
+          for f in models/probe-results.json models/probe-log.txt models/scaffold-results.json models/scaffold-log.txt; do [ -f "$f" ] && gh release upload model-probe "$f" --clobber; done

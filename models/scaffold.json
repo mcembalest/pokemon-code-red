@@ -1,0 +1,11 @@
+{
+  "note": "Edit + push to run (models.yml). Can a small model play a high-level Pokémon with memory/retries? Results → release model-probe (scaffold-*).",
+  "level": 5, "samples": 16, "warmup": 12, "temperature": 0.8, "max_tokens": 300, "concurrency": 4, "memory_chars": 2000,
+  "models": ["@cf/meta/llama-3.2-1b-instruct", "@cf/google/gemma-2b-it-lora", "@cf/meta/llama-3.2-3b-instruct"],
+  "scaffolds": [
+    { "name": "plain" },
+    { "name": "memory", "memory": true },
+    { "name": "retry2", "retries": 2 },
+    { "name": "memory+retry2", "memory": true, "retries": 2 }
+  ]
+}

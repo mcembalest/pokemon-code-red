@@ -35,7 +35,7 @@ export function normalizeBlock(code) {
   return calls > 1 ? code : `${code}\nreturn await ${name}()`
 }
 
-export function promptFor(move, { species = 'CHARMANDER', level = 5, foe } = {}) {
+export function promptFor(move, { species = 'CHARMANDER', level = 5, foe, memory = '' } = {}) {
   const contract = CONTRACTS[move]
   const declarations = renderDeclarations({ tools: contract.tools(makeFoe(1), []) })
   const system = [
@@ -46,6 +46,7 @@ export function promptFor(move, { species = 'CHARMANDER', level = 5, foe } = {})
     `Byte budget for this move: ${moveBudget(level)} bytes of tool traffic. Wasted calls waste bytes.`,
     '',
     declarations,
+    ...(memory ? ['', 'Your memory (what you have learned so far):', memory] : []),
   ].join('\n')
   const user = `${foe ? `Foe: ${foe.name} Lv${foe.level}. ` : ''}Your trainer says: use ${move}!\n${move}: ${contract.task}`
   return { system, user }
