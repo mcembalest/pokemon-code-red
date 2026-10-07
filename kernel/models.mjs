@@ -7,6 +7,7 @@ import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completio
 import { cloudflareStreams } from '@earendil-works/pi-ai/providers/cloudflare-stream'
 import { cloudflareWorkersAIAuth } from '@earendil-works/pi-ai/providers/cloudflare-auth'
 import { CLOUDFLARE_WORKERS_AI_MODELS } from '@earendil-works/pi-ai/providers/cloudflare-workers-ai.models'
+import { withFetch, workersAIFetch } from './cf-fetch.mjs'
 
 export const PROVIDER = 'cloudflare-workers-ai'
 const BASE_URL = 'https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1'
@@ -33,7 +34,7 @@ export function workersAIProvider() {
     name: 'Cloudflare Workers AI',
     auth: { apiKey: cloudflareWorkersAIAuth() },
     models: [...Object.values(CLOUDFLARE_WORKERS_AI_MODELS), ...EXTRA_MODELS.filter(m => !known.has(m.id)).map(toModel)],
-    api: cloudflareStreams(openAICompletionsApi()),
+    api: withFetch(cloudflareStreams(openAICompletionsApi()), workersAIFetch()),
   })
 }
 
@@ -46,3 +47,20 @@ export function gameModels(...extra) {
 }
 
 export const modelRef = id => ({ provider: PROVIDER, modelId: id })
+
+/**
+ * The game's own route (Worker `/v1/ai`, OpenAI-compatible): what the browser uses.
+ * The player's session token is the API key; the Worker holds the Cloudflare side.
+ * @param {{ baseUrl: string, token: string | (() => string | Promise<string>), modelIds?: string[] }} o
+ */
+export function gameApiProvider({ baseUrl, token, modelIds = ['@cf/meta/llama-3.2-3b-instruct', '@cf/ibm-granite/granite-4.0-h-micro'] }) {
+  const all = [...EXTRA_MODELS.map(toModel), ...Object.values(CLOUDFLARE_WORKERS_AI_MODELS)]
+  return createProvider({
+    id: GAME_PROVIDER,
+    name: 'Code Red',
+    auth: { apiKey: { name: 'Code Red session', resolve: async () => { const key = typeof token === 'function' ? await token() : token; return key ? { auth: { apiKey: key }, source: 'session' } : undefined } } },
+    models: modelIds.map(id => ({ ...all.find(m => m.id === id), provider: GAME_PROVIDER, baseUrl })).filter(m => m.id),
+    api: withFetch(openAICompletionsApi(), workersAIFetch()),
+  })
+}
+export const GAME_PROVIDER = 'code-red'

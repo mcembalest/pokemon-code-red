@@ -54,8 +54,19 @@ tasks now vary with foe type/status/guarded slots (`SITUATIONAL` in contracts.mj
 - SCRATCH (filter guarded, sort, take 2–3) is out of reach for the 3B at L5 even with memory → fine for a starter's *first* move? or simplify; a design call (D1)
 - 1B is out
 
-## Run 3 (queued) — on the pi kernel
-`models/kernel-exp.mjs` on `kernel/` · a Pokémon = pi-durable conversation · model via pi-ai Workers AI provider · move = pi-codemode block
-- A/B: code block reply vs pi's `code` tool call (pi's code-mode convention)
-- adds granite-4.0-h-micro (~3B, in pi-ai's catalog, built for tool calls)
-- temperature: provider default (pi-durable exposes no temperature knob) — differs from runs 1–2 (0.8)
+## Run 3 (2026-10-07) — on the pi kernel
+`models/kernel-exp.mjs` on `kernel/` · Pokémon = pi-durable conversation · model via pi-ai Workers AI provider · move = pi-codemode block · situational rules · 16 samples × 4 moves · provider-default temperature
+
+miss rate (lower is better):
+
+| model | block | block + mem 2500 | pi code tool | tool + mem 2500 | p50 (block) |
+|---|---|---|---|---|---|
+| llama-3.2-3b | .64 | **.44** | .94 | .86 | 0.6 s |
+| granite-4.0-h-micro (~3B) | .61 | **.34** | .81 | .63 | 3.3 s |
+| qwen2.5-coder-32b (ref) | .06 | .06 | 1.0 | 1.0 | 3.9 s |
+
+- **the kernel reproduces scaffold run 2** (3B .63 → .42 there) → the pi port is faithful
+- **code block beats pi's code tool** for every model on Workers AI: Qwen writes its tool call as text (Workers AI doesn't parse it); Llama's code inside tool-call JSON breaks more often; Granite tool calls are 2–3× slower → **moves = code block replies** (kernel default `mode: 'block'`)
+- Granite ≈ Llama 3B on quality, 5× slower → **Llama 3.2 3B stays the one model**
+- SCRATCH (situational) still ~100% miss for both 3Bs → D1 decision
+- first attempt (run 3a) was void: Workers AI streams numeric tokens as JSON numbers and pi-ai drops them → every block lost its digits. Fixed in `kernel/cf-fetch.mjs` (also flattens array message content, which Granite rejected)

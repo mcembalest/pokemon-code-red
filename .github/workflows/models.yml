@@ -9,7 +9,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 2 }
@@ -18,6 +18,11 @@ jobs:
       - name: Tests (kernel)
         working-directory: kernel
         run: npm ci && npm test
+      - name: Kernel in the browser (Chromium)
+        working-directory: kernel
+        run: |
+          pip install --quiet playwright==1.* && python3 -m playwright install --with-deps chromium >/dev/null
+          node build.mjs && python3 test/browser_smoke.py | tail -1
       - name: Tests (sandbox scoring)
         working-directory: models
         run: npm ci && npm test
@@ -55,7 +60,7 @@ jobs:
           git diff --name-only HEAD~1 HEAD | grep -qx 'models/kernel-exp.json' || { echo "kernel-exp.json unchanged; skipping"; exit 0; }
           echo "ran=1" >> "$GITHUB_OUTPUT"
           set -o pipefail
-          node kernel-exp.mjs kernel-exp.json > kernel-results.json 2> kernel-log.txt || { echo "::error title=kernel::$(tail -c 1500 kernel-log.txt | tr '\n' ' ')"; exit 1; }
+          node kernel-exp.mjs kernel-exp.json kernel-results.json 2> kernel-log.txt || { echo "::error title=kernel::$(tail -c 1500 kernel-log.txt | tr '\n' ' ')"; exit 1; }
           while read -r l; do echo "::notice title=kernel::$l"; done < kernel-log.txt
       - name: Publish results
         if: always() && (steps.probe.outputs.ran || steps.scaffold.outputs.ran || steps.kernel.outputs.ran)
