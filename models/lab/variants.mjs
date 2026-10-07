@@ -197,7 +197,7 @@ export const VARIANTS = {
 }
 
 // how to tell a dual type's two formats apart (one line), for the detect variant
-function detectLine(types) {
+export function detectLine(types) {
   const kind = t => { const v = FORMATS[t].encode([42, 13, 140]); return Array.isArray(v) ? (Array.isArray(v[1]) || typeof v[0] === 'object' ? 'list-of-things' : 'list') : typeof v === 'object' ? 'object' : 'string' }
   const [a, b] = types, ka = kind(a), kb = kind(b)
   if (ka !== kb) return `Tell them apart: ${a} data is ${ka === 'string' ? 'a string' : ka === 'object' ? 'an object (not a list)' : 'a list'}, ${b} data is ${kb === 'string' ? 'a string' : kb === 'object' ? 'an object (not a list)' : 'a list'} (check with typeof data === 'string' or Array.isArray(data)).`

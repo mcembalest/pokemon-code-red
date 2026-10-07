@@ -10,7 +10,7 @@ import { rng } from '../contracts.mjs'
 import { byName } from '../battle/moves.mjs'
 import { cleanBytes } from '../battle/types.mjs'
 import { EXAMPLE_BYTES, FORMATS, HINTS, example, show } from './formats.mjs'
-import { definedName } from './variants.mjs'
+import { definedName, detectLine } from './variants.mjs'
 
 const cfg = JSON.parse(readFileSync(process.argv[2] ?? 'lab/journey.json', 'utf8'))
 const outFile = process.argv[3] ?? 'journey-results.json'
@@ -83,7 +83,8 @@ async function journey(seed, policy) {
         'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.'].join('\n')
       const know = ty => policy.dex && dex.has(ty) ? `Pokédex: ${ty} data reads like this: ${HINTS[ty]}` : (policy.learn && readers.get(ty)) ? `You remember how you read ${ty} data: ${readers.get(ty)}` : null
       const formatLines = both
-        ? [`- data = the foe's bytes. ${foeName} switches formats, so your function must read both:`, ...types.map(ty => `  - ${ty} format: ${FORMATS[ty].note}. Example: ${show(example(ty))} is [${EXAMPLE_BYTES.join(', ')}].${know(ty) ? ' ' + know(ty) : ''}`)]
+        ? [`- data = the foe's bytes. ${foeName} switches formats, so your function must read both:`, ...types.map(ty => `  - ${ty} format: ${FORMATS[ty].note}. Example: ${show(example(ty))} is [${EXAMPLE_BYTES.join(', ')}].${know(ty) ? ' ' + know(ty) : ''}`),
+          ...(policy.gymTip ? [`- ${detectLine(types)}`] : [])]
         : [`- data = the foe's bytes, this turn in ${t} format: ${FORMATS[t].note}. Example: ${show(example(t))} is [${EXAMPLE_BYTES.join(', ')}].`,
           know(t) ? `- ${know(t)}` : '- First line of the function: const bytes = <read data into a list of numbers>']
       const user = [`Foe: ${foeName} Lv${foeLevel} (${types.join('/')}). Your trainer says: use ${move.name}!`, `Write the function: function ${move.fn}(data)`, ...formatLines,

@@ -1,7 +1,7 @@
 {
-  "note": "Journey 8: debug the STARMIE wall (code captured on both-format turns); 4 journeys.",
+  "note": "Journey 9 (final): Pok\u00e9dex on seen + verified learning; each leader's ace switches formats with +150 bytes; with vs without a one-line tip on telling the formats apart (the gym's 'lesson'). 12 journeys.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
-  "journeys": 4,
+  "journeys": 12,
   "defaults": {
     "startTemp": 0.8,
     "tempPerLevel": 0.03,
@@ -14,13 +14,27 @@
     "evolutionSlots": 3
   },
   "policies": {
-    "seen, ace walls": {
+    "ace walls + tip": {
+      "learn": true,
+      "dex": true,
+      "dexSeen": true,
+      "gymBoth": true,
+      "aceOnly": true,
+      "gymBudgetBonus": 150,
+      "gymTip": true
+    },
+    "ace walls": {
       "learn": true,
       "dex": true,
       "dexSeen": true,
       "gymBoth": true,
       "aceOnly": true,
       "gymBudgetBonus": 150
+    },
+    "no walls": {
+      "learn": true,
+      "dex": true,
+      "dexSeen": true
     }
   }
 }
