@@ -124,6 +124,10 @@ export const VARIANTS = {
   // Gym battle: first-encounter format + the gym leader's rule (Brock: no loops; Misty: const only).
   'fn-gym': gymVariant(false),
   'fn-gym-dex': gymVariant(true),
+  // Status conditions as code constraints (Pokédex turn + a status rule).
+  'st-paralyzed': statusVariant('PARALYZED', 'brownout: the function body must be a single return statement (save power)', c => LINT.ELECTRIC.ok(c)),
+  'st-poisoned': statusVariant('POISONED', 'infected: Math is hijacked, do not use Math', c => LINT.POISON.ok(c)),
+  'st-burned': statusVariant('BURNED', 'disk damage: at most 3 lines of code in total', c => LINT.STEEL.ok(c)),
   // Same, but only an example with its meaning (no description of the format).
   'fn-example': {
     prompt({ move, foe, memory }) {
@@ -229,6 +233,19 @@ function gymVariant(dex) {
     async judge({ move, foe, code }) {
       if (!LINT[foe.types[0]].ok(code)) return { outcome: 'miss', reason: 'broke the gym rule' }
       return judgeFunction({ move, foe, code, data: encoded(foe) })
+    },
+  }
+}
+
+function statusVariant(status, rule, ok) {
+  return {
+    prompt(args) {
+      const p = VARIANTS['fn-hint-ex'].prompt(args)
+      return { ...p, user: `${p.user}\n- You are ${status}: ${rule}.` }
+    },
+    async judge(args) {
+      if (!ok(args.code)) return { outcome: 'miss', reason: `broke the ${status} rule` }
+      return VARIANTS['fn-hint-ex'].judge(args)
     },
   }
 }
