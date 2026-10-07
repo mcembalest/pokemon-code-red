@@ -1,5 +1,5 @@
 {
-  "note": "Battle rule draft, run 2: after fixing JSON-looking stream tokens ([] {} null true dropped) and showing the answer's shape (a number / a list / text). A = every move vs NORMAL; B = starter moves vs every foe type. No memory.",
+  "note": "Battle rule draft, run 3: step-by-step turn prompt (scan / clean / key / strike), clearer specs (indexes, no null answers), imperative type rules; + C: 3B with its own memory from warm-up battles.",
   "models": [
     "@cf/meta/llama-3.2-3b-instruct",
     "@cf/qwen/qwen2.5-coder-32b-instruct"
@@ -30,6 +30,30 @@
       ],
       "types": "all",
       "samples": 4
+    },
+    {
+      "name": "C: starter moves vs every type, 3B with memory",
+      "models": [
+        "@cf/meta/llama-3.2-3b-instruct"
+      ],
+      "moves": [
+        "SLICE",
+        "PING",
+        "ERRORMSG",
+        "DOWNGRADE",
+        "BURNDISC",
+        "WIPEDISC",
+        "LEECH SEED",
+        "CRAWL",
+        "HASH",
+        "BACKUP"
+      ],
+      "types": "all",
+      "samples": 4,
+      "memory": {
+        "warmup": 2,
+        "limit": 4000
+      }
     }
   ]
 }

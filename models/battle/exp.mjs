@@ -27,12 +27,17 @@ export function makeFoe(seed, types) {
 }
 
 export function turnText(move, foe) {
-  const notes = foe.types.map((t, i) => `${i ? 'Then ' : ''}${t}: ${TYPES[t].rule}.`).join(' ')
+  const clean = foe.types.map((t, i) => `${i ? 'then ' : ''}${t}: ${TYPES[t].rule}`).join('; ')
+  const call = move.shape === 'no key' ? `await tools.${move.fn}()` : `await tools.${move.fn}({ key })`
   return {
-    foeLine: `Foe: ${foe.name} Lv${foe.level} (${foe.types.join('/')}). Clean its bytes first. ${notes}`,
-    task: move.shape === 'no key'
-      ? `${move.spec}. Call tools.${move.fn}() exactly once.`
-      : `key = ${move.spec} (${move.shape}). Call tools.${move.fn}({ key }) exactly once.`,
+    foeLine: `Foe: ${foe.name} Lv${foe.level} (${foe.types.join('/')}).`,
+    task: [
+      '', 'Steps:',
+      '1. const foe = await tools.scan()',
+      `2. Clean foe.bytes (${clean}).`,
+      move.shape === 'no key' ? `3. ${move.spec}.` : `3. key = ${move.spec}, from the cleaned bytes (${move.shape}).`,
+      `4. ${call}, exactly once.`,
+    ].join('\n'),
   }
 }
 
@@ -86,13 +91,26 @@ const reasons = rows => { const o = {}; for (const r of rows) if (r.outcome === 
 for (const model of cfg.models) {
   const mons = await Promise.all(Array.from({ length: cfg.concurrency ?? 6 }, () => kernel.createMon({ species: 'CHARMANDER', level: 5, memory: [], memoryLimit: 0 })))
   for (const part of cfg.parts) {
+    if (part.models && !part.models.includes(model)) continue
     const moves = part.moves === 'all' ? MOVES : part.moves.map(n => byName[n])
     const combos = part.types === 'all' ? [...new Set(FOES.map(([, t]) => t.join('/')))].map(s => s.split('/')) : part.types.map(s => s.split('/'))
+    let memoryChars = 0
+    if (part.memory) {
+      // Warm-up battles (other seeds) → notes: each move's shortest code that hit, or that it never hit yet.
+      const warm = await pool(moves.flatMap(move => combos.flatMap(types => Array.from({ length: part.memory.warmup }, (_, i) => ({ model, move, types, seed: 900000 + i * 37 + types.length })))), mons, episode)
+      const notes = moves.map(m => {
+        const wins = warm.filter(r => r.move === m.name && r.outcome === 'hit' && r.code).sort((a, b) => a.code.length - b.code.length)
+        return wins.length ? `- ${m.name} hit (${wins.length}/${warm.filter(r => r.move === m.name).length}). My best code:\n${'```js\n' + wins[0].code.trim() + '\n```'}`
+          : `- ${m.name} never hit yet. Read the key spec and the type notes carefully.`
+      })
+      for (const mon of mons) await mon.update(st => { st.memory = notes; st.memoryLimit = part.memory.limit })
+      memoryChars = notes.join('\n').length
+    } else for (const mon of mons) await mon.update(st => { st.memory = []; st.memoryLimit = 0 })
     const jobs = moves.flatMap(move => combos.flatMap(types => Array.from({ length: part.samples }, (_, i) => ({ model, move, types, seed: 50000 + i * 101 + types.length }))))
     const t0 = Date.now()
     const rows = await pool(jobs, mons, episode)
     const run = {
-      model, part: part.name, n: rows.length, hit: rate(rows), reasons: reasons(rows), wallS: Math.round((Date.now() - t0) / 1000),
+      model, part: part.name, memoryChars, n: rows.length, hit: rate(rows), reasons: reasons(rows), wallS: Math.round((Date.now() - t0) / 1000),
       perMove: Object.fromEntries(moves.map(m => { const s = rows.filter(r => r.move === m.name); return [m.name, { hit: rate(s), reasons: reasons(s) }] })),
       perType: Object.fromEntries(combos.map(t => { const s = rows.filter(r => r.types === t.join('/')); return [t.join('/'), rate(s)] })),
       examples: rows.filter(r => r.outcome === 'miss').slice(0, 40),

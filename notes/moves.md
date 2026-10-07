@@ -14,18 +14,18 @@ Source of truth: `models/battle/moves.mjs` (names, specs, reference answers) and
 | Type | Concept | Cleanup | Foes |
 |---|---|---|---|
 | NORMAL | files | nothing to clean | RATTATA, PIDGEY, SPEAROW, CLEFAIRY, JIGGLYPUFF |
-| FIRE | writes | bytes over 200 are still being written: drop them | CHARMANDER |
-| WATER | wipe | wiped bytes read 0: drop them | SQUIRTLE, STARYU, STARMIE |
-| GRASS | sprawl | leftover fragments are under 10: drop them | ODDISH, PARAS, BULBASAUR |
-| ELECTRIC | power | the single largest byte is a power spike: drop it | PIKACHU, MAGNEMITE, VOLTORB |
-| FIGHTING | raw compute | only the first 5 bytes count; the rest is flooding | MANKEY, MACHOP |
-| POISON | malware | infected bytes are negative: drop them | WEEDLE, KAKUNA, ZUBAT, EKANS, NIDORAN, ODDISH, BULBASAUR |
-| GROUND | physical | the first byte is a hardware header: drop it | GEODUDE, ONIX, SANDSHREW |
-| FLYING | cloud | bytes arrive as text: turn each into a number | PIDGEY, SPEAROW, ZUBAT |
-| PSYCHIC | detection | bytes arrive in reverse order: reverse them | STARMIE, ABRA, DROWZEE |
-| BUG | bugs | some bytes are repeated: keep only the first of each | CATERPIE, METAPOD, WEEDLE, KAKUNA, PARAS |
-| ROCK | hardware | burned-out cells read 255: drop them | GEODUDE, ONIX |
-| STEEL | encryption | every byte arrives with 100 added: subtract 100 | MAGNEMITE |
+| FIRE | writes | drop every byte over 200 | CHARMANDER |
+| WATER | wipe | drop every 0 | SQUIRTLE, STARYU, STARMIE |
+| GRASS | sprawl | drop every byte under 10 | ODDISH, PARAS, BULBASAUR |
+| ELECTRIC | power | drop the largest byte (only that one) | PIKACHU, MAGNEMITE, VOLTORB |
+| FIGHTING | raw compute | keep only the first 5 bytes | MANKEY, MACHOP |
+| POISON | malware | drop every negative byte | WEEDLE, KAKUNA, ZUBAT, EKANS, NIDORAN, ODDISH, BULBASAUR |
+| GROUND | physical | drop the first byte | GEODUDE, ONIX, SANDSHREW |
+| FLYING | cloud | the bytes are text: turn each into a number | PIDGEY, SPEAROW, ZUBAT |
+| PSYCHIC | detection | reverse the bytes | STARMIE, ABRA, DROWZEE |
+| BUG | bugs | drop repeats: keep only the first of each value | CATERPIE, METAPOD, WEEDLE, KAKUNA, PARAS |
+| ROCK | hardware | drop every 255 | GEODUDE, ONIX |
+| STEEL | encryption | subtract 100 from every byte | MAGNEMITE |
 
 ## Moves (103)
 
@@ -35,17 +35,17 @@ S = a starter learns it before Brock · K = FireRed name kept
 |---|---|---|---|---|---|---|
 | PING | Tackle | Normal | 35/95 | hit | how many bytes there are | S |
 | SLICE | Scratch | Normal | 40/100 | hit | the first 3 bytes | S |
-| POKE | Pound | Normal | 40/100 | hit | the byte at position 1 |  |
+| POKE | Pound | Normal | 40/100 | hit | the second byte (index 1) |  |
 | FETCH | Peck | Flying | 35/100 | hit | the last byte |  |
-| SPIKE | Horn Attack | Normal | 65/100 | hit | the position of the largest byte |  |
+| SPIKE | Horn Attack | Normal | 65/100 | hit | the index of the largest byte |  |
 | BOOTDRIVE | Rock Throw | Rock | 50/90 | hit | the sum of the bytes |  |
-| FORKBOMB | Slam | Normal | 80/75 | hit | every byte doubled |  |
-| CRAWL | Vine Whip | Grass | 35/100 | hit | the bytes at even positions (0, 2, 4…) | S |
+| FORKBOMB | Slam | Normal | 80/75 | hit | each byte times 2 |  |
+| CRAWL | Vine Whip | Grass | 35/100 | hit | the bytes at even indexes (0, 2, 4…) | S |
 | FLUSH | Water Gun | Water | 40/100 | hit | every byte set to 0 |  |
 | UPLOAD | Wing Attack | Flying | 60/100 | hit | the bytes joined into one string with '-' between them |  |
 | UNDO | Double Slap | Normal | 15/85 | multi hit | the bytes without the first one |  |
 | SPAM | Fury Attack | Normal | 15/85 | multi hit | the first byte, repeated 5 times |  |
-| BRUTEFORCE | Fury Swipes | Normal | 18/80 | multi hit | every byte under 50, in order |  |
+| BRUTEFORCE | Fury Swipes | Normal | 18/80 | multi hit | the bytes that are under 50 |  |
 | SNAPSHOT | Icicle Spear | Ice | 10/100 | multi hit | a copy of the bytes, unchanged |  |
 | SUSPEND | Hypnosis | Psychic | –/60 | sleep | the bytes without the last one |  |
 | SCREENSAVER | Sing | Normal | –/55 | sleep | how many bytes are even |  |
@@ -59,7 +59,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | DROPTABLE | Water Pulse | Water | 60/100 | confuse hit | the bytes with every byte under 50 dropped |  |
 | PHISH | Bite | Dark | 60/100 | flinch hit | the second-to-last byte |  |
 | REBOOT | Headbutt | Normal | 70/100 | flinch hit | the first byte plus the last |  |
-| SEGFAULT | Hyper Fang | Normal | 80/90 | flinch hit | the byte at position (first byte mod how many bytes) |  |
+| SEGFAULT | Hyper Fang | Normal | 80/90 | flinch hit | the byte at index (first byte % number of bytes) |  |
 | OVERCLOCK | Karate Chop | Fighting | 50/100 | high critical | the sum of every byte squared |  |
 | SHARDS | Razor Leaf | Grass | 55/95 | high critical | the bytes split into pairs; an odd last byte is a pair of one |  |
 | TRUNCATE | Slash | Normal | 70/100 | high critical | the first half of the bytes (half rounded down) |  |
@@ -75,7 +75,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | LEAK | Leech Life | Bug | 20/100 | absorb | the sum of the last two bytes |  |
 | AUTOSCALE | Aerial Ace | Flying | 60/– | always hit | every byte halved, rounded down |  |
 | SWIFT | Swift | Normal | 60/– | always hit | the first byte plus 1 | K |
-| EXPOSE | Leer | Normal | –/100 | defense down | the position of the smallest byte |  |
+| EXPOSE | Leer | Normal | –/100 | defense down | the index of the smallest byte |  |
 | DOWNGRADE | Tail Whip | Normal | –/100 | defense down | the largest byte | S |
 | HARDEN | Harden | Normal | –/– | defense up | the smallest byte | K |
 | BACKUP | Withdraw | Water | –/– | defense up | the bytes in reverse order | S |
@@ -99,24 +99,24 @@ S = a starter learns it before Brock · K = FireRed name kept
 | DISABLE | Disable | Normal | –/55 | disable | the last byte minus the first | K |
 | COPYPASTE | Double Kick | Fighting | 30/100 | double hit | the bytes, then the bytes again |  |
 | KERNELPANIC | Dragon Rage | Dragon | 1/100 | dragon rage | how many bytes, times 10 |  |
-| LOOP | Encore | Normal | –/100 | encore | the first byte, once for every byte |  |
+| LOOP | Encore | Normal | –/100 | encore | a list as long as the bytes, every entry the first byte |  |
 | HONEYPOT | Sweet Scent | Normal | –/100 | evasion down | the largest even byte (0 if none) |  |
 | MIRROR | Double Team | Normal | –/– | evasion up | the bytes, then the bytes in reverse |  |
-| RM -RF | Self Destruct | Normal | 200/100 | explosion | nothing at all (null) |  |
+| RM -RF | Self Destruct | Normal | 200/100 | explosion | the number 0 (nothing left) |  |
 | PANIC | Flail | Normal | 1/100 | flail | how many bytes are under 20 |  |
-| POPUP | Astonish | Ghost | 30/100 | flinch minimize hit | the byte at the middle position (how many bytes ÷ 2, rounded down) |  |
+| POPUP | Astonish | Ghost | 30/100 | flinch minimize hit | the byte at index (number of bytes ÷ 2, rounded down) |  |
 | COMPILE | Focus Energy | Normal | –/– | focus energy | the bytes joined into one string with nothing between them |  |
-| REDIRECT | Follow Me | Normal | –/100 | follow me | the position of the last byte |  |
-| DEBUGGER | Foresight | Normal | –/100 | foresight | the positions of every byte over 100 |  |
+| REDIRECT | Follow Me | Normal | –/100 | follow me | the index of the last byte |  |
+| DEBUGGER | Foresight | Normal | –/100 | foresight | the indexes of the bytes over 100 |  |
 | BROADCAST | Gust | Flying | 40/100 | gust | every byte plus the last byte |  |
 | PAIRPROGRAM | Helping Hand | Normal | –/100 | helping hand | the first byte times the second |  |
-| LEECH SEED | Leech Seed | Grass | –/90 | leech seed | the sum of the bytes at even positions (0, 2, 4…) | S K |
+| LEECH SEED | Leech Seed | Grass | –/90 | leech seed | the sum of the bytes at even indexes (0, 2, 4…) | S K |
 | THROW | Seismic Toss | Fighting | 1/100 | level damage | the foe's level |  |
 | UNDERFLOW | Low Kick | Fighting | 1/100 | low kick | the smallest byte minus 1 |  |
 | RNG | Magnitude | Ground | 1/100 | magnitude | the sum of the bytes mod 10 |  |
 | MINIMIZE | Minimize | Normal | –/– | minimize | the bytes with repeats removed (keep the first of each) | K |
 | GROUNDWIRE | Mud Sport | Ground | –/100 | mud sport | every byte, capped at 128 |  |
-| TRACEROUTE | Pursuit | Dark | 40/100 | pursuit | the position of the first byte over 100 (-1 if none) |  |
+| TRACEROUTE | Pursuit | Dark | 40/100 | pursuit | the index of the first byte over 100 (-1 if none) |  |
 | HOTFIX | Quick Attack | Normal | 40/100 | quick attack | the first byte |  |
 | RECURSION | Rage | Normal | 20/100 | rage | the sum of the digits of the sum of the bytes |  |
 | THRASH | Thrash | Normal | 90/100 | rampage | every byte times how many bytes | K |
@@ -128,9 +128,9 @@ S = a starter learns it before Brock · K = FireRed name kept
 | ROLLOUT | Rollout | Rock | 30/90 | rollout | the running totals (first byte, first two summed, first three…) | K |
 | DIALUP | Sonic Boom | Normal | 1/90 | sonicboom | how many bytes are over 20 |  |
 | UPGRADE | Growth | Normal | –/– | special attack up | the largest byte plus the smallest |  |
-| JAMMER | Metal Sound | Steel | –/85 | special defense down 2 | the bytes with every third one removed (positions 2, 5, 8…) |  |
+| JAMMER | Metal Sound | Steel | –/85 | special defense down 2 | the bytes without the ones at indexes 2, 5, 8… |  |
 | STRINGIFY | String Shot | Bug | –/95 | speed down | the bytes as a JSON string |  |
-| BLUESCREEN | Scary Face | Normal | –/90 | speed down 2 | how many bytes equal the largest |  |
+| BLUESCREEN | Scary Face | Normal | –/90 | speed down 2 | how many bytes are over 150 |  |
 | SPLASH | Splash | Normal | –/– | splash | no key at all: strike with nothing | K |
 | SSH | Teleport | Psychic | –/– | teleport | the foe's name |  |
 | DOUBLEFREE | Twineedle | Bug | 25/100 | twineedle | the first byte, twice (a list of two) |  |
