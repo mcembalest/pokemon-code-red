@@ -84,7 +84,7 @@ for (const exp of cfg.experiments) {
       codeLen: Math.round(rows.filter(r => r.codeLen).reduce((a, r) => a + r.codeLen, 0) / Math.max(1, rows.filter(r => r.codeLen).length)),
       perMove: Object.fromEntries(moves.map(m => [m.name, rate(rows.filter(r => r.move === m.name))])),
       perType: Object.fromEntries(typeSets.map(t => [t.join('/'), rate(rows.filter(r => r.types === t.join('/')))])),
-      misses: rows.filter(r => r.outcome === 'miss').slice(0, 30),
+      misses: (() => { const seen = {}; return rows.filter(r => r.outcome === 'miss' && (seen[r.move] = (seen[r.move] ?? 0) + 1) <= 2) })(),
       hits: rows.filter(r => r.outcome === 'hit').slice(0, 6),
     }
     results.cells.push(cell); save()

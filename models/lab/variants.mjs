@@ -32,8 +32,15 @@ async function judgeStrike({ move, foe, code, scan }) {
   return isDeepStrictEqual(got, want) ? { outcome: 'hit' } : { outcome: 'miss', reason: 'wrong answer', got: JSON.stringify(got)?.slice(0, 80), want: JSON.stringify(want)?.slice(0, 80) }
 }
 
+// The function the Pokémon defined for this move: its exact name, or the same name in another case (copyPaste, COPYPASTE).
+const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+export function definedName(code, fn) {
+  const names = [...code.matchAll(/(?:function\s+([A-Za-z_$][\w$]*)|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=)/g)].map(m => m[1] ?? m[2])
+  return names.find(n => n === fn) ?? names.find(n => norm(n) === norm(fn)) ?? fn
+}
+
 async function judgeFunction({ move, foe, code, data }) {
-  const run = await runBlock(`${code}\nreturn ${move.fn}(${JSON.stringify(data)})`, [])
+  const run = await runBlock(`${code}\nreturn ${definedName(code, move.fn)}(${JSON.stringify(data)})`, [])
   if (!run.ok) return { outcome: 'miss', reason: /not defined/.test(run.error) ? `no function ${move.fn}` : run.error }
   const want = move.ref(foe.clean, scanObj(foe, 'bytes', data))
   return isDeepStrictEqual(run.value, want) ? { outcome: 'hit' } : { outcome: 'miss', reason: 'wrong answer', got: JSON.stringify(run.value)?.slice(0, 80), want: JSON.stringify(want)?.slice(0, 80) }
