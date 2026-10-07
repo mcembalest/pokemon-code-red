@@ -1,32 +1,36 @@
 {
- "note": "Lab 13: the foe's side \u2014 wild Pok\u00e9mon (young: focus 1.0, first time reading you) attacking each starter's type format.",
+ "note": "Lab 14: can the leader's ace be fair? Both-format functions with readers, with and without a one-line tip on telling the formats apart.",
  "models": [
   "@cf/meta/llama-3.2-3b-instruct"
  ],
  "concurrency": 12,
- "temperature": 1.0,
- "maxTokens": 500,
+ "temperature": 0.5,
+ "maxTokens": 700,
  "experiments": [
   {
-   "name": "foes vs starters",
+   "name": "dual walls",
    "variants": [
-    "fn-format-conv"
+    "fn-dual-hint",
+    "fn-dual-detect"
    ],
    "moves": [
+    "SLICE",
     "PING",
     "DOWNGRADE",
-    "SLICE",
-    "POKE",
-    "SWIFT",
-    "FETCH"
+    "BURNDISC",
+    "HASH",
+    "BACKUP",
+    "OBFUSCATE"
    ],
    "types": [
-    "FIRE",
-    "WATER",
-    "GRASS",
-    "POISON"
+    "ROCK/GROUND",
+    "WATER/PSYCHIC",
+    "BUG/POISON",
+    "NORMAL/FLYING",
+    "GRASS/POISON",
+    "ELECTRIC/STEEL"
    ],
-   "samples": 8
+   "samples": 4
   }
  ]
 }

@@ -107,6 +107,7 @@ export const VARIANTS = {
   // Dual types: the data may come in either type's format; the function must read both (the game calls it once per format).
   'fn-dual-format': dualVariant(false),
   'fn-dual-hint': dualVariant(true),
+  'fn-dual-detect': dualVariant(true, true),
   // First encounter, with a convention: line 1 reads the data into `bytes`. Lets the Pokémon remember its own reader per type.
   'fn-format-conv': {
     prompt({ move, foe, memory }) {
@@ -195,7 +196,16 @@ export const VARIANTS = {
   },
 }
 
-function dualVariant(hint) {
+// how to tell a dual type's two formats apart (one line), for the detect variant
+function detectLine(types) {
+  const kind = t => { const v = FORMATS[t].encode([42, 13, 140]); return Array.isArray(v) ? (Array.isArray(v[1]) || typeof v[0] === 'object' ? 'list-of-things' : 'list') : typeof v === 'object' ? 'object' : 'string' }
+  const [a, b] = types, ka = kind(a), kb = kind(b)
+  if (ka !== kb) return `Tell them apart: ${a} data is ${ka === 'string' ? 'a string' : ka === 'object' ? 'an object (not a list)' : 'a list'}, ${b} data is ${kb === 'string' ? 'a string' : kb === 'object' ? 'an object (not a list)' : 'a list'} (check with typeof data === 'string' or Array.isArray(data)).`
+  const sep = t => ({ ROCK: 'spaces', GROUND: 'commas', WATER: 'newlines', GRASS: "'byte='", POISON: "'x'", FLYING: "'['", ELECTRIC: 'only 0s and 1s' })[t] ?? 'its look'
+  return `Tell them apart by what the text contains: ${a} has ${sep(a)}, ${b} has ${sep(b)}.`
+}
+
+function dualVariant(hint, detect = false) {
   return {
     prompt({ move, foe, memory }) {
       const lines = foe.types.map(t => `  - ${t} format: ${FORMATS[t].note}. Example: ${show(example(t))} is [${EXAMPLE_BYTES.join(', ')}].${hint ? ` Pokédex: ${HINTS[t]}` : ''}`)
@@ -203,6 +213,7 @@ function dualVariant(hint) {
         system: persona(foe, [], memory),
         user: [foeLine(move, foe), `Write the function: function ${move.fn}(data)`,
           `- data = the foe's bytes. A ${foe.types.join('/')} foe sends ${foe.types.length > 1 ? 'either format; your function must handle both' : 'this format'}:`, ...lines,
+          ...(detect && foe.types.length > 1 ? [`- ${detectLine(foe.types)}`] : []),
           `- ${move.fn} returns ${move.spec}${shapeNote(move)}. On the numbers [42,13,140,77] it returns ${JSON.stringify(move.ref([42, 13, 140, 77], {})) ?? 'nothing'}.`].join('\n'),
       }
     },
