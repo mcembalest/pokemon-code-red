@@ -46,3 +46,20 @@ export function gameModels(...extra) {
 }
 
 export const modelRef = id => ({ provider: PROVIDER, modelId: id })
+
+/**
+ * The game's own route (Worker `/v1/ai`, OpenAI-compatible): what the browser uses.
+ * The player's session token is the API key; the Worker holds the Cloudflare side.
+ * @param {{ baseUrl: string, token: string | (() => string | Promise<string>), modelIds?: string[] }} o
+ */
+export function gameApiProvider({ baseUrl, token, modelIds = ['@cf/meta/llama-3.2-3b-instruct', '@cf/ibm-granite/granite-4.0-h-micro'] }) {
+  const all = [...EXTRA_MODELS.map(toModel), ...Object.values(CLOUDFLARE_WORKERS_AI_MODELS)]
+  return createProvider({
+    id: GAME_PROVIDER,
+    name: 'Code Red',
+    auth: { apiKey: { name: 'Code Red session', resolve: async () => { const key = typeof token === 'function' ? await token() : token; return key ? { auth: { apiKey: key }, source: 'session' } : undefined } } },
+    models: modelIds.map(id => ({ ...all.find(m => m.id === id), provider: GAME_PROVIDER, baseUrl })).filter(m => m.id),
+    api: openAICompletionsApi(),
+  })
+}
+export const GAME_PROVIDER = 'code-red'
