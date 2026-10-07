@@ -60,6 +60,17 @@ Living doc. Decisions = settled (owner). Open = not yet. Seeds = ideas to react 
 - **Move autopilot off.** Player picks moves; agents are codemode (they write the move's code)
   - live 2026-10-06: autopilot only with an explicit `?agents=mock|replay|on` (test harness); fixed byte-battle scripts + starter card still on until codemode replaces them
 
+## Round 3 decisions (owner, 2026-10-06 night)
+- **Variety:** stock model + LoRA adapters + other swappable / composable / randomizable state for wild Pokémon
+  - note: Workers AI LoRA bases are few (gemma-2b-it-lora, gemma-7b-it-lora, mistral-7b-v0.2-lora, llama-2-7b-lora) — none is Llama 3.2 3B
+- **Stats:** FireRed's Attack / Sp. Atk / Defense / Sp. Def, with FireRed's physical/special split by type
+- **Status:** sleep / paralysis / confusion ideas OK; **rethink poison** → now: Poison = Malware (types.md) → poisoned = **infected**: a background process (cryptominer) spends your bytes every turn; badly poisoned (Toxic) = a worm, worse each turn
+  - consistent with types.md: paralysis (Electric = Power) = brownout, power-throttled · sleep = suspended · confusion = code aimed at the wrong target · (after Misty) burn = write wear · freeze = stuck at a snapshot
+- **One small model for every Pokémon (3B-class), not a ladder.** The challenge: make the small model good enough with what the harness gives it. Find the smallest that works. Question: Qwen 32B could pretend to be Lv5 — can a 3B play Lv55?
+- **Memory:** each Pokémon has always-in-context memory it accumulates bit by bit at every level-up; grows a TON at evolution
+- **Byte budgets:** small jumps per level, massive jumps at evolution
+- **Types:** keep all type match-ups (FireRed). Type ↔ storage & security concepts: `notes/types.md`
+
 ## Models + growth (owner, 2026-10-06 evening)
 - **Models run on Cloudflare** (Workers AI). No GPUs of our own, no training for now
 - **XP: nothing happens yet. Level-up: stats update.** Growth = state, not weights
