@@ -1,15 +1,13 @@
 {
-  "note": "Lab 2: function framing wins (lab 1). Now: reworded PING/ERRORMSG, FLUSH/WIPEDISC swapped to fit their names, clearer POISON/FIGHTING/GRASS notes; + Pokédex hint; + the Pokémon's own memory (by move and by foe type).",
+  "note": "Lab 3: (a) all 103 moves as functions on plain lists and with Pokédex hints across types; (b) dual types: the function must read both formats (Brock ROCK/GROUND, Misty WATER/PSYCHIC…).",
   "models": ["@cf/meta/llama-3.2-3b-instruct"],
-  "concurrency": 10, "temperature": 0.7, "maxTokens": 500,
+  "concurrency": 12, "temperature": 0.7, "maxTokens": 500,
   "experiments": [
-    { "name": "fn", "variants": ["fn-format", "fn-hint", "fn-plain"],
+    { "name": "all moves", "variants": ["fn-plain"], "moves": "all", "types": ["NORMAL"], "samples": 4 },
+    { "name": "all moves × types", "variants": ["fn-hint"], "moves": "all",
+      "types": ["FLYING", "WATER", "GRASS", "ROCK", "ELECTRIC", "GROUND", "FIRE", "POISON", "BUG", "PSYCHIC", "FIGHTING", "STEEL"], "samples": 1 },
+    { "name": "dual types", "variants": ["fn-dual-format", "fn-dual-hint"],
       "moves": ["SLICE", "PING", "ERRORMSG", "DOWNGRADE", "BURNDISC", "WIPEDISC", "LEECH SEED", "CRAWL", "HASH", "BACKUP"],
-      "types": ["NORMAL", "FLYING", "WATER", "GRASS", "ROCK", "ELECTRIC", "GROUND", "FIRE", "POISON", "BUG", "PSYCHIC", "FIGHTING", "STEEL"],
-      "samples": 3 },
-    { "name": "fn+memory", "variants": ["fn-format"], "memory": 2,
-      "moves": ["SLICE", "PING", "ERRORMSG", "DOWNGRADE", "BURNDISC", "WIPEDISC", "LEECH SEED", "CRAWL", "HASH", "BACKUP"],
-      "types": ["NORMAL", "FLYING", "WATER", "GRASS", "ROCK", "ELECTRIC", "GROUND", "FIRE", "POISON", "BUG", "PSYCHIC", "FIGHTING", "STEEL"],
-      "samples": 3 }
+      "types": ["NORMAL/FLYING", "BUG/POISON", "ROCK/GROUND", "POISON/FLYING", "GRASS/POISON", "BUG/GRASS", "WATER/PSYCHIC", "ELECTRIC/STEEL"], "samples": 3 }
   ]
 }

@@ -94,6 +94,9 @@ export const VARIANTS = {
     },
     judge: ({ move, foe, code }) => judgeFunction({ move, foe, code, data: encoded(foe) }),
   },
+  // Dual types: the data may come in either type's format; the function must read both (the game calls it once per format).
+  'fn-dual-format': dualVariant(false),
+  'fn-dual-hint': dualVariant(true),
   // Same, but only an example with its meaning (no description of the format).
   'fn-example': {
     prompt({ move, foe, memory }) {
@@ -117,4 +120,25 @@ export const VARIANTS = {
     },
     judge: ({ move, foe, code }) => judgeFunction({ move, foe, code, data: [...foe.clean] }),
   },
+}
+
+function dualVariant(hint) {
+  return {
+    prompt({ move, foe, memory }) {
+      const lines = foe.types.map(t => `  - ${t} format: ${FORMATS[t].note}. Example: ${show(example(t))} is [${EXAMPLE_BYTES.join(', ')}].${hint ? ` Pokédex: ${HINTS[t]}` : ''}`)
+      return {
+        system: persona(foe, [], memory),
+        user: [foeLine(move, foe), `Write the function: function ${move.fn}(data)`,
+          `- data = the foe's bytes. A ${foe.types.join('/')} foe sends ${foe.types.length > 1 ? 'either format; your function must handle both' : 'this format'}:`, ...lines,
+          `- ${move.fn} returns ${move.spec}${shapeNote(move)}.`].join('\n'),
+      }
+    },
+    async judge({ move, foe, code }) {
+      for (const t of foe.types) {
+        const v = await judgeFunction({ move, foe, code, data: FORMATS[t].encode(foe.clean) })
+        if (v.outcome !== 'hit') return { ...v, reason: `${v.reason} (${t} data)` }
+      }
+      return { outcome: 'hit' }
+    },
+  }
 }
