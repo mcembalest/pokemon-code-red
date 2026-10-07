@@ -70,6 +70,11 @@ Living doc. Decisions = settled (owner). Open = not yet. Seeds = ideas to react 
 - **Memory:** each Pokémon has always-in-context memory it accumulates bit by bit at every level-up; grows a TON at evolution
 - **Byte budgets:** small jumps per level, massive jumps at evolution
 - **Types:** keep all type match-ups (FireRed). Type ↔ storage & security concepts: `notes/types.md`
+- **No LoRA adapters.** Variety = swappable/composable state on one shared small model (owner, 2026-10-06)
+- **Keeping growth meaningful** (owner agreed, 2026-10-06), since memory lets a 3B match a 32B (`notes/models.md`):
+  - memory has a size limit: grows a little per level, a lot at evolution
+  - a newly learned move starts with no memory → fumbles at first, improves with use
+  - move challenges vary with the situation (foe, type match-up, status) → remembered code helps but doesn't always fit
 
 ## Models + growth (owner, 2026-10-06 evening)
 - **Models run on Cloudflare** (Workers AI). No GPUs of our own, no training for now
