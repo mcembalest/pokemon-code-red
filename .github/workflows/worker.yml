@@ -84,3 +84,18 @@ jobs:
           for i in $(seq 1 24); do H=$(curl -fsS "$URL/health" || true); echo "$H" | grep -q "\"version\":\"$V\"" && break; sleep 5; done
           echo "$H" | grep -q "\"version\":\"$V\"" || { echo "::error::$URL/health not serving $V after 2 min: $H"; exit 1; }
           echo "::notice title=deployed::$URL  health=$H"
+      - name: Smoke test (Workers AI route, as a throwaway ci-smoke player)
+        run: |
+          [ -n "$URL" ] || exit 0
+          TOKEN=$(openssl rand -hex 24); HASH=$(printf '%s' "$TOKEN" | sha256sum | cut -d' ' -f1); NOW=$(date +%s000)
+          sql() { npx wrangler d1 execute code-red --remote --command "$1" >/dev/null 2>sql.err || { echo "::error title=d1::$(tail -c 400 sql.err | tr '\n' ' ')"; exit 1; }; }
+          sql "INSERT OR IGNORE INTO invites (code, note, max_uses, uses, created_at, revoked) VALUES ('CI-SMOKE', 'CI smoke tests', 0, 0, $NOW, 1);
+               INSERT OR IGNORE INTO players (id, name, invite, created_at, last_seen) VALUES ('ci-smoke', 'ci-smoke', 'CI-SMOKE', $NOW, $NOW);
+               INSERT INTO sessions (token_hash, player_id, created_at, user_agent) VALUES ('$HASH', 'ci-smoke', $NOW, 'github-actions');"
+          BODY='{"model":"@cf/meta/llama-3.2-3b-instruct","messages":[{"role":"user","content":"Reply with only: return 1"}],"max_tokens":20}'
+          R=$(curl -sS -X POST "$URL/v1/ai/chat/completions" -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' -d "$BODY")
+          S=$(curl -sS -N -X POST "$URL/v1/ai/chat/completions" -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' -d "${BODY%\}},\"stream\":true}")
+          sql "DELETE FROM sessions WHERE token_hash = '$HASH'"
+          echo "$R" | jq -e '.choices[0].message.content | length > 0' >/dev/null || { echo "::error title=ai route::$(echo "$R" | head -c 600)"; exit 1; }
+          echo "$S" | grep -q '^data: .*"choices"' || { echo "::error title=ai route (stream)::$(echo "$S" | head -c 600 | tr '\n' ' ')"; exit 1; }
+          echo "::notice title=ai route::$(echo "$R" | jq -c '{content: .choices[0].message.content, usage}')"

@@ -11,6 +11,13 @@ AGENTS = "on"                 # "off" = agents off for every player (game still 
 LLM_MODELS = "claude-sonnet-5-5"
 LLM_DAILY_TOKENS = "200000"
 LLM_MAX_TOKENS = "1024"
+AI_MODELS = "@cf/meta/llama-3.2-3b-instruct,@cf/ibm-granite/granite-4.0-h-micro"
+AI_MAX_TOKENS = "600"
+AI_DAILY_TOKENS = "400000"
+AI_GATEWAY = "default"
+
+[ai]
+binding = "AI"           # Pokémon models (Workers AI), routed through AI Gateway; no API token needed
 
 [[d1_databases]]
 binding = "DB"

@@ -18,6 +18,7 @@ Code: `worker/` · deploy: `.github/workflows/worker.yml` · schema: `worker/mig
 - `GET /v1/me`
 - `POST /v1/events {events:[{kind, at?, data?}]}` — ≤200/request, kind `[a-z0-9_.:-]{1,48}`, data ≤4 KB JSON
 - `POST /v1/llm` — Anthropic Messages passthrough; model allowlist (`LLM_MODELS` = `claude-sonnet-5-5`), `max_tokens` cap, per-player rolling-24 h token budget (`LLM_DAILY_TOKENS`); every call stored in `llm_calls` (full request/response + hash) for replay
+- `POST /v1/ai/chat/completions` — Pokémon models. OpenAI-compatible, so the browser's pi-ai uses it as a provider (`baseUrl` = `<api>/v1/ai`, API key = session token). Workers AI via the Worker's AI binding through AI Gateway `default` → no Cloudflare token on the Worker. Allowlist `AI_MODELS` (Llama 3.2 3B, Granite 4.0 H Micro), `AI_MAX_TOKENS` 600, `AI_DAILY_TOKENS` 400k/player/24 h; streamed through; recorded in `llm_calls`. Deploy smoke test calls it as a throwaway `ci-smoke` player
 - `GET /admin` — page; `/admin/api/{players,events,llm,invites,invites/revoke}` with `Bearer ADMIN_TOKEN`
 
 ## Decisions
