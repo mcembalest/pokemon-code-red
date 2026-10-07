@@ -1,0 +1,11 @@
+{
+  "note": "Lab 1: four turn designs on the 10 starter moves × 13 foe types (primary types), 3B, no memory.",
+  "models": ["@cf/meta/llama-3.2-3b-instruct"],
+  "concurrency": 10, "temperature": 0.7, "maxTokens": 500,
+  "experiments": [
+    { "name": "designs", "variants": ["clean-steps", "format-steps", "fn-format", "fn-example", "fn-plain"],
+      "moves": ["SLICE", "PING", "ERRORMSG", "DOWNGRADE", "BURNDISC", "WIPEDISC", "LEECH SEED", "CRAWL", "HASH", "BACKUP"],
+      "types": ["NORMAL", "FLYING", "WATER", "GRASS", "ROCK", "ELECTRIC", "GROUND", "FIRE", "POISON", "BUG", "PSYCHIC", "FIGHTING", "STEEL"],
+      "samples": 3 }
+  ]
+}
