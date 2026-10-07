@@ -45,5 +45,7 @@ Code: `models/lab/` (run.mjs = designs side by side; variants.mjs; formats.mjs =
 - foes vs starters after the change: FIRE .56 · WATER 1.0 · GRASS .69 · POISON .40
 - GitHub pushes failed with 500s for ~10 min mid-session; the REST git-data API is blocked by the proxy → just retry
 
+- journey 10 (final, current formats, 12 runs): recommended (ace walls + tip) .84 — Brock .63, Misty .65, Cerulean rival .65 (new PSYCHIC format), L5 ~.85 → late ~.97 · no walls .90 · aces without tip .82 (Misty .45)
+
 ## Open (owner)
 core rule · type formats (FIRE too easy? POISON too hard at first?) · gym walls (aces only, with a tip: Brock .70, Misty .64) · difficulty curve (~.80 at L5 → ~.97 late) · statuses (FireRed's; optional paralysis = ¾ budget) · foes writing code (defense = your own type's format) · hard moves
