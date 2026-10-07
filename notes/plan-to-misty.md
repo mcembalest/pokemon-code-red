@@ -14,19 +14,22 @@ Full inventory (from the game data): `notes/inventory-to-misty.md` (57 species, 
 8. Every battle: player picks the move, the Pokémon writes the code, bytes are spent
 9. ~1.5–3 h of play; no crashes, no stuck states, bounded cost
 
+## Open question from run 3
+- SCRATCH as written (skip guarded, pick 2–3 weakest) ≈ always misses for the 3B at L5. Keep as a hard first move, or simplify the starter's first move?
+
 ## Decisions only you can make (ordered by what they unblock)
 - [ ] **D1 Move system.** 103 moves → ~25 effect families (hit, multi-hit, sleep, poison, stat-down, drain…). Rec: one code-challenge shape per family, flavored per move (SCRATCH vs TACKLE feel different, same skeleton)
 - [ ] **D2 Who writes the foe's code?** Every wild/trainer Pokémon writing code each turn = 2 model calls per turn. Rec: wild + regular trainers use the same small model as your Pokémon at their level; rival + gym leaders use the strongest (boss feel)
-- [ ] **D3 Status conditions as code ideas.** Rec draft: poison = memory leak (loses bytes each turn) · sleep = process suspended · paralysis = rate-limited (sometimes can't run) · confusion = writes code for the wrong target. Burn/freeze don't occur before Misty
-- [ ] **D4 Level → stats + model ladder.** Rec: HP bytes and move-byte budget scale like FireRed; model 3B → Mistral 24B at first evolution (Charmeleon/Ivysaur/Wartortle @16); gym leaders on Qwen Coder 32B (`notes/models.md`)
+- [x] **D3 Status conditions as code ideas.** Decided: poison = infected (cryptominer spends bytes each turn; Toxic = worm) · sleep = suspended · paralysis = brownout · confusion = code aimed at the wrong target
+- [ ] **D4 Level → stats + growth table.** Decided: one model for all (Llama 3.2 3B); growth = memory size + byte budgets (small per level, big at evolution). Open: the actual numbers per level
 - [ ] **D5 What carries over at level-up** (no training): stats only for now (agreed). Do you want visible growth too — e.g. its own library of working code?
-- [ ] **D6 Type match-ups.** Rec: keep FireRed's chart exactly (players know it); the code only decides hit/crit/miss
+- [x] **D6 Type match-ups.** Decided: FireRed's chart exactly; type ↔ concept flavor in `notes/types.md`
 - [ ] **D7 Catching.** Rec: unchanged (balls work as in FireRed); the caught Pokémon arrives as a fresh agent at its level
 - [ ] **D8 The PC before Misty.** Rec: minimal — view each Pokémon's recent code; no player-written code yet
 - [ ] **D9 Copy/tone.** Who writes Oak's new lines + species personas (57)? Rec: I draft, you edit
 
 ## Build list (me), in order
-- [ ] **M1 Starter battle, real** — kernel in the page (pi-codemode + shim) · Workers AI route in the backend · prompt + outcome → ROM (extend patch 006: miss/hit/crit + bytes) · code window over the battle · both sides write code · tests + sim fixture
+- [ ] **M1 Starter battle, real** — ✅ kernel on pi (`kernel/`, browser bundle + Chromium test) · ✅ Workers AI route in the backend (live) · ✅ moves = code block replies (run 3) · next: wire kernel into the player · prompt + outcome → ROM (extend patch 006: miss/hit/crit + bytes) · code window over the battle · both sides write code · tests + sim fixture
 - [ ] **M2 Route 1 → Brock** — move families for the early moves · wild battles · catching · level-up stats · Pokémon Center · Brock on the boss model
 - [ ] **M3 Mt. Moon → Misty** — remaining families + status conditions · evolution (model step) · Rockets, rival, Misty · Nugget Bridge optional
 - [ ] **M4 Accounts + cloud saves** — username/password on invite · one active device · save = SRAM + Pokémon state to Cloudflare · resume on another device (can run in parallel with M2/M3)
