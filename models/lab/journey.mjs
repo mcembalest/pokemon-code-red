@@ -76,7 +76,7 @@ async function journey(seed, policy) {
       const ex = [42, 13, 140, 77]
       const reader = policy.learn ? readers.get(t) : null
       const memory = ''
-      const budget = budgetAt(level, policy)
+      const budget = budgetAt(level, policy) + (both ? (policy.gymBudgetBonus ?? 0) : 0)
       const system = [`You are CHARMANDER, a level ${level} Pokémon. You fight by writing JavaScript.`, 'When your trainer calls a move, you write the code for it, then stop.',
         'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.'].join('\n')
       const know = ty => policy.dex && dex.has(ty) ? `Pokédex: ${ty} data reads like this: ${HINTS[ty]}` : (policy.learn && readers.get(ty)) ? `You remember how you read ${ty} data: ${readers.get(ty)}` : null

@@ -1,5 +1,5 @@
 {
-  "note": "Journey 4: real CHARMANDER learnset; gym leaders' dual-type Pok\u00e9mon switch formats (one function must read both); paralysis not modeled. 8 journeys.",
+  "note": "Journey 5: gym walls with a bigger byte budget for the both-formats function (+150 / +250).",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "journeys": 8,
   "defaults": {
@@ -14,22 +14,17 @@
     "evolutionSlots": 3
   },
   "policies": {
-    "learn+dex": {
-      "learn": true,
-      "dex": true
-    },
-    "learn+dex, gym walls": {
-      "learn": true,
-      "dex": true,
-      "gymBoth": true
-    },
-    "tight, gym walls": {
+    "gym walls +150": {
       "learn": true,
       "dex": true,
       "gymBoth": true,
-      "budgetBase": 170,
-      "startTemp": 0.95,
-      "tempPerLevel": 0.04
+      "gymBudgetBonus": 150
+    },
+    "gym walls +250": {
+      "learn": true,
+      "dex": true,
+      "gymBoth": true,
+      "gymBudgetBonus": 250
     }
   }
 }
