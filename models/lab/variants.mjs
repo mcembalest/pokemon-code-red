@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { renderDeclarations, runBlock } from '../../kernel/index.mjs'
 import { TYPES } from '../battle/types.mjs'
 import { EXAMPLE_BYTES, FORMATS, HINTS, example, show } from './formats.mjs'
+import { LINT } from './lint.mjs'
 
 const persona = (foe, extra, memory) => [
   `You are CHARMANDER, a level ${foe.level} Pokémon. You fight by writing JavaScript.`,
@@ -141,6 +142,22 @@ export const VARIANTS = {
       }
     },
     judge: ({ move, foe, code }) => judgeFunction({ move, foe, code, data: encoded(foe) }),
+  },
+  // Type = linter rule: plain list of numbers, but the code must follow the foe type's rule.
+  'fn-lint': {
+    prompt({ move, foe, memory }) {
+      const ex = [42, 13, 140, 77]
+      return {
+        system: persona(foe, [], memory),
+        user: [foeLine(move, foe), `Write the function: ${move.fn}(bytes)`, '- bytes = the foe\'s bytes, a list of numbers.',
+          `- ${move.fn} returns ${move.spec}${shapeNote(move)}. On ${JSON.stringify(ex)} it returns ${JSON.stringify(move.ref(ex, {})) ?? 'nothing'}.`,
+          `- ${foe.types[0]} rule: ${LINT[foe.types[0]].rule}.`].join('\n'),
+      }
+    },
+    async judge({ move, foe, code }) {
+      if (!LINT[foe.types[0]].ok(code)) return { outcome: 'miss', reason: `broke the ${foe.types[0]} rule` }
+      return judgeFunction({ move, foe, code, data: [...foe.clean] })
+    },
   },
   // Plain function on a plain list (no type twist): how hard is the move alone, in function form?
   'fn-plain': {

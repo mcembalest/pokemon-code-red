@@ -1,5 +1,5 @@
 {
- "note": "Lab 6: byte budget as max code size (200/300/450 chars); the Pok\u00e9mon's own memory (its working code per move and per foe type) with the Pok\u00e9dex hint and on first encounters.",
+ "note": "Lab 7: a different idea \u2014 type = linter rule (ROCK: no loops, FIRE: no comments, FLYING: arrow function\u2026) on plain data, vs type = data format with Pok\u00e9dex hint.",
  "models": [
   "@cf/meta/llama-3.2-3b-instruct"
  ],
@@ -8,11 +8,11 @@
  "maxTokens": 500,
  "experiments": [
   {
-   "name": "budget 200",
+   "name": "type as rule vs format",
    "variants": [
+    "fn-lint",
     "fn-hint-ex"
    ],
-   "budget": 200,
    "moves": [
     "SLICE",
     "PING",
@@ -40,147 +40,7 @@
     "FIGHTING",
     "STEEL"
    ],
-   "samples": 2
-  },
-  {
-   "name": "budget 300",
-   "variants": [
-    "fn-hint-ex"
-   ],
-   "budget": 300,
-   "moves": [
-    "SLICE",
-    "PING",
-    "ERRORMSG",
-    "DOWNGRADE",
-    "BURNDISC",
-    "WIPEDISC",
-    "LEECH SEED",
-    "CRAWL",
-    "HASH",
-    "BACKUP"
-   ],
-   "types": [
-    "NORMAL",
-    "FLYING",
-    "WATER",
-    "GRASS",
-    "ROCK",
-    "ELECTRIC",
-    "GROUND",
-    "FIRE",
-    "POISON",
-    "BUG",
-    "PSYCHIC",
-    "FIGHTING",
-    "STEEL"
-   ],
-   "samples": 2
-  },
-  {
-   "name": "budget 450",
-   "variants": [
-    "fn-hint-ex"
-   ],
-   "budget": 450,
-   "moves": [
-    "SLICE",
-    "PING",
-    "ERRORMSG",
-    "DOWNGRADE",
-    "BURNDISC",
-    "WIPEDISC",
-    "LEECH SEED",
-    "CRAWL",
-    "HASH",
-    "BACKUP"
-   ],
-   "types": [
-    "NORMAL",
-    "FLYING",
-    "WATER",
-    "GRASS",
-    "ROCK",
-    "ELECTRIC",
-    "GROUND",
-    "FIRE",
-    "POISON",
-    "BUG",
-    "PSYCHIC",
-    "FIGHTING",
-    "STEEL"
-   ],
-   "samples": 2
-  },
-  {
-   "name": "memory",
-   "variants": [
-    "fn-hint-ex",
-    "fn-format"
-   ],
-   "memory": 2,
-   "moves": [
-    "SLICE",
-    "PING",
-    "ERRORMSG",
-    "DOWNGRADE",
-    "BURNDISC",
-    "WIPEDISC",
-    "LEECH SEED",
-    "CRAWL",
-    "HASH",
-    "BACKUP"
-   ],
-   "types": [
-    "NORMAL",
-    "FLYING",
-    "WATER",
-    "GRASS",
-    "ROCK",
-    "ELECTRIC",
-    "GROUND",
-    "FIRE",
-    "POISON",
-    "BUG",
-    "PSYCHIC",
-    "FIGHTING",
-    "STEEL"
-   ],
-   "samples": 2
-  },
-  {
-   "name": "no memory",
-   "variants": [
-    "fn-format"
-   ],
-   "moves": [
-    "SLICE",
-    "PING",
-    "ERRORMSG",
-    "DOWNGRADE",
-    "BURNDISC",
-    "WIPEDISC",
-    "LEECH SEED",
-    "CRAWL",
-    "HASH",
-    "BACKUP"
-   ],
-   "types": [
-    "NORMAL",
-    "FLYING",
-    "WATER",
-    "GRASS",
-    "ROCK",
-    "ELECTRIC",
-    "GROUND",
-    "FIRE",
-    "POISON",
-    "BUG",
-    "PSYCHIC",
-    "FIGHTING",
-    "STEEL"
-   ],
-   "samples": 2
+   "samples": 3
   }
  ]
 }
