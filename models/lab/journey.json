@@ -1,7 +1,7 @@
 {
-  "note": "Journey 5: gym walls with a bigger byte budget for the both-formats function (+150 / +250).",
+  "note": "Journey 6 (final check): recommended rules \u2014 learning + Pok\u00e9dex; only each leader's ace (ONIX, STARMIE) switches formats, +150 bytes at gyms. 12 journeys; token usage recorded.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
-  "journeys": 8,
+  "journeys": 12,
   "defaults": {
     "startTemp": 0.8,
     "tempPerLevel": 0.03,
@@ -14,17 +14,16 @@
     "evolutionSlots": 3
   },
   "policies": {
-    "gym walls +150": {
+    "recommended": {
       "learn": true,
       "dex": true,
       "gymBoth": true,
+      "aceOnly": true,
       "gymBudgetBonus": 150
     },
-    "gym walls +250": {
+    "no walls": {
       "learn": true,
-      "dex": true,
-      "gymBoth": true,
-      "gymBudgetBonus": 250
+      "dex": true
     }
   }
 }

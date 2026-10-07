@@ -16,6 +16,7 @@ const cfg = JSON.parse(readFileSync(process.argv[2] ?? 'lab/journey.json', 'utf8
 const outFile = process.argv[3] ?? 'journey-results.json'
 const models = gameModels()
 const log = (...a) => console.error(...a)
+const usage = { input: 0, output: 0, calls: 0 }
 
 // Route order (FireRed, from notes/inventory-to-misty.md), compressed. [segment, foe, types, level, turns, catch?]
 const ROUTE = [
@@ -43,6 +44,7 @@ async function ask(model, system, user, temperature) {
   const m = models.getModel('cloudflare-workers-ai', model)
   const reply = await models.completeSimple(m, { systemPrompt: system, messages: [{ role: 'user', content: user, timestamp: Date.now() }] }, { temperature, maxTokens: 500 })
   if (reply.stopReason === 'error') throw new Error(reply.errorMessage)
+  usage.input += reply.usage?.input ?? 0; usage.output += reply.usage?.output ?? 0; usage.calls++
   return (reply.content ?? []).filter(c => c.type === 'text').map(c => c.text).join('').trim()
 }
 
@@ -68,7 +70,7 @@ async function journey(seed, policy) {
     for (let k = 0; k < nTurns; k++) {
       const known = MOVES_BY_LEVEL.filter(([l]) => l <= level).map(([, n]) => byName[n]).filter(m => m.name !== 'ERRORMSG' || r() < 0.25)
       const move = known[Math.floor(r() * known.length)]
-      const both = policy.gymBoth && types.length > 1 && ['Brock', 'Misty'].includes(segment) // gym leaders switch formats mid-battle
+      const both = policy.gymBoth && types.length > 1 && ['Brock', 'Misty'].includes(segment) && (!policy.aceOnly || ['ONIX', 'STARMIE'].includes(foeName)) // gym leaders switch formats mid-battle
       const t = types[Math.floor(r() * types.length)] // a dual-type foe sends either format
       const turnTypes = both ? types : [t]
       const clean = cleanBytes(r, [t])
@@ -131,5 +133,7 @@ await Promise.all(Object.entries(cfg.policies).map(async ([name, policy]) => {
   writeFileSync(outFile, JSON.stringify(results, null, 1))
   log(`${name}: hit ${results.policies[name].hit} | ${Object.entries(results.policies[name].segments).map(([k, v]) => `${k} ${v}`).join(' · ')} | ${JSON.stringify(reasons)}`)
 }))
+results.usage = usage
 results.done = true
 writeFileSync(outFile, JSON.stringify(results, null, 1))
+log(`usage: ${JSON.stringify(usage)}`)
