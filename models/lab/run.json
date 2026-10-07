@@ -1,5 +1,5 @@
 {
- "note": "Lab 7: a different idea \u2014 type = linter rule (ROCK: no loops, FIRE: no comments, FLYING: arrow function\u2026) on plain data, vs type = data format with Pok\u00e9dex hint.",
+ "note": "Lab 8: learning types by fighting \u2014 first encounter (format note only, line 1 = const bytes = \u2026) vs after 2 warm-up battles per type, remembering only its own reader line per type; vs the Pok\u00e9dex hint.",
  "models": [
   "@cf/meta/llama-3.2-3b-instruct"
  ],
@@ -8,9 +8,78 @@
  "maxTokens": 500,
  "experiments": [
   {
-   "name": "type as rule vs format",
+   "name": "first encounter",
    "variants": [
-    "fn-lint",
+    "fn-format-conv"
+   ],
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 3
+  },
+  {
+   "name": "learned readers",
+   "variants": [
+    "fn-format-conv"
+   ],
+   "memory": 2,
+   "memoryKind": "readers",
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 3
+  },
+  {
+   "name": "pokedex",
+   "variants": [
     "fn-hint-ex"
    ],
    "moves": [

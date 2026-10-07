@@ -73,7 +73,13 @@ for (const exp of cfg.experiments) {
       const best = rows => rows.filter(r => r.outcome === 'hit').sort((a, b) => a.codeLen - b.codeLen)[0]
       const byMove = Object.fromEntries(moves.map(m => [m.name, best(warm.filter(r => r.move === m.name))]))
       const byType = Object.fromEntries(typeSets.map(t => [t[0], best(warm.filter(r => r.types.split('/')[0] === t[0]))]))
-      memory = (move, types) => [
+      if (exp.memoryKind === 'readers') {
+        // only what it learned about each foe type: the line that read that type's data in a move that hit
+        const readers = {}
+        for (const r of warm) if (r.outcome === 'hit' && r.code) { const t = r.types.split('/')[0]; const line = r.code.match(/const\s+bytes\s*=\s*[^\n;]+/)?.[0]; if (line && !(t in readers)) readers[t] = line }
+        results.readers = readers
+        memory = (move, types) => (readers[types[0]] ? `How I read ${types[0]} data: ${readers[types[0]]}` : '')
+      } else memory = (move, types) => [
         byMove[move.name] && `My ${move.name} that worked (vs ${byMove[move.name].types}):\n\`\`\`js\n${byMove[move.name].code}\n\`\`\``,
         byType[types[0]] && byType[types[0]] !== byMove[move.name] && `How I read ${types[0]} data last time (in ${byType[types[0]].move}):\n\`\`\`js\n${byType[types[0]].code}\n\`\`\``,
       ].filter(Boolean).join('\n')

@@ -105,6 +105,20 @@ export const VARIANTS = {
   // Dual types: the data may come in either type's format; the function must read both (the game calls it once per format).
   'fn-dual-format': dualVariant(false),
   'fn-dual-hint': dualVariant(true),
+  // First encounter, with a convention: line 1 reads the data into `bytes`. Lets the Pokémon remember its own reader per type.
+  'fn-format-conv': {
+    prompt({ move, foe, memory }) {
+      const ex = [42, 13, 140, 77]
+      return {
+        system: persona(foe, [], memory),
+        user: [foeLine(move, foe), `Write the function: function ${move.fn}(data)`,
+          `- data = the foe's bytes in ${foe.types[0]} format: ${fmt(foe).note}. Example: ${show(example(foe.types[0]))} is [${EXAMPLE_BYTES.join(', ')}].`,
+          '- First line of the function: const bytes = <read data into a list of numbers>',
+          `- ${move.fn} returns ${move.spec}${shapeNote(move)}. On the numbers ${JSON.stringify(ex)} it returns ${JSON.stringify(move.ref(ex, {})) ?? 'nothing'}.`].join('\n'),
+      }
+    },
+    judge: ({ move, foe, code }) => judgeFunction({ move, foe, code, data: encoded(foe) }),
+  },
   // Same, but only an example with its meaning (no description of the format).
   'fn-example': {
     prompt({ move, foe, memory }) {
