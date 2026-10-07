@@ -1,7 +1,7 @@
 {
-  "note": "Journey 2: learning keeps a type reader only when it truly reads the data (no lucky habits); the remembered reader is shown in the turn; focus starts calmer (temperature 0.8 \u2192 0.3).",
+  "note": "Journey 3: tuning the curve \u2014 default (journey 2 learn+dex), tighter budgets + less focus early, fewer memory slots; 8 journeys each.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
-  "journeys": 6,
+  "journeys": 8,
   "defaults": {
     "startTemp": 0.8,
     "tempPerLevel": 0.03,
@@ -14,21 +14,27 @@
     "evolutionSlots": 3
   },
   "policies": {
-    "nothing": {
-      "learn": false,
-      "dex": false
-    },
-    "learn": {
-      "learn": true,
-      "dex": false
-    },
-    "dex": {
-      "learn": false,
-      "dex": true
-    },
     "learn+dex": {
       "learn": true,
       "dex": true
+    },
+    "tight": {
+      "learn": true,
+      "dex": true,
+      "budgetBase": 170,
+      "startTemp": 0.95,
+      "tempPerLevel": 0.04
+    },
+    "few slots": {
+      "learn": true,
+      "dex": false,
+      "slotsBase": 1,
+      "levelsPerSlot": 5,
+      "evolutionSlots": 2
+    },
+    "learn only": {
+      "learn": true,
+      "dex": false
     }
   }
 }
