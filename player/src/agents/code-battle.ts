@@ -6,7 +6,7 @@
 //   memory: each Pokémon keeps its own readers; the Pokédex (types seen in past battles + badge readers) is shared
 //   model or network failure: retry once, then plain FireRed (accuracy roll)
 import {
-  BADGES, HINTS, budgetAt, byFireRed, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, partyDex,
+  BADGES, HINTS, budgetAt, byFireRed, byName, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, partyDex,
   rng, slotsAt, stageOf, targetBytes, turnData, turnPrompt, turnType,
   type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged,
 } from '../../../rules/index.mjs'
@@ -94,7 +94,7 @@ export class CodeBattle {
   private async turn(req: MoveRequest): Promise<void> {
     const started = Date.now()
     const romMove = this.names.moveName(req.move)
-    const move = byFireRed(romMove)
+    const move = byName[romMove] ?? byFireRed(romMove) // the ROM shows Code Red names (patches/007); older builds FireRed's
     if (!move) { this.mailbox.reply(req, 'vanilla'); return } // no code for this move yet: plain FireRed
     const side = req.attackerSide
     const attacker = this.names.speciesName(req.attackerSpecies), target = this.names.speciesName(req.targetSpecies)
@@ -157,22 +157,34 @@ export function localCodeMemory(storage: Pick<Storage, 'getItem' | 'setItem'> | 
   }
 }
 
-/** Offline writer: writes the right code most of the time (reference reader + answer), sometimes a wrong one.
- *  For tests and for playing without a backend (?agents=mock). */
+/** Offline writer (stand-in model): writes plausible code: a reader line for the format, then the move.
+ *  Every `missEvery`-th move it makes a beginner's mistake (forgets to read the format, or is off by one).
+ *  For tests, demos and playing without a backend (?agents=mock). Not the real model. */
 export function mockWriter(options: { missEvery?: number; chunk?: number; delay?: (ms: number) => Promise<void> } = {}): CodeWriter {
-  const missEvery = options.missEvery ?? 4, chunk = options.chunk ?? 12
+  const missEvery = options.missEvery ?? 4, chunk = options.chunk ?? 6
   const delay = options.delay ?? (ms => new Promise<void>(resolve => setTimeout(resolve, ms)))
   let n = 0
   return {
     async write(prompt, onText) {
       const { move, type, tutorial } = prompt.meta
-      const reader = tutorial ? 'const bytes = data' : HINTS[type]
       const wrong = ++n % missEvery === 0
-      const body = wrong ? '  return bytes.length + 1 // off by one' : `  return (${move.ref.toString()})(bytes)`
-      const helpers = /\b(sum|max|min|asc)\(/.test(move.ref.toString()) && !wrong
-        ? ['  const sum = b => b.reduce((a, x) => a + x, 0), max = b => Math.max(...b), min = b => Math.min(...b), asc = b => [...b].sort((x, y) => x - y)'] : []
-      const text = ['```js', `function ${move.fn}(data) {`, ...helpers, `  ${reader}`, body, '}', '```'].join('\n')
-      for (let i = 0; i < text.length; i += chunk) { onText(text.slice(i, i + chunk)); await delay(10) }
+      const src = move.ref.toString().replace(/^\(?\s*b?\s*\)?\s*=>\s*/, '')
+      const offByOne = wrong && (n % 2 === 1 || tutorial) && !src.startsWith('{')
+      const reader = tutorial || (wrong && !offByOne) ? 'const bytes = data' : HINTS[type]
+      const uses = (name: string) => new RegExp(`\\b${name}\\(`).test(src)
+      const helpers = [
+        uses('sum') && 'const sum = xs => xs.reduce((a, x) => a + x, 0)',
+        uses('max') && 'const max = xs => Math.max(...xs)',
+        uses('min') && 'const min = xs => Math.min(...xs)',
+        uses('asc') && 'const asc = xs => [...xs].sort((x, y) => x - y)',
+      ].filter(Boolean).map(h => `  ${h}`)
+      let body = src.replace(/\bb\b/g, 'bytes')
+      if (offByOne) body = `(${body}) + 1 // grab one more`
+      const lines = body.startsWith('{')
+        ? body.slice(1, -1).trim().split(/;\s*|\n/).filter(Boolean).map(l => `  ${l.trim()}`)
+        : [`  return ${body}`]
+      const text = ['```js', `function ${move.fn}(data) {`, `  ${reader}`, ...helpers, ...lines, '}', '```'].join('\n')
+      for (let i = 0; i < text.length; i += chunk) { onText(text.slice(i, i + chunk)); await delay(25) }
       return text
     },
   }
