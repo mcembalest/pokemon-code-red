@@ -1,5 +1,5 @@
 {
-  "note": "Move table 4 (spine + numbers/nums wording + NORMAL needs no reader): all 103 moves, 6 formats (NORMAL, WATER, ROCK, FIRE, BUG, DARK), first vs known, 3 samples; levels 5/10/15.",
+  "note": "Move table 4 (spine + numbers/nums wording + NORMAL needs no reader): all 103 moves, 6 formats (NORMAL, WATER, ROCK, FIRE, BUG, DARK), first vs known, 3 samples; levels 5/10/15. Rerun: keep the asset.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": "all",
   "types": [
