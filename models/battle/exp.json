@@ -1,0 +1,59 @@
+{
+  "note": "Battle rule draft, run 3: step-by-step turn prompt (scan / clean / key / strike), clearer specs (indexes, no null answers), imperative type rules; + C: 3B with its own memory from warm-up battles.",
+  "models": [
+    "@cf/meta/llama-3.2-3b-instruct",
+    "@cf/qwen/qwen2.5-coder-32b-instruct"
+  ],
+  "concurrency": 6,
+  "parts": [
+    {
+      "name": "A: every move vs NORMAL",
+      "moves": "all",
+      "types": [
+        "NORMAL"
+      ],
+      "samples": 8
+    },
+    {
+      "name": "B: starter moves vs every type",
+      "moves": [
+        "SLICE",
+        "PING",
+        "ERRORMSG",
+        "DOWNGRADE",
+        "BURNDISC",
+        "WIPEDISC",
+        "LEECH SEED",
+        "CRAWL",
+        "HASH",
+        "BACKUP"
+      ],
+      "types": "all",
+      "samples": 4
+    },
+    {
+      "name": "C: starter moves vs every type, 3B with memory",
+      "models": [
+        "@cf/meta/llama-3.2-3b-instruct"
+      ],
+      "moves": [
+        "SLICE",
+        "PING",
+        "ERRORMSG",
+        "DOWNGRADE",
+        "BURNDISC",
+        "WIPEDISC",
+        "LEECH SEED",
+        "CRAWL",
+        "HASH",
+        "BACKUP"
+      ],
+      "types": "all",
+      "samples": 4,
+      "memory": {
+        "warmup": 2,
+        "limit": 4000
+      }
+    }
+  ]
+}

@@ -208,7 +208,7 @@ async function ai(req: Request, env: Env, player: Player, ctx: Ctx): Promise<Res
   const since = Date.now() - DAY;
   const used = await env.DB.prepare("SELECT COALESCE(SUM(input_tokens + output_tokens), 0) AS n FROM llm_calls WHERE player_id = ? AND at > ? AND model LIKE '@cf/%'")
     .bind(player.id, since).first<{ n: number }>();
-  if ((used?.n || 0) >= (Number(env.AI_DAILY_TOKENS) || 400_000)) throw new HttpError(429, 'daily agent budget used up');
+  if ((used?.n || 0) >= (Number(env.AI_DAILY_TOKENS) || 1_500_000)) throw new HttpError(429, 'daily agent budget used up');
 
   // Only the fields a Pokémon turn needs; output capped.
   const cap = Number(env.AI_MAX_TOKENS) || 600;

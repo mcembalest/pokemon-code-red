@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { createModels } from '@earendil-works/pi-ai/models'
-import { GAME_PROVIDER, gameApiProvider, openKernel } from '../index.mjs'
+import { BATTLE_MODEL, GAME_PROVIDER, gameApiProvider, openKernel, writeCode } from '../index.mjs'
 
 test('a Pokémon moves through the game API provider (streamed OpenAI chunks, session token)', async () => {
   const seen = []
@@ -34,4 +34,26 @@ test('a Pokémon moves through the game API provider (streamed OpenAI chunks, se
   assert.equal(seen[0].body.model, '@cf/meta/llama-3.2-3b-instruct')
   assert.equal(seen[0].body.stream, true)
   assert.match(seen[0].body.messages[0].content, /You are CHARMANDER/)
+})
+
+test('writeCode streams a turn through the game API provider', async () => {
+  const server = createServer((req, res) => {
+    let b = ''; req.on('data', c => (b += c)); req.on('end', () => {
+      res.setHeader('content-type', 'text/event-stream')
+      const chunk = o => res.write(`data: ${JSON.stringify(o)}\n\n`)
+      for (const piece of ['```js\n', 'function slice(data) {\n', '  return data.slice(0, ', '3)\n}\n', '```'])
+        chunk({ id: 'c', object: 'chat.completion.chunk', model: 'm', choices: [{ index: 0, delta: { content: piece } }] })
+      chunk({ id: 'c', object: 'chat.completion.chunk', model: 'm', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })
+      res.end('data: [DONE]\n\n')
+    })
+  })
+  await new Promise(r => server.listen(0, '127.0.0.1', r))
+  const models = createModels()
+  models.setProvider(gameApiProvider({ baseUrl: `http://127.0.0.1:${server.address().port}/v1/ai`, token: 'session-1' }))
+  const pieces = []
+  const { text } = await writeCode({ models, model: { provider: GAME_PROVIDER, modelId: BATTLE_MODEL }, system: 's', user: 'u', temperature: 0.8, onText: d => pieces.push(d) })
+  server.close()
+  assert.equal(text, '```js\nfunction slice(data) {\n  return data.slice(0, 3)\n}\n```')
+  assert.ok(pieces.length >= 3, 'streamed in pieces')
+  assert.equal(pieces.join(''), text)
 })

@@ -1,0 +1,29 @@
+{
+  "note": "Journey 11: first run on the shared rules module (rules/), with the Oct 8 decisions: no format-switching aces, badges teach. 12 journeys.",
+  "model": "@cf/meta/llama-3.2-3b-instruct",
+  "journeys": 12,
+  "defaults": {
+    "startTemp": 0.8,
+    "tempPerLevel": 0.03,
+    "minTemp": 0.3,
+    "budgetBase": 200,
+    "budgetPerLevel": 10,
+    "evolutionBudget": 100,
+    "slotsBase": 2,
+    "levelsPerSlot": 3,
+    "evolutionSlots": 3
+  },
+  "policies": {
+    "decided (badges teach)": {
+      "learn": true,
+      "dex": true,
+      "dexSeen": true,
+      "badges": true
+    },
+    "no badges": {
+      "learn": true,
+      "dex": true,
+      "dexSeen": true
+    }
+  }
+}

@@ -164,3 +164,39 @@ Cloudflare Worker ── D1 (players, saves meta, progress events, challenge res
    └── LLM provider (interim; agent actions; recorded for replay)
 ```
 Target: agents run in the browser (local models); Worker = accounts, progress, recorded decisions.
+
+## Battle rules approved, tentatively (owner, 2026-10-08)
+- core rule (draft 5, `notes/battle-lab.md`): move = a function the Pokémon writes; foe type = its data format; readers from verified hits + Pokédex
+- 13 type formats: approved for now
+- gym walls: OK with format switching being hard; open to more ideas (options in the briefing doc)
+- late game must get harder; calibrate to Misty first: I play in the simulator, then the owner plays organically, then decide
+- foes write code, streamed on screen during battle
+- open decisions: briefing doc "Code Red briefing: decisions to Misty" (claude.ai Docs)
+
+## Build decisions (owner, 2026-10-08, from the briefing)
+1. a miss fails the move completely; the text box says why ("CHARMANDER's code crashed!")
+2. code panel under the game (phones) / beside it (laptops): foe's code on top, yours below, both streaming; a toggle hides it
+3. turn pace: your code → your move → foe's code → foe's move
+4. foes: wild = focus + budget from level, no readers; trainers also know readers for types they've seen; the rival learns your starter's format over the game
+5. model/network failure: retry once, then the move behaves like plain FireRed (accuracy roll)
+6. memory: each Pokémon keeps its own readers; the Pokédex is shared by the party
+- gyms: "badges teach" (Boulder Badge = ROCK + GROUND readers for the party; Cascade Badge = +50 bytes) + "gym trainers teach"; no format-switching aces for now
+- defaults from the briefing (until told otherwise): daily cap 1.5M tokens/player; code replayed at a readable pace for the first battles; foe code streams before its move; first battle = tutorial (plain list); I draft Oak's lines + type descriptions
+
+## Code moves in the ROM (2026-10-08, patches/006-code-moves.patch)
+- replaces byte battles v1 (damage from script output); damage is plain FireRed again
+- when a Pokémon gets to use a move (after sleep/paralysis/confusion/protect checks), the game asks the host and waits (≤30 s); both sides; mailbox `gCodeRedMove` (48 B)
+- host replies hit / miss (+ why) / vanilla; no host, timeout or reload = plain FireRed
+- a miss: "<name> used <move>!" → "CHARMANDER's code crashed!" (or got it wrong / was too long / didn't write any code); PP still spent
+- my call, flag to owner: a hit still rolls FireRed accuracy, so SANDBOX / accuracy and evasion stages keep working
+- not asked: STRUGGLE, locked-in turns of multi-turn moves (Thrash, Fly's 2nd turn), link and Pokédude battles
+- checked in the simulator: `sim/experiments/code_moves.py` (rival battle under no host / all hit / all miss / mixed; CI seed 0)
+
+## Battle loop in the page (2026-10-08, branch battle-rules)
+- `player/src/agents/code-battle.ts`: answers the ROM's code-move requests; prompt/judge/learning from `rules/`; model via the kernel bundle (pi-ai → backend `/v1/ai`, streamed); mock writer with `?agents=mock` or no backend
+- `player/src/agents/code-panel.ts`: foe on top, you below; beside the game at ≥980 px, under it below; Code toggle (remembered); first 12 turns replayed at a readable pace (~2 s), 10× shows at once
+- memory for now in the browser's local storage: readers per Pokémon (by personality), Pokédex = types battled (counts from the next battle), trainers know the types you've shown them; moves to cloud saves later
+- simplification: the rival uses the trainer rule (knows your starter's format from the 2nd battle on), no separate schedule yet
+- types with no format yet (ICE, GHOST, DRAGON, DARK) send a plain list
+- daily model cap raised to 1.5M tokens per player (worker var)
+- journey 11 (real model, shared rules, no aces): 0.90 overall; Brock 0.99–1.0, Misty 0.94–0.95; only dip = Cerulean rival's ABRA (first PSYCHIC) 0.65–0.70; badges change little. Without aces the gyms are not walls: owner decision needed

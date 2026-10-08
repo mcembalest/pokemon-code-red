@@ -25,7 +25,7 @@ WANTED = {
     'gActionSelectionCursor': 4,
     'gMoveSelectionCursor': 4,
     'gBattleOutcome': 1,
-    'gCodeRedBattleBytes': 48,
+    'gCodeRedMove': 48,
     'gTasks': 16 * 40,
     # code / ROM data (bytes = 0: not RAM)
     'BattleMainCB2': 0,

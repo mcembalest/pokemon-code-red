@@ -1,0 +1,68 @@
+{
+ "note": "Lab 15: final per-type table (FIRE = out-of-order write log, PSYCHIC = jumbled 'b0' keys): first time vs known reader, 40 tries per type each; foes vs starters again.",
+ "models": [
+  "@cf/meta/llama-3.2-3b-instruct"
+ ],
+ "concurrency": 12,
+ "temperature": 0.7,
+ "maxTokens": 500,
+ "experiments": [
+  {
+   "name": "per type",
+   "variants": [
+    "fn-format-conv",
+    "fn-hint-ex"
+   ],
+   "moves": [
+    "SLICE",
+    "PING",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "WIPEDISC",
+    "LEECH SEED",
+    "CRAWL",
+    "HASH",
+    "BACKUP"
+   ],
+   "types": [
+    "NORMAL",
+    "FLYING",
+    "WATER",
+    "GRASS",
+    "ROCK",
+    "ELECTRIC",
+    "GROUND",
+    "FIRE",
+    "POISON",
+    "BUG",
+    "PSYCHIC",
+    "FIGHTING",
+    "STEEL"
+   ],
+   "samples": 4
+  },
+  {
+   "name": "foes vs starters",
+   "variants": [
+    "fn-format-conv"
+   ],
+   "temperature": 1.0,
+   "moves": [
+    "PING",
+    "DOWNGRADE",
+    "SLICE",
+    "POKE",
+    "SWIFT",
+    "FETCH"
+   ],
+   "types": [
+    "FIRE",
+    "WATER",
+    "GRASS",
+    "POISON"
+   ],
+   "samples": 8
+  }
+ ]
+}

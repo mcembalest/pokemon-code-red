@@ -1,6 +1,6 @@
 // Workers AI's OpenAI-compatible endpoint has two quirks that break pi-ai (found in run 3):
-//  1. streamed numeric tokens arrive as JSON numbers (`"content": 0`) and pi-ai drops them,
-//     so code loses its digits (`let i = ;`)
+//  1. streamed tokens that look like JSON arrive parsed: `"content": 0`, `[]`, `{}`, `true`, even `null`,
+//     and pi-ai drops them, so code loses its digits and brackets (`let i = ;`, `const { bytes = } = foe`)
 //  2. some models reject message `content` as an array of parts, or `null` next to tool calls
 // This fetch fixes both on the way in and out. Used by every provider in models.mjs.
 
@@ -23,7 +23,11 @@ function fixChunk(line) {
     const chunk = JSON.parse(data)
     let changed = false
     for (const c of chunk.choices ?? []) {
-      if (c.delta && c.delta.content !== undefined && c.delta.content !== null && typeof c.delta.content !== 'string') { c.delta.content = String(c.delta.content); changed = true }
+      const d = c.delta
+      if (!d || !('content' in d) || typeof d.content === 'string') continue
+      // a bare `null` mid-stream (no role, no tool calls, not the last chunk) is the token "null"
+      if (d.content === null) { if (d.role || d.tool_calls || c.finish_reason) continue; d.content = 'null' } else d.content = JSON.stringify(d.content)
+      changed = true
     }
     return changed ? `data: ${JSON.stringify(chunk)}` : line
   } catch { return line }

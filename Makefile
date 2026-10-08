@@ -17,6 +17,7 @@ setup: deps
 	python3 scripts/setup_browser.py
 deps:
 	cd runner && npm ci
+	cd kernel && npm ci
 	cd player && npm ci
 browser-setup:
 	python3 scripts/setup_browser.py
@@ -34,6 +35,7 @@ serve:
 	python3 scripts/serve_player.py
 test:
 	python3 -m unittest discover -s tests -v
+	node --test rules/test/*.test.mjs
 	cd player && npm test && npx tsc --noEmit
 check: test smoke
 	@test -n "$(CORE_SO)" && python3 core/test_native.py $(CORE_SO) || echo "skip native core test (set CORE_SO=path/to/mgba_libretro.so)"
