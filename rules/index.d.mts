@@ -31,6 +31,7 @@ export interface Growth {
 export type Badge = 'BOULDER' | 'CASCADE'
 export const GROWTH: Growth
 export const BADGES: Record<Badge, { readers?: TypeName[]; budget?: number }>
+export const WORDS: { data: string; v: string }
 export const NOTCH: { cap: number; temp: number; budget: number }
 export function notchOf(stageSum: number): number
 export function focusAt(level: number, p?: Growth, notch?: number): number

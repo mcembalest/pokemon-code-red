@@ -3,7 +3,7 @@
 //   CLOUDFLARE_API_KEY=… CLOUDFLARE_ACCOUNT_ID=… node lab/moves.mjs lab/moves.json out.json
 import { readFileSync, writeFileSync } from 'node:fs'
 import { extractCode, gameModels, runBlock } from '../../kernel/index.mjs'
-import { MOVES, budgetAt, focusAt, judge, knowFor, rng, targetBytes, turnData, turnPrompt } from '../../rules/index.mjs'
+import { MOVES, WORDS, budgetAt, focusAt, judge, knowFor, rng, targetBytes, turnData, turnPrompt } from '../../rules/index.mjs'
 
 const cfg = JSON.parse(readFileSync(process.argv[2] ?? 'lab/moves.json', 'utf8'))
 const outFile = process.argv[3] ?? 'moves-results.json'
@@ -22,7 +22,7 @@ async function ask(system, user, temperature) {
 
 const jobs = []
 const moves = cfg.moves === 'all' ? MOVES : MOVES.filter(m => cfg.moves.includes(m.name))
-const wordings = cfg.words ?? [{ data: 'bytes', v: 'bytes' }]
+const wordings = cfg.words ?? [WORDS]
 for (const move of moves) for (const type of cfg.types) for (const known of cfg.known) for (const words of wordings) for (let i = 0; i < cfg.samples; i++)
   jobs.push({ move, type, known, words, level: cfg.levels[i % cfg.levels.length], seed: 5000 + jobs.length * 7 })
 

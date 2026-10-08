@@ -91,6 +91,7 @@ export function extractCode(reply) {
   const fences = text.match(/```/g)?.length ?? 0
   if (fences === 0) return text ? { code: text, reason: null } : { code: null, reason: 'empty reply' }
   const m = text.match(/^```(?:javascript|js)?[ \t]*\n([\s\S]*?)\n?```$/)
+    ?? (fences === 1 ? text.match(/^```(?:javascript|js)?[ \t]*\n([\s\S]*)$/) : null) // the closing fence never came: the rest is the code
   if (!m) return { code: null, reason: fences > 2 ? 'more than one code block' : 'prose outside the code block' }
   if (m[1].includes('```')) return { code: null, reason: 'more than one code block' }
   return { code: m[1], reason: null }
