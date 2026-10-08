@@ -1,5 +1,5 @@
 {
-  "note": "Journey 11: first run on the shared rules module (rules/), with the Oct 8 decisions: no format-switching aces, badges teach. 12 journeys.",
+  "note": "Journey 12 (spine): re-specced moves, numbers/nums wording, NORMAL without a reader line, all 17 formats. 12 journeys.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "journeys": 12,
   "defaults": {
