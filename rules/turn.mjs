@@ -66,8 +66,8 @@ export function turnPrompt({ self, target, move, type, know = null, budget, tuto
   const call = self.wild ? `You use ${move.name}!` : `Your trainer says: use ${move.name}!`
   const line = l => (words.v === 'bytes' ? l : l.replace(/\bbytes\b/g, words.v))
   const knowLine = k => (k.from === 'dex' ? `Pokédex: ${type} data reads like this: ${line(k.line)}` : `You remember how you read ${type} data: ${line(k.line)}`)
-  const formatLines = tutorial
-    ? [`- data = the foe's ${words.data}, a list of numbers. Example: [${EXAMPLE_BYTES.join(', ')}].`]
+  const formatLines = tutorial || type === 'NORMAL'
+    ? [`- data = the foe's ${words.data}, already a plain list of numbers. Example: [${EXAMPLE_BYTES.join(', ')}].`]
     : [`- data = the foe's ${words.data}, this turn in ${type} format: ${FORMATS[type].note}. Example: ${show(example(type))} is [${EXAMPLE_BYTES.join(', ')}].`,
       know ? `- ${knowLine(know)}` : `- First line of the function: const ${words.v} = <read data into a list of numbers>`]
   const user = [`Foe: ${target.name} Lv${target.level} (${target.types.join('/')}). ${call}`, `Write the function: function ${move.fn}(data)`, ...formatLines,

@@ -78,7 +78,7 @@ test('prompt: the calibrated journey text', () => {
   const mem = turnPrompt({ self: { name: 'CHARMANDER', level: 9 }, target: { name: 'PIKACHU', level: 5, types: ['ELECTRIC'] }, move: byName.BURNDISC, type: 'ELECTRIC', know: knowFor('ELECTRIC', { readers: { ELECTRIC: 'const bytes = x' } }), budget: 290 })
   assert.match(mem.user, /- You remember how you read ELECTRIC data: const bytes = x/)
   const tut = turnPrompt({ self: { name: 'CHARMANDER', level: 5 }, target: { name: 'SQUIRTLE', level: 5, types: ['WATER'] }, move: byName.SLICE, type: 'WATER', budget: 250, tutorial: true })
-  assert.match(tut.user, /- data = the foe's bytes, a list of numbers\. Example: \[42, 13, 140\]\./)
+  assert.match(tut.user, /- data = the foe's bytes, already a plain list of numbers\. Example: \[42, 13, 140\]\./)
   assert.doesNotMatch(tut.user, /format|First line/)
 })
 
