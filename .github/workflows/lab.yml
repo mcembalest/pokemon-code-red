@@ -3,7 +3,7 @@ name: lab
 # Results → release `lab` (lab-results.json, lab-log.txt).
 on:
   push:
-    paths: ['models/lab/run.json', 'models/lab/journey.json']
+    paths: ['models/lab/run.json', 'models/lab/journey.json', 'models/lab/moves.json']
 permissions:
   contents: write
 concurrency:
@@ -26,7 +26,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           changed=$(git -C .. diff --name-only HEAD~1 HEAD 2>/dev/null || echo models/lab/run.json)
-          if echo "$changed" | grep -qx 'models/lab/journey.json'; then script=lab/journey.mjs; conf=lab/journey.json; else script=lab/run.mjs; conf=lab/run.json; fi
+          if echo "$changed" | grep -qx 'models/lab/moves.json'; then script=lab/moves.mjs; conf=lab/moves.json
+          elif echo "$changed" | grep -qx 'models/lab/journey.json'; then script=lab/journey.mjs; conf=lab/journey.json; else script=lab/run.mjs; conf=lab/run.json; fi
           node $script $conf lab-results.json 2> lab-log.txt || { echo "::error title=lab::$(tail -c 1500 lab-log.txt | tr '\n' ' ')"; exit 1; }
           while read -r l; do echo "::notice title=lab::$l"; done < lab-log.txt
       - name: Publish
