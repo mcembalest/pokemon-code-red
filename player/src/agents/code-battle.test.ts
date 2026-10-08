@@ -18,13 +18,13 @@ function game() {
   const memory = new GbaMemory(fakeCore()), mailbox = new CodeMoveMailbox(memory, AT)
   let id = 0
   // What the ROM does in Cmd_attackcanceler (patches/006-code-moves.patch).
-  const request = (o: { move?: number; side?: 0 | 1; level?: number; attacker?: number; target?: number; types?: [number, number]; flags?: number; pid?: number } = {}) => {
+  const request = (o: { move?: number; side?: 0 | 1; level?: number; attacker?: number; target?: number; types?: [number, number]; flags?: number; pid?: number; stages?: number } = {}) => {
     const side = o.side ?? 0
     memory.w32(AT + 8, ++id); memory.w32(AT + 12, 0); memory.w16(AT + 16, o.move ?? 10); memory.w8(AT + 18, side); memory.w8(AT + 19, o.level ?? 5)
     memory.w16(AT + 20, o.attacker ?? (side ? 7 : 4)); memory.w16(AT + 22, o.target ?? (side ? 4 : 7))
     memory.w32(AT + 24, o.pid ?? (side ? 222 : 111)); memory.w32(AT + 28, side ? 111 : 222); memory.w8(AT + 32, 5)
     const [t1, t2] = o.types ?? (side ? [10, 10] : [11, 11]); memory.w8(AT + 33, t1); memory.w8(AT + 34, t2)
-    memory.w32(AT + 36, o.flags ?? 0x8); memory.w16(AT + 40, o.flags === 0 ? 0 : 326)
+    memory.w32(AT + 36, o.flags ?? 0x8); memory.w16(AT + 40, o.flags === 0 ? 0 : 326); memory.w8(AT + 43, (o.stages ?? 0) & 0xff)
     memory.w8(AT + 6, 1)
   }
   const reply = () => ({ state: memory.u8(AT + 6), verdict: memory.u8(AT + 35), reason: memory.u8(AT + 42) })
@@ -117,9 +117,8 @@ test('learning: a verified reader is remembered by that Pokémon; the Pokédex f
   assert.equal(log.begin[2]!.know, 'dex', 'the Pokédex is shared by the party')
 })
 
-test('foes: wild ones know no readers; trainers know the types you have shown them', async () => {
+test('foes: wild ones know no readers; trainers read every format', async () => {
   const g = game(), { panel, log } = fakePanel(), mem = store()
-  mem.addShown(['FIRE'])
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem)
   await b.poll()
   g.request({ side: 1, attacker: 16, flags: 0 }); await b.poll()        // wild PIDGEY
@@ -160,7 +159,20 @@ test('local code memory persists across page loads', () => {
   const data = new Map<string, string>()
   const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => { data.set(k, v) } }
   const a = localCodeMemory(storage)
-  a.setReaders(5, { ROCK: 'const bytes = x' }); a.addSeen(['ROCK', 'ROCK']); a.addShown(['FIRE'])
+  a.setReaders(5, { ROCK: 'const bytes = x' }); a.addSeen(['ROCK', 'ROCK'])
   const b = localCodeMemory(storage)
-  assert.deepEqual(b.readers(5), { ROCK: 'const bytes = x' }); assert.deepEqual(b.seen(), ['ROCK']); assert.deepEqual(b.shown(), ['FIRE'])
+  assert.deepEqual(b.readers(5), { ROCK: 'const bytes = x' }); assert.deepEqual(b.seen(), ['ROCK'])
+})
+
+test('status moves hit the code: Growl on the attacker shakes it (smaller budget, hotter writing); its own Withdraw steadies it', async () => {
+  const g = game(), { panel, log } = fakePanel()
+  const temps: number[] = []
+  const spy: CodeWriter = { async write(p, onText) { temps.push(p.temperature); return mockWriter({ missEvery: 99, delay: instant }).write(p, onText) } }
+  const b = new CodeBattle(g.mailbox, names, spy, sandbox, panel, store())
+  await b.poll(); g.request({ stages: -3 }); await b.poll()
+  assert.equal(log.begin[0]!.notch, -2); assert.equal(log.begin[0]!.budget, 200)
+  g.request({ stages: 1 }); await b.poll()
+  assert.equal(log.begin[1]!.notch, 1); assert.equal(log.begin[1]!.budget, 275)
+  assert.ok(temps[0]! > temps[1]!, 'shaken writes hotter than steadied')
+  const r = g.mailbox.snapshot.bind(g.mailbox); g.request({ stages: -3 }); assert.equal(r()!.attackerStages, -3, 'signed byte read')
 })

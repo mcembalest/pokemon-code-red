@@ -120,10 +120,10 @@ index 67f90a37..7dc3d52f 100644
      }
 diff --git a/src/code_red_battle.c b/src/code_red_battle.c
 new file mode 100644
-index 00000000..f196530b
+index 00000000..9825c6d1
 --- /dev/null
 +++ b/src/code_red_battle.c
-@@ -0,0 +1,139 @@
+@@ -0,0 +1,150 @@
 +#include "global.h"
 +#include "battle.h"
 +#include "battle_scripts.h"
@@ -162,7 +162,7 @@ index 00000000..f196530b
 +    u32 battleTypeFlags;
 +    u16 trainerId;           // opponent trainer (0 = wild)
 +    u8 reason;               // host, on a miss: CODE_RED_MISS_*
-+    u8 unused;
++    s8 attackerStages;       // sum of the attacker's stat stage offsets (Growl: -1), for code focus
 +    u16 waited;              // frames waited for this request
 +    u16 unused2;
 +};
@@ -175,6 +175,16 @@ index 00000000..f196530b
 +#define CRM_WAIT_FRAMES 1800 // ~30 s: model + network + one retry
 +
 +enum { CODE_RED_VANILLA, CODE_RED_HIT, CODE_RED_MISS };
++
++// Status moves hit the foe's code (owner, 2026-10-08): the page shakes or steadies a Pokémon's code brain by the
++// sum of its stat stages (Growl, Tail Whip, Sand Attack... vs Withdraw, Harden...), capped there.
++static s8 StageSum(struct BattlePokemon *mon)
++{
++    s32 i, total = 0;
++    for (i = STAT_ATK; i < NUM_BATTLE_STATS; i++)
++        total += mon->statStages[i] - DEFAULT_STAT_STAGE;
++    return total < -12 ? -12 : total > 12 ? 12 : total;
++}
 +
 +// Text box after a miss (gBattleCommunication[MULTISTRING_CHOOSER] = reason).
 +const u16 gCodeRedMissStringIds[] =
@@ -223,6 +233,7 @@ index 00000000..f196530b
 +    m->trainerId = (gBattleTypeFlags & BATTLE_TYPE_TRAINER) ? gTrainerBattleOpponent_A : 0;
 +    m->verdict = CODE_RED_VANILLA;
 +    m->reason = 0;
++    m->attackerStages = StageSum(a);
 +    m->waited = 0;
 +    m->state = 1; // publish last
 +    sAsked = TRUE;

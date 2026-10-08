@@ -142,3 +142,12 @@ test('same: JSON-like deep equality', () => {
   assert.ok(!same([], {}))
   assert.ok(same({ a: 1 }, { a: 1 }))
 })
+
+test('status moves hit the code: notches shake or steady focus and budget, capped at ±2', async () => {
+  const { NOTCH, notchOf } = await import('../index.mjs')
+  assert.equal(notchOf(0), 0); assert.equal(notchOf(-1), -1); assert.equal(notchOf(-5), -2); assert.equal(notchOf(3), 2)
+  assert.ok(Math.abs(focusAt(5, undefined, -2) - 1.0) < 1e-9, 'two notches down: +0.2 temperature')
+  assert.ok(Math.abs(focusAt(5, undefined, 2) - 0.6) < 1e-9)
+  assert.equal(budgetAt(5, { notch: -2 }), 200); assert.equal(budgetAt(5, { notch: 1 }), 275)
+  assert.equal(NOTCH.cap, 2)
+})

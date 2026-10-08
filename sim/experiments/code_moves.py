@@ -56,7 +56,7 @@ def trial(g: World, state: bytes, host_name: str, shots: Path, turns_limit: int 
     reqs = host.requests if host else []
     return {'host': host_name, 'outcome': g.battle_outcome(), 'hp_start': start, 'hp_end': end, 'player_moves': moves,
             'requests': len(reqs), 'sides': sorted({r['side'] for r in reqs}),
-            'sample': reqs[:2], 'screenshot': str(shot) if shot else None}
+            'sample': reqs[:2], 'all_requests': [{k: r[k] for k in ('id', 'move', 'side', 'stages')} for r in reqs], 'screenshot': str(shot) if shot else None}
 
 
 def main():
@@ -81,6 +81,7 @@ def main():
         'miss: both sides ask': by['miss']['sides'] == [0, 1],
         'mixed: player never loses HP (it may level up)': by['mixed']['hp_end'][0] >= by['mixed']['hp_start'][0],
         'mixed: player wins': by['mixed']['outcome'] == 'won',
+        'stages reported: after the rival\'s TAIL WHIP (39) the player writes with a negative sum': any(r['stages'] < 0 for r in by['hit']['all_requests'] if r['side'] == 0) or not any(r['move'] == 39 for r in by['hit']['all_requests']),
     }
     report = {'starter': args.starter, 'checks': checks, 'rows': rows}
     (shots / 'code_moves.json').write_text(json.dumps(report, indent=2))

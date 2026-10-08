@@ -2,11 +2,11 @@
 // the move's function (model through the backend), the code runs on the target's bytes in the sandbox, and
 // the game hears hit / miss / vanilla. Both sides. The rules are shared with the simulator (rules/).
 //   turn pace (owner, 2026-10-08): your code → your move → foe's code → foe's move (the ROM asks in that order)
-//   foes: wild = focus + budget from level, no readers; trainers also know readers for types they've seen you use
+//   foes: wild = focus + budget from level, no readers; trainers read every format (owner, 2026-10-08: the asymmetry is the challenge)
 //   memory: each Pokémon keeps its own readers; the Pokédex (types seen in past battles + badge readers) is shared
 //   model or network failure: retry once, then plain FireRed (accuracy roll)
 import {
-  BADGES, HINTS, budgetAt, byFireRed, byName, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, partyDex,
+  BADGES, FORMATS, GROWTH, HINTS, budgetAt, byFireRed, byName, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, notchOf, partyDex,
   rng, slotsAt, stageOf, targetBytes, turnData, turnPrompt, turnType,
   type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged,
 } from '../../../rules/index.mjs'
@@ -26,6 +26,8 @@ export interface Sandbox { run(source: string, inputJSON: string): Promise<RunRe
 export interface TurnInfo {
   side: 0 | 1; attacker: string; target: string; move: string; spec: string; fn: string
   type: TypeName; tutorial: boolean; know: Know['from'] | null; budget: number; wild: boolean
+  /** -2..2: how shaken (negative) or steadied the writer's code brain is this turn (status moves hit the code). */
+  notch: number
 }
 export interface TurnResult { verdict: Verdict; reason?: MissReason; text: string; detail?: string }
 export interface Panel {
@@ -41,14 +43,11 @@ export interface CodeMemory {
   setReaders(personality: number, readers: Readers): void
   /** Types the party has battled (Pokédex readers). */
   seen(): string[]
-  /** Types the party has shown trainers (their readers). */
-  shown(): string[]
   addSeen(types: string[]): void
-  addShown(types: string[]): void
 }
 
 export interface TurnRecord {
-  side: 0 | 1; attacker: string; target: string; move: string; type: TypeName; tutorial: boolean; know: string | null
+  side: 0 | 1; attacker: string; target: string; move: string; type: TypeName; tutorial: boolean; know: string | null; notch?: number
   verdict: Verdict; reason?: string; ms: number; tries: number; code?: string
 }
 
@@ -61,7 +60,6 @@ export interface CodeBattleOptions {
 export class CodeBattle {
   private pending = false
   private seenNow = new Set<string>()
-  private shownNow = new Set<string>()
   private readonly mailbox: CodeMoveMailbox
   private readonly names: Names
   private readonly writer: CodeWriter
@@ -87,8 +85,7 @@ export class CodeBattle {
   /** The battle ended: what was seen in it counts from the next battle on. */
   battleOver(): void {
     if (this.seenNow.size) this.memory.addSeen([...this.seenNow])
-    if (this.shownNow.size) this.memory.addShown([...this.shownNow])
-    this.seenNow.clear(); this.shownNow.clear()
+    this.seenNow.clear()
   }
 
   private async turn(req: MoveRequest): Promise<void> {
@@ -100,23 +97,24 @@ export class CodeBattle {
     const attacker = this.names.speciesName(req.attackerSpecies), target = this.names.speciesName(req.targetSpecies)
     const types = [...new Set(req.targetTypes.map(t => formatOf(this.names.typeName(t))))] as TypeName[]
     const wild = !(req.battleTypeFlags & BATTLE_TYPE_TRAINER), tutorial = (req.battleTypeFlags & BATTLE_TYPE_FIRST_BATTLE) !== 0
-    if (side === 0) types.forEach(t => this.seenNow.add(t)); else types.forEach(t => this.shownNow.add(t))
+    if (side === 0) types.forEach(t => this.seenNow.add(t))
 
     const r = rng((req.id * 2654435761) ^ req.attackerPersonality ^ req.epoch)
     const type = turnType(r, types), bytes = targetBytes(r), data = turnData(bytes, type, tutorial)
     const badges = side === 0 ? (this.options.badges?.() ?? []).filter(b => b in BADGES) : []
     const stage = stageOf(attacker)
     const readers = side === 0 ? this.memory.readers(req.attackerPersonality) : {}
-    const dex = side === 0 ? partyDex({ seen: this.memory.seen(), badges }) : wild ? [] : this.memory.shown()
+    const dex = side === 0 ? partyDex({ seen: this.memory.seen(), badges }) : wild ? [] : Object.keys(FORMATS)
     const know = tutorial ? null : knowFor(type, { dex, readers })
-    const budget = budgetAt(req.attackerLevel, { stage, badges })
+    const notch = notchOf(req.attackerStages)
+    const budget = budgetAt(req.attackerLevel, { stage, badges, notch })
     const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, know, budget, tutorial })
 
-    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild })
+    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch })
     let text: string | null = null, tries = 0
     while (text === null && tries < 2) {
       tries++
-      try { text = await this.writer.write({ ...prompt, temperature: focusAt(req.attackerLevel), meta: { move, type, tutorial } }, delta => this.panel.text(side, delta)) }
+      try { text = await this.writer.write({ ...prompt, temperature: focusAt(req.attackerLevel, GROWTH, notch), meta: { move, type, tutorial } }, delta => this.panel.text(side, delta)) }
       catch { if (tries < 2) this.panel.text(side, '\n// connection hiccup, writing again…\n') }
     }
     if (text === null) {
@@ -136,14 +134,14 @@ export class CodeBattle {
     const reason = v.reason as MissReason | undefined
     await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s code hit!` : missText(attacker, reason ?? 'crashed'), ...(v.got ? { detail: `returned ${v.got}, needed ${v.want}` } : v.error ? { detail: v.error } : {}) })
     this.mailbox.reply(req, verdict, reason ?? 'crashed')
-    this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}) })
+    this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}) })
   }
 }
 
 /** Code memory in the page's local storage (per browser; moves with cloud saves later). */
 export function localCodeMemory(storage: Pick<Storage, 'getItem' | 'setItem'> | null, key = 'code-red-code-memory-v1'): CodeMemory {
-  type State = { mons: Record<string, Readers>; seen: string[]; shown: string[] }
-  let state: State = { mons: {}, seen: [], shown: [] }
+  type State = { mons: Record<string, Readers>; seen: string[] }
+  let state: State = { mons: {}, seen: [] }
   try { const raw = storage?.getItem(key); if (raw) state = { ...state, ...JSON.parse(raw) as Partial<State> } } catch { /* fresh */ }
   const save = () => { try { storage?.setItem(key, JSON.stringify(state)) } catch { /* in memory only */ } }
   const add = (list: string[], more: string[]) => { for (const t of more) if (!list.includes(t)) list.push(t); save() }
@@ -151,9 +149,7 @@ export function localCodeMemory(storage: Pick<Storage, 'getItem' | 'setItem'> | 
     readers: pid => ({ ...(state.mons[String(pid)] ?? {}) }),
     setReaders: (pid, readers) => { state.mons[String(pid)] = readers; save() },
     seen: () => [...state.seen],
-    shown: () => [...state.shown],
     addSeen: types => add(state.seen, types),
-    addShown: types => add(state.shown, types),
   }
 }
 

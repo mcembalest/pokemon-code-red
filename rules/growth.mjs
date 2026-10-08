@@ -14,13 +14,20 @@ export const BADGES = {
   CASCADE: { budget: 50 },
 }
 
-/** Temperature for a Pokémon at this level. */
-export const focusAt = (level, p = GROWTH) => Math.max(p.minTemp, p.startTemp - p.tempPerLevel * (level - 5))
+/** Status moves hit the code (owner, 2026-10-08): stat stages shake or steady the code brain, one notch per stage,
+ *  capped at ±2. A notch down makes the writing jittierier (+0.1 temperature) and the byte budget 10% smaller;
+ *  a notch up does the reverse. Resets with the stages (switch-out). */
+export const NOTCH = { cap: 2, temp: 0.1, budget: 0.1 }
+/** The notch from the sum of a Pokémon's stat stage offsets (Growl on it: -1; its own Withdraw: +1). */
+export const notchOf = stageSum => Math.max(-NOTCH.cap, Math.min(NOTCH.cap, Math.trunc(stageSum || 0)))
+
+/** Temperature for a Pokémon at this level, shaken or steadied by its notch. */
+export const focusAt = (level, p = GROWTH, notch = 0) => Math.max(0.05, Math.max(p.minTemp, p.startTemp - p.tempPerLevel * (level - 5)) - NOTCH.temp * notch)
 
 /** Max characters of code. stage = evolutions so far (CHARMANDER 0, CHARMELEON 1); badges = names held by the trainer. */
-export function budgetAt(level, { stage = 0, badges = [] } = {}, p = GROWTH) {
+export function budgetAt(level, { stage = 0, badges = [], notch = 0 } = {}, p = GROWTH) {
   const bonus = badges.reduce((a, b) => a + (BADGES[b]?.budget ?? 0), 0)
-  return p.budgetBase + p.budgetPerLevel * level + p.evolutionBudget * stage + bonus
+  return Math.round((p.budgetBase + p.budgetPerLevel * level + p.evolutionBudget * stage + bonus) * (1 + NOTCH.budget * notch))
 }
 
 /** How many learned readers a Pokémon keeps. */

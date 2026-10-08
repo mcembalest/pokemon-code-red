@@ -21,7 +21,8 @@ const describe = (i: TurnInfo) => {
   const who = i.side === 1 ? `${i.wild ? 'Wild' : 'Foe'} ${i.attacker}` : i.attacker
   const data = i.tutorial ? 'a plain list' : `${i.type} data`
   const knows = i.know === 'dex' ? ' · Pokédex reader' : i.know === 'memory' ? ' · remembers this type' : ''
-  return { who, line: `${i.move} → ${data}${knows} · ≤${i.budget} chars` }
+  const mood = i.notch < 0 ? ` · shaken ${i.notch}` : i.notch > 0 ? ` · steady +${i.notch}` : ''
+  return { who, line: `${i.move} → ${data}${knows}${mood} · ≤${i.budget} chars` }
 }
 
 export function createCodePanel(host: HTMLElement, options: { fast?: () => boolean; now?: () => number; wait?: (ms: number) => Promise<void> } = {}): CodePanel {
