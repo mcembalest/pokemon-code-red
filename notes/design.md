@@ -172,3 +172,13 @@ Target: agents run in the browser (local models); Worker = accounts, progress, r
 - late game must get harder; calibrate to Misty first: I play in the simulator, then the owner plays organically, then decide
 - foes write code, streamed on screen during battle
 - open decisions: briefing doc "Code Red briefing: decisions to Misty" (claude.ai Docs)
+
+## Build decisions (owner, 2026-10-08, from the briefing)
+1. a miss fails the move completely; the text box says why ("CHARMANDER's code crashed!")
+2. code panel under the game (phones) / beside it (laptops): foe's code on top, yours below, both streaming; a toggle hides it
+3. turn pace: your code → your move → foe's code → foe's move
+4. foes: wild = focus + budget from level, no readers; trainers also know readers for types they've seen; the rival learns your starter's format over the game
+5. model/network failure: retry once, then the move behaves like plain FireRed (accuracy roll)
+6. memory: each Pokémon keeps its own readers; the Pokédex is shared by the party
+- gyms: "badges teach" (Boulder Badge = ROCK + GROUND readers for the party; Cascade Badge = +50 bytes) + "gym trainers teach"; no format-switching aces for now
+- defaults from the briefing (until told otherwise): daily cap 1.5M tokens/player; code replayed at a readable pace for the first battles; foe code streams before its move; first battle = tutorial (plain list); I draft Oak's lines + type descriptions
