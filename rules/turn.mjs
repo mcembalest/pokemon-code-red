@@ -9,8 +9,7 @@ export const WORKED = [42, 13, 140, 77]
 
 // ---------- the target's bytes ----------
 
-/** A FireRed type (as the ROM names it) → its data format. Types with no format yet (ICE, GHOST, DRAGON, DARK,
- *  the ??? type) send a plain list for now. */
+/** A FireRed type (as the ROM names it) → its data format. The ??? type (Curse) sends a plain list. */
 export const formatOf = romType => {
   const t = String(romType).trim().toUpperCase()
   return Object.hasOwn(FORMATS, t) ? t : 'NORMAL'

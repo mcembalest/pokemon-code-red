@@ -1,8 +1,9 @@
-Code Red: move names (owner-approved, 2026-10-07): 88 moves renamed to plain technical words
-(SCRATCH -> SLICE, GROWL -> ERRORMSG ...); 15 keep their FireRed name. Generated from rules/moves.mjs.
+Code Red: move names (owner-approved, 2026-10-07; spine revision 2026-10-08): moves renamed to plain technical
+words that fit their type family (SCRATCH -> SLICE, GROWL -> ERRORMSG ...); 15 keep their FireRed name.
+Generated from rules/moves.mjs.
 
 diff --git a/src/data/text/move_names.h b/src/data/text/move_names.h
-index d63ddb87..ca92d5a1 100644
+index d63ddb87..aa2cc476 100644
 --- a/src/data/text/move_names.h
 +++ b/src/data/text/move_names.h
 @@ -1,129 +1,129 @@
@@ -41,7 +42,7 @@ index d63ddb87..ca92d5a1 100644
 +    [MOVE_VINE_WHIP]     = _("CRAWL"),
      [MOVE_STOMP]         = _("STOMP"),
 -    [MOVE_DOUBLE_KICK]   = _("DOUBLE KICK"),
-+    [MOVE_DOUBLE_KICK]   = _("COPYPASTE"),
++    [MOVE_DOUBLE_KICK]   = _("DUALCORE"),
      [MOVE_MEGA_KICK]     = _("MEGA KICK"),
      [MOVE_JUMP_KICK]     = _("JUMP KICK"),
      [MOVE_ROLLING_KICK]  = _("ROLLING KICK"),
@@ -51,7 +52,7 @@ index d63ddb87..ca92d5a1 100644
 -    [MOVE_FURY_ATTACK]   = _("FURY ATTACK"),
 +    [MOVE_SAND_ATTACK]   = _("SANDBOX"),
 +    [MOVE_HEADBUTT]      = _("REBOOT"),
-+    [MOVE_HORN_ATTACK]   = _("SPIKE"),
++    [MOVE_HORN_ATTACK]   = _("TAIL"),
 +    [MOVE_FURY_ATTACK]   = _("SPAM"),
      [MOVE_HORN_DRILL]    = _("HORN DRILL"),
 -    [MOVE_TACKLE]        = _("TACKLE"),
@@ -127,7 +128,7 @@ index d63ddb87..ca92d5a1 100644
      [MOVE_PETAL_DANCE]   = _("PETAL DANCE"),
 -    [MOVE_STRING_SHOT]   = _("STRING SHOT"),
 -    [MOVE_DRAGON_RAGE]   = _("DRAGON RAGE"),
-+    [MOVE_STRING_SHOT]   = _("STRINGIFY"),
++    [MOVE_STRING_SHOT]   = _("OFFBYONE"),
 +    [MOVE_DRAGON_RAGE]   = _("KERNELPANIC"),
      [MOVE_FIRE_SPIN]     = _("FIRE SPIN"),
 -    [MOVE_THUNDER_SHOCK] = _("THUNDERSHOCK"),
@@ -169,7 +170,7 @@ index d63ddb87..ca92d5a1 100644
      [MOVE_CONFUSE_RAY]   = _("CONFUSE RAY"),
 -    [MOVE_WITHDRAW]      = _("WITHDRAW"),
 -    [MOVE_DEFENSE_CURL]  = _("DEFENSE CURL"),
-+    [MOVE_WITHDRAW]      = _("BACKUP"),
++    [MOVE_WITHDRAW]      = _("BUFFER"),
 +    [MOVE_DEFENSE_CURL]  = _("LOCKDOWN"),
      [MOVE_BARRIER]       = _("BARRIER"),
      [MOVE_LIGHT_SCREEN]  = _("LIGHT SCREEN"),
@@ -200,7 +201,7 @@ index d63ddb87..ca92d5a1 100644
      [MOVE_SOFT_BOILED]   = _("SOFTBOILED"),
      [MOVE_HI_JUMP_KICK]  = _("HI JUMP KICK"),
 -    [MOVE_GLARE]         = _("GLARE"),
-+    [MOVE_GLARE]         = _("BROWNOUT"),
++    [MOVE_GLARE]         = _("DEADLOCK"),
      [MOVE_DREAM_EATER]   = _("DREAM EATER"),
 -    [MOVE_POISON_GAS]    = _("POISON GAS"),
 +    [MOVE_POISON_GAS]    = _("TROJAN"),
@@ -211,7 +212,7 @@ index d63ddb87..ca92d5a1 100644
      [MOVE_SKY_ATTACK]    = _("SKY ATTACK"),
      [MOVE_TRANSFORM]     = _("TRANSFORM"),
 -    [MOVE_BUBBLE]        = _("BUBBLE"),
-+    [MOVE_BUBBLE]        = _("WIPEDISC"),
++    [MOVE_BUBBLE]        = _("DRIP"),
      [MOVE_DIZZY_PUNCH]   = _("DIZZY PUNCH"),
 -    [MOVE_SPORE]         = _("SPORE"),
 +    [MOVE_SPORE]         = _("STANDBY"),
@@ -222,7 +223,7 @@ index d63ddb87..ca92d5a1 100644
      [MOVE_CRABHAMMER]    = _("CRABHAMMER"),
      [MOVE_EXPLOSION]     = _("EXPLOSION"),
 -    [MOVE_FURY_SWIPES]   = _("FURY SWIPES"),
-+    [MOVE_FURY_SWIPES]   = _("BRUTEFORCE"),
++    [MOVE_FURY_SWIPES]   = _("GREP"),
      [MOVE_BONEMERANG]    = _("BONEMERANG"),
      [MOVE_REST]          = _("REST"),
      [MOVE_ROCK_SLIDE]    = _("ROCK SLIDE"),
@@ -369,14 +370,14 @@ index d63ddb87..ca92d5a1 100644
      [MOVE_VOLT_TACKLE]   = _("VOLT TACKLE"),
      [MOVE_MAGICAL_LEAF]  = _("MAGICAL LEAF"),
 -    [MOVE_WATER_SPORT]   = _("WATER SPORT"),
-+    [MOVE_WATER_SPORT]   = _("HEATSINK"),
++    [MOVE_WATER_SPORT]   = _("THROTTLE"),
      [MOVE_CALM_MIND]     = _("CALM MIND"),
      [MOVE_LEAF_BLADE]    = _("LEAF BLADE"),
      [MOVE_DRAGON_DANCE]  = _("DRAGON DANCE"),
      [MOVE_ROCK_BLAST]    = _("ROCK BLAST"),
      [MOVE_SHOCK_WAVE]    = _("SHOCK WAVE"),
 -    [MOVE_WATER_PULSE]   = _("WATER PULSE"),
-+    [MOVE_WATER_PULSE]   = _("DROPTABLE"),
++    [MOVE_WATER_PULSE]   = _("FILTER"),
      [MOVE_DOOM_DESIRE]   = _("DOOM DESIRE"),
      [MOVE_PSYCHO_BOOST]  = _("PSYCHO BOOST")
  };

@@ -10,7 +10,7 @@ const sandbox: Sandbox = { async run(source) { try { return { ok: true, value: n
 const names = {
   moveName: (id: number) => ({ 10: 'SCRATCH', 33: 'TACKLE', 45: 'GROWL', 63: 'HYPER BEAM' } as Record<number, string>)[id] ?? '?',
   speciesName: (id: number) => ({ 4: 'CHARMANDER', 5: 'CHARMELEON', 7: 'SQUIRTLE', 74: 'GEODUDE', 16: 'PIDGEY' } as Record<number, string>)[id] ?? '?',
-  typeName: (id: number) => ({ 0: 'NORMAL', 2: 'FLYING', 4: 'GROUND', 5: 'ROCK', 10: 'FIRE', 11: 'WATER', 15: 'ICE' } as Record<number, string>)[id] ?? '???',
+  typeName: (id: number) => ({ 0: 'NORMAL', 2: 'FLYING', 4: 'GROUND', 5: 'ROCK', 9: 'MYSTERY', 10: 'FIRE', 11: 'WATER', 15: 'ICE' } as Record<number, string>)[id] ?? '???',
 }
 const instant = async () => {}
 
@@ -147,11 +147,13 @@ test('badges teach: Boulder gives ROCK + GROUND readers, Cascade +50 bytes; evol
   assert.equal(log.begin[0]!.budget, 200 + 160 + 100 + 50)
 })
 
-test('types with no format yet send a plain list (NORMAL)', async () => {
+test('every FireRed type has a format now; the ??? type sends a plain list', async () => {
   const g = game(), { panel, log } = fakePanel()
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, store())
   await b.poll(); g.request({ types: [15, 15] }); await b.poll()
-  assert.equal(log.begin[0]!.type, 'NORMAL')
+  assert.equal(log.begin[0]!.type, 'ICE')
+  g.request({ types: [9, 9] }); await b.poll()   // 9 = MYSTERY in this fake names table
+  assert.equal(log.begin[1]!.type, 'NORMAL')
 })
 
 test('local code memory persists across page loads', () => {

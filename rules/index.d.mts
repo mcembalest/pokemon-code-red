@@ -1,6 +1,6 @@
 // Types for the shared battle rules (rules/index.mjs), for the TypeScript player.
 
-export type TypeName = 'NORMAL' | 'FLYING' | 'WATER' | 'GRASS' | 'ROCK' | 'ELECTRIC' | 'GROUND' | 'FIRE' | 'POISON' | 'BUG' | 'PSYCHIC' | 'FIGHTING' | 'STEEL'
+export type TypeName = 'NORMAL' | 'FLYING' | 'WATER' | 'GRASS' | 'ROCK' | 'ELECTRIC' | 'GROUND' | 'FIRE' | 'POISON' | 'BUG' | 'PSYCHIC' | 'FIGHTING' | 'STEEL' | 'ICE' | 'GHOST' | 'DRAGON' | 'DARK'
 export type Answer = number | string | unknown[] | undefined
 
 export interface Move {
@@ -14,6 +14,7 @@ export function byFireRed(romName: string): Move | undefined
 export function fnName(name: string): string
 export const STARTER_MOVES: Set<string>
 export const FIRERED: Record<string, [string, string, string, string]>
+export const FAMILIES: Record<string, string>
 
 export interface Format { note: string; encode(bytes: number[]): unknown; decode(data: unknown): number[] }
 export const FORMATS: Record<TypeName, Format>
