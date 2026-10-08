@@ -135,7 +135,7 @@ test('the first battle is a tutorial: a plain list, no format', async () => {
   const b = new CodeBattle(g.mailbox, names, spy, sandbox, panel, store())
   await b.poll(); g.request({ flags: 0x8 | 0x10 }); await b.poll()
   assert.equal(log.begin[0]!.tutorial, true)
-  assert.match(seen[0]!, /a list of numbers/); assert.doesNotMatch(seen[0]!, /WATER format/)
+  assert.match(seen[0]!, /a plain list of numbers/); assert.doesNotMatch(seen[0]!, /WATER format/)
   assert.equal(g.reply().verdict, 1)
 })
 
