@@ -175,7 +175,7 @@ export function mockWriter(options: { missEvery?: number; chunk?: number; delay?
         uses('asc') && 'const asc = xs => [...xs].sort((x, y) => x - y)',
       ].filter(Boolean).map(h => `  ${h}`)
       let body = src.replace(/\bb\b/g, 'nums')
-      if (offByOne) body = `(${body}) + 1 // grab one more`
+      if (offByOne) body = move.shape === 'a list' ? `(${body}).slice(1) // skip the first, surely` : `(${body}) + 1 // grab one more`
       const lines = body.startsWith('{')
         ? body.slice(1, -1).trim().split(/;\s*|\n/).filter(Boolean).map(l => `  ${l.trim()}`)
         : [`  return ${body}`]
