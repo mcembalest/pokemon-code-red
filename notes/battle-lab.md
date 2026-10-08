@@ -1,6 +1,7 @@
 # Battle lab, 2026-10-07 (2 h, iterative) — draft 5 of the battle rules
 
-Code: `models/lab/` (run.mjs = designs side by side; variants.mjs; formats.mjs = type formats + Pokédex readers; lint.mjs; journey.mjs = Pallet → Misty sim) · workflow `lab.yml` (runs when `models/lab/run.json` or `journey.json` changes; results → release `lab`) · model: Llama 3.2 3B on Workers AI via pi-ai
+Rules: `rules/` (2026-10-08) = the one browser-safe module the game and the lab share: moves, type formats + Pokédex readers, growth + badges, turn prompt, judging, learning; tests `rules/test/`
+Code: `models/lab/` (run.mjs = designs side by side; variants.mjs; lint.mjs; journey.mjs = Pallet → Misty sim) · workflow `lab.yml` (runs when `models/lab/run.json` or `journey.json` changes; results → release `lab`) · model: Llama 3.2 3B on Workers AI via pi-ai
 
 ## Draft 5 rule (proposed)
 - a move = a function the Pokémon writes (`function slice(data)`); the game calls it on the foe's real data (never shown); right answer = hit, then FireRed as usual

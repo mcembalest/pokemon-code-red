@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { FORMATS, example } from '../lab/formats.mjs'
+import { FORMATS, example } from '../../rules/index.mjs'
 import { VARIANTS } from '../lab/variants.mjs'
-import { byName } from '../battle/moves.mjs'
+import { byName } from '../../rules/index.mjs'
 
 test('formats round-trip', () => {
   for (const [t, f] of Object.entries(FORMATS)) for (const b of [[42, 13, 140], [10, 199, 57, 88, 23, 150, 61]]) assert.deepEqual(f.decode(f.encode(b)), b, t)

@@ -2,7 +2,7 @@
 import { isDeepStrictEqual } from 'node:util'
 import { renderDeclarations, runBlock } from '../../kernel/index.mjs'
 import { TYPES } from '../battle/types.mjs'
-import { EXAMPLE_BYTES, FORMATS, HINTS, example, show } from './formats.mjs'
+import { EXAMPLE_BYTES, FORMATS, HINTS, example, show } from '../../rules/index.mjs'
 import { LINT } from './lint.mjs'
 
 const persona = (foe, extra, memory) => [
@@ -33,12 +33,8 @@ async function judgeStrike({ move, foe, code, scan }) {
   return isDeepStrictEqual(got, want) ? { outcome: 'hit' } : { outcome: 'miss', reason: 'wrong answer', got: JSON.stringify(got)?.slice(0, 80), want: JSON.stringify(want)?.slice(0, 80) }
 }
 
-// The function the Pokémon defined for this move: its exact name, or the same name in another case (copyPaste, COPYPASTE).
-const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '')
-export function definedName(code, fn) {
-  const names = [...code.matchAll(/(?:function\s+([A-Za-z_$][\w$]*)|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=)/g)].map(m => m[1] ?? m[2])
-  return names.find(n => n === fn) ?? names.find(n => norm(n) === norm(fn)) ?? fn
-}
+export { definedName } from '../../rules/index.mjs'
+import { definedName } from '../../rules/index.mjs'
 
 async function judgeFunction({ move, foe, code, data }) {
   // The block may define the function, or just be its body (using `data`, ending in return): both count.

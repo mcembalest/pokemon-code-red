@@ -1,22 +1,18 @@
-// Journey sim: one CHARMANDER plays Pallet → Misty, turn by turn, on the draft rules.
+// Journey sim: one CHARMANDER plays Pallet → Misty, turn by turn, on the shared rules (rules/).
 //   move = a function it writes · foe type = data format · byte budget = max code size · focus = temperature
-//   it learns how to read each type when a hit lands (and forgets a reader that misses); memory has slots;
-//   Pokédex readers unlock when a species is caught (policy).
+//   it learns how to read each type from verified hits; memory has slots; the party Pokédex gives readers for
+//   types seen (policy.dexSeen) or caught; badges teach (policy.badges: Boulder = ROCK+GROUND readers, Cascade = +50 bytes).
 //   CLOUDFLARE_API_KEY=… CLOUDFLARE_ACCOUNT_ID=… node lab/journey.mjs lab/journey.json out.json
 import { readFileSync, writeFileSync } from 'node:fs'
-import { isDeepStrictEqual } from 'node:util'
 import { extractCode, gameModels, runBlock } from '../../kernel/index.mjs'
-import { rng } from '../contracts.mjs'
-import { byName } from '../battle/moves.mjs'
-import { cleanBytes } from '../battle/types.mjs'
-import { EXAMPLE_BYTES, FORMATS, HINTS, example, show } from './formats.mjs'
-import { definedName, detectLine } from './variants.mjs'
+import { GROWTH, budgetAt, byName, focusAt, judge, knowFor, learnFromHit, partyDex, rng, slotsAt, targetBytes, turnData, turnPrompt, turnType } from '../../rules/index.mjs'
 
 const cfg = JSON.parse(readFileSync(process.argv[2] ?? 'lab/journey.json', 'utf8'))
 const outFile = process.argv[3] ?? 'journey-results.json'
 const models = gameModels()
 const log = (...a) => console.error(...a)
 const usage = { input: 0, output: 0, calls: 0 }
+const runSource = source => runBlock(source, [])
 
 // Route order (FireRed, from notes/inventory-to-misty.md), compressed. [segment, foe, types, level, turns, catch?]
 const ROUTE = [
@@ -36,10 +32,6 @@ const ROUTE = [
 // CHARMANDER's real learnset (Gen 3): Scratch, Growl, Ember 7, Metal Claw 13, Smokescreen 19
 const MOVES_BY_LEVEL = [[1, 'SLICE'], [1, 'ERRORMSG'], [7, 'BURNDISC'], [13, 'HASH'], [19, 'OBFUSCATE']]
 
-const focusAt = (L, p) => Math.max(p.minTemp, p.startTemp - p.tempPerLevel * (L - 5))
-const budgetAt = (L, p) => p.budgetBase + p.budgetPerLevel * L + (L >= 16 ? p.evolutionBudget : 0)
-const slotsAt = (L, p) => p.slotsBase + Math.floor((L - 5) / p.levelsPerSlot) + (L >= 16 ? p.evolutionSlots : 0)
-
 async function ask(model, system, user, temperature) {
   const m = models.getModel('cloudflare-workers-ai', model)
   const reply = await models.completeSimple(m, { systemPrompt: system, messages: [{ role: 'user', content: user, timestamp: Date.now() }] }, { temperature, maxTokens: 500 })
@@ -48,73 +40,42 @@ async function ask(model, system, user, temperature) {
   return (reply.content ?? []).filter(c => c.type === 'text').map(c => c.text).join('').trim()
 }
 
-async function judge(move, code, data, clean) {
-  const name = definedName(code, move.fn)
-  const run = await runBlock(`return (function (data) {\n${code}\n;return typeof ${name} === 'function' ? ${name}(data) : undefined\n})(${JSON.stringify(data)})`, [])
-  if (!run.ok) return { hit: false, reason: run.error.split(':')[0] }
-  return isDeepStrictEqual(run.value, move.ref(clean, {})) ? { hit: true } : { hit: false, reason: 'wrong answer' }
-}
-
-async function readsRight(line, data, clean) {
-  const run = await runBlock(`const data = ${JSON.stringify(data)}\n${line}\nreturn bytes`, [])
-  return run.ok && isDeepStrictEqual(run.value, clean)
-}
-
 async function journey(seed, policy) {
   const r = rng(seed)
+  const growth = { ...GROWTH, ...policy }
   let level = 5, xp = 0
-  const readers = new Map() // type → reader line (most recent last); limited by slots
-  const dex = new Set()     // types with a Pokédex reader
+  let readers = {}           // type → reader line (most recent last); limited by slots
+  const seen = new Set()     // types in the party Pokédex
+  const badges = []
   const turns = []
   for (const [segment, foeName, types, foeLevel, nTurns, caught] of ROUTE) {
     for (let k = 0; k < nTurns; k++) {
       const known = MOVES_BY_LEVEL.filter(([l]) => l <= level).map(([, n]) => byName[n]).filter(m => m.name !== 'ERRORMSG' || r() < 0.25)
       const move = known[Math.floor(r() * known.length)]
-      const both = policy.gymBoth && types.length > 1 && ['Brock', 'Misty'].includes(segment) && (!policy.aceOnly || ['ONIX', 'STARMIE'].includes(foeName)) // gym leaders switch formats mid-battle
-      const t = types[Math.floor(r() * types.length)] // a dual-type foe sends either format
-      const turnTypes = both ? types : [t]
-      const clean = cleanBytes(r, [t])
-      const data = FORMATS[t].encode(clean)
-      const ex = [42, 13, 140, 77]
-      const reader = policy.learn ? readers.get(t) : null
-      const memory = ''
-      const budget = budgetAt(level, policy) + (both ? (policy.gymBudgetBonus ?? 0) : 0)
-      const system = [`You are CHARMANDER, a level ${level} Pokémon. You fight by writing JavaScript.`, 'When your trainer calls a move, you write the code for it, then stop.',
-        'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.'].join('\n')
-      const know = ty => policy.dex && dex.has(ty) ? `Pokédex: ${ty} data reads like this: ${HINTS[ty]}` : (policy.learn && readers.get(ty)) ? `You remember how you read ${ty} data: ${readers.get(ty)}` : null
-      const formatLines = both
-        ? [`- data = the foe's bytes. ${foeName} switches formats, so your function must read both:`, ...types.map(ty => `  - ${ty} format: ${FORMATS[ty].note}. Example: ${show(example(ty))} is [${EXAMPLE_BYTES.join(', ')}].${know(ty) ? ' ' + know(ty) : ''}`),
-          ...(policy.gymTip ? [`- ${detectLine(types)}`] : [])]
-        : [`- data = the foe's bytes, this turn in ${t} format: ${FORMATS[t].note}. Example: ${show(example(t))} is [${EXAMPLE_BYTES.join(', ')}].`,
-          know(t) ? `- ${know(t)}` : '- First line of the function: const bytes = <read data into a list of numbers>']
-      const user = [`Foe: ${foeName} Lv${foeLevel} (${types.join('/')}). Your trainer says: use ${move.name}!`, `Write the function: function ${move.fn}(data)`, ...formatLines,
-        `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(ex)} it returns ${JSON.stringify(move.ref(ex, {}))}.`,
-        `- Byte budget: your whole code block must be at most ${budget} characters, comments included.`].join('\n')
-      const temperature = focusAt(level, policy)
-      let outcome
+      const t = turnType(r, types)
+      const bytes = targetBytes(r)
+      const data = turnData(bytes, t)
+      const stage = level >= 16 ? 1 : 0
+      const dex = policy.dex ? partyDex({ seen: [...seen], badges }) : []
+      const know = knowFor(t, { dex, readers: policy.learn ? readers : {} })
+      const budget = budgetAt(level, { stage, badges }, growth)
+      const { system, user } = turnPrompt({ self: { name: 'CHARMANDER', level }, target: { name: foeName, level: foeLevel, types }, move, type: t, know, budget })
+      let outcome, code
       try {
-        const text = await ask(cfg.model, system, user, temperature)
-        const { code, reason } = extractCode(text)
-        if (code === null) outcome = { hit: false, reason }
-        else if (code.length > budget) outcome = { hit: false, reason: 'over byte budget', code }
-        else {
-          outcome = { ...(await judge(move, code, data, clean)), code }
-          for (const ty of turnTypes) if (outcome.hit && ty !== t) outcome = { ...(await judge(move, code, FORMATS[ty].encode(clean), clean)), code }
-        }
+        const text = await ask(cfg.model, system, user, focusAt(level, growth))
+        const got = extractCode(text)
+        code = got.code
+        outcome = got.code === null ? { hit: false, reason: 'no code' } : await judge({ move, bytes, data, code, budget, runSource })
       } catch (e) { outcome = { hit: false, reason: 'api: ' + String(e.message).slice(0, 80) } }
-      // learning: a hit teaches (or refreshes) how it read this type; a miss with a remembered reader forgets it
-      if (policy.learn) {
-        const line = outcome.code?.match(/const\s+bytes\s*=\s*[^\n;]+/)?.[0]
-        // keep a reader only if it really reads this type (checked on this turn's data): no lucky habits
-        if (outcome.hit && line && !(policy.dex && dex.has(t)) && await readsRight(line, data, clean)) { readers.delete(t); readers.set(t, line) }
-        while (readers.size > slotsAt(level, policy)) readers.delete(readers.keys().next().value)
-      }
-      turns.push({ code: both ? outcome.code?.slice(0, 600) : undefined, segment, foe: foeName, type: t, both, level, move: move.name, temperature: +temperature.toFixed(2), budget, hit: outcome.hit, reason: outcome.reason ?? null, dex: dex.has(t), remembered: !!reader })
+      if (policy.learn && outcome.hit) readers = await learnFromHit({ readers, type: t, code, data, bytes, slots: slotsAt(level, { stage }, growth), dex, runSource })
+      turns.push({ segment, foe: foeName, type: t, level, move: move.name, temperature: +focusAt(level, growth).toFixed(2), budget, hit: outcome.hit, reason: outcome.reason ?? null, dex: know?.from === 'dex', remembered: know?.from === 'memory' })
       xp += foeLevel; while (xp >= level * 6 && level < 21) { xp -= level * 6; level++ }
     }
-    if ((caught || policy.dexSeen) && policy.dex) for (const ty of types) dex.add(ty) // dexSeen: seeing a species is enough (FireRed's 'seen')
+    if ((caught || policy.dexSeen) && policy.dex) for (const ty of types) seen.add(ty) // dexSeen: seeing a species is enough (FireRed's 'seen')
+    if (policy.badges && foeName === 'ONIX') badges.push('BOULDER')
+    if (policy.badges && foeName === 'STARMIE') badges.push('CASCADE')
   }
-  return { turns, finalLevel: level, readers: Object.fromEntries(readers) }
+  return { turns, finalLevel: level, readers, badges }
 }
 
 const results = { at: new Date().toISOString(), cfg, policies: {} }

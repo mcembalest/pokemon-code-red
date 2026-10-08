@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { isDeepStrictEqual } from 'node:util'
 import { gameModels, modelRef, openKernel } from '../../kernel/index.mjs'
 import { rng } from '../contracts.mjs'
-import { MOVES, byName } from './moves.mjs'
+import { MOVES, byName } from '../../rules/index.mjs'
 import { FOES, TYPES, cleanBytes, dirty } from './types.mjs'
 
 const cfg = import.meta.url === `file://${process.argv[1]}` ? JSON.parse(readFileSync(process.argv[2] ?? 'battle/exp.json', 'utf8')) : {}

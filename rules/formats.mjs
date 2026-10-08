@@ -1,4 +1,4 @@
-// "Type = data format": each foe type hands over its bytes in its own format (from notes/types.md concepts).
+// Type = data format (approved tentatively 2026-10-08): each foe type hands over its bytes in its own format.
 // encode(bytes) → what the Pokémon's code receives. decode is the reference parse (for tests).
 // note = what the Pokémon may be told; example = the same format with other numbers.
 
@@ -36,13 +36,7 @@ function shuffled(b) {
   const keys = b.map((_, i) => i)
   return [...keys.filter(i => i % 2 === 1).reverse(), ...keys.filter(i => i % 2 === 0)]
 }
-function shuffledObject(b) {
-  const keys = b.map((_, i) => i)
-  const order = [...keys.filter(i => i % 2 === 1).reverse(), ...keys.filter(i => i % 2 === 0)]
-  return Object.fromEntries(order.map(i => [String(i), b[i]]))
-}
-
-/** A Pokédex-style hint: one line of JavaScript that reads this type's data into a list of numbers. */
+/** The Pokédex reader per type: one line of JavaScript that reads this type's data into a list of numbers. */
 export const HINTS = {
   NORMAL: 'const bytes = data', FLYING: 'const bytes = JSON.parse(data)', WATER: "const bytes = data.split('\\n').map(Number)",
   GRASS: "const bytes = data.split(' ').map(s => Number(s.split('=')[1]))", ROCK: "const bytes = data.split(' ').map(h => parseInt(h, 16))",
@@ -53,4 +47,4 @@ export const HINTS = {
 
 export const EXAMPLE_BYTES = [42, 13, 140]
 export const example = type => FORMATS[type].encode(EXAMPLE_BYTES)
-export const show = v => (typeof v === 'string' ? JSON.stringify(v) : JSON.stringify(v))
+export const show = v => JSON.stringify(v)

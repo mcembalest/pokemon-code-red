@@ -3,7 +3,7 @@ name: models
 # Each experiment runs only when its config changes: probe.json, scaffold.json, kernel-exp.json, battle/exp.json.
 on:
   push:
-    paths: ['models/**', 'kernel/**', '.github/workflows/models.yml']
+    paths: ['models/**', 'kernel/**', 'rules/**', '.github/workflows/models.yml']
 permissions:
   contents: write
 jobs:
@@ -26,6 +26,8 @@ jobs:
       - name: Tests (sandbox scoring)
         working-directory: models
         run: npm ci && npm test
+      - name: Battle rules (shared by the game and the lab)
+        run: node --test rules/test/*.test.mjs
       - name: Probe
         id: probe
         working-directory: models

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { rng } from '../contracts.mjs'
-import { MOVES } from '../battle/moves.mjs'
+import { MOVES } from '../../rules/index.mjs'
 import { TYPES, FOES, cleanBytes, dirty, cleanup } from '../battle/types.mjs'
 
 test('every foe type: cleanup undoes its junk exactly', () => {

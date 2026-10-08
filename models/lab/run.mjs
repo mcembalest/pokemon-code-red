@@ -5,9 +5,9 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { isDeepStrictEqual } from 'node:util'
 import { extractCode, gameModels, modelRef, renderDeclarations, runBlock } from '../../kernel/index.mjs'
 import { rng } from '../contracts.mjs'
-import { MOVES, byName } from '../battle/moves.mjs'
+import { MOVES, byName } from '../../rules/index.mjs'
 import { FOES, TYPES, cleanBytes, dirty } from '../battle/types.mjs'
-import { EXAMPLE_BYTES, FORMATS, example, show } from './formats.mjs'
+import { EXAMPLE_BYTES, FORMATS, example, show } from '../../rules/index.mjs'
 import { VARIANTS } from './variants.mjs'
 
 const cfg = JSON.parse(readFileSync(process.argv[2] ?? 'lab/run.json', 'utf8'))

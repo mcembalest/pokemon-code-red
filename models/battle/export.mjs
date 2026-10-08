@@ -1,7 +1,7 @@
 // Write notes/moves.md and a JSON for the design page from moves.mjs + types.mjs.
 //   node battle/export.mjs ../notes/moves.md /path/page-data.json
 import { writeFileSync } from 'node:fs'
-import { MOVES } from './moves.mjs'
+import { MOVES } from '../../rules/index.mjs'
 import { TYPES, FOES } from './types.mjs'
 
 const [md, json] = process.argv.slice(2)

@@ -1,5 +1,5 @@
 {
-  "note": "Journey 10 (final, current formats): recommended rules vs no gym walls vs gym aces without the tip. 12 journeys.",
+  "note": "Journey 11: first run on the shared rules module (rules/), with the Oct 8 decisions: no format-switching aces, badges teach. 12 journeys.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "journeys": 12,
   "defaults": {
@@ -14,24 +14,13 @@
     "evolutionSlots": 3
   },
   "policies": {
-    "ace walls + tip": {
+    "decided (badges teach)": {
       "learn": true,
       "dex": true,
       "dexSeen": true,
-      "gymBoth": true,
-      "aceOnly": true,
-      "gymBudgetBonus": 150,
-      "gymTip": true
+      "badges": true
     },
-    "ace walls": {
-      "learn": true,
-      "dex": true,
-      "dexSeen": true,
-      "gymBoth": true,
-      "aceOnly": true,
-      "gymBudgetBonus": 150
-    },
-    "no walls": {
+    "no badges": {
       "learn": true,
       "dex": true,
       "dexSeen": true

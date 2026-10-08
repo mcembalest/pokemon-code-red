@@ -1,14 +1,10 @@
-// Code Red moves before Misty (draft 2026-10-07). One source of truth for names, specs and answers.
+// Code Red moves before Misty. One source of truth for names, specs and answers (owner-approved names, 2026-10-07).
 // FireRed keeps each move's type, power, accuracy, effect and animation; the name and the code change.
-// Owner rules: plain technical words that sound cool; a FireRed name that is already a real tech word stays.
-//
-// The battle rule: clean the foe's bytes the way its types demand → compute what the move asks for →
-// strike once with the answer (`await tools.<fn>({ key })`), within the byte budget.
-// `ref(b, foe)` = the right answer. b = the foe's bytes after cleanup; foe = what scan() returned.
-// Indexes count from 0. No answer is null (Workers AI drops `null` tokens from some models' streams). Ties → the first one. "Rounded down" = Math.floor.
-import { readFileSync } from 'node:fs'
-
-const FR = JSON.parse(readFileSync(new URL('./firered-moves.json', import.meta.url), 'utf8'))
+// The rule (approved tentatively 2026-10-08): the Pokémon writes `function <fn>(data)`; the game runs it on the
+// foe's real bytes (in the foe type's format, rules/formats.mjs); the right answer hits.
+// `ref(b)` = the right answer, from the foe's bytes as a plain list. Indexes count from 0.
+// No answer is null (Workers AI drops `null` tokens from some models' streams). Ties → the first one. "Rounded down" = Math.floor.
+import { FIRERED } from './firered.mjs'
 
 const sum = b => b.reduce((a, x) => a + x, 0)
 const max = b => Math.max(...b)
@@ -147,13 +143,19 @@ export const STARTER_MOVES = new Set(['Scratch', 'Growl', 'Ember', 'Metal Claw',
 
 /** What kind of answer the key is, shown to the Pokémon next to the spec. */
 const shapeOf = ref => {
-  const v = ref([12, 40, 7, 33, 190], { name: 'RATTATA', level: 3, types: ['NORMAL'], status: 'none', bytes: [12, 40, 7, 33, 190] })
+  const v = ref([12, 40, 7, 33, 190])
   return v === undefined ? 'no key' : v === null ? 'null' : Array.isArray(v) ? 'a list' : typeof v === 'string' ? 'text' : 'a number'
 }
 
 export const MOVES = TABLE.map(([firered, name, spec, ref]) => {
-  const [type, power, acc, effect] = FR[firered]
+  const [type, power, acc, effect] = FIRERED[firered]
   return { firered, name, fn: fnName(name), spec, shape: shapeOf(ref), ref, type, power, acc, effect, starter: STARTER_MOVES.has(firered), kept: name === firered.toUpperCase() }
 })
 
 export const byName = Object.fromEntries(MOVES.map(m => [m.name, m]))
+
+/** The ROM's move names are upper case and short (DOUBLESLAP, SAND-ATTACK): match them on letters and digits only. */
+const romKey = s => s.toUpperCase().replace(/[^A-Z0-9]/g, '')
+const BY_ROM = Object.fromEntries(MOVES.map(m => [romKey(m.firered), m]))
+/** A move by its FireRed name as the ROM spells it ('SCRATCH', 'SAND-ATTACK'); undefined if Code Red has no code for it yet. */
+export const byFireRed = name => BY_ROM[romKey(name)]
