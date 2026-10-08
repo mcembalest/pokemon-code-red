@@ -49,3 +49,6 @@ jobs:
           print(f"::{'notice' if ok else 'error'} title=seed ${{ matrix.seed }}::{msg}")
           PY
           exit $status
+      - name: Code moves (both sides; no host / hit / miss / mixed)
+        if: matrix.seed == 0
+        run: python3 sim/experiments/code_moves.py --starter BULBASAUR | python3 -c "import json,sys; r=json.load(sys.stdin); print(json.dumps(r['checks'], indent=1)); sys.exit(0 if all(r['checks'].values()) else 1)"

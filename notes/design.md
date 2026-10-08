@@ -182,3 +182,12 @@ Target: agents run in the browser (local models); Worker = accounts, progress, r
 6. memory: each Pokémon keeps its own readers; the Pokédex is shared by the party
 - gyms: "badges teach" (Boulder Badge = ROCK + GROUND readers for the party; Cascade Badge = +50 bytes) + "gym trainers teach"; no format-switching aces for now
 - defaults from the briefing (until told otherwise): daily cap 1.5M tokens/player; code replayed at a readable pace for the first battles; foe code streams before its move; first battle = tutorial (plain list); I draft Oak's lines + type descriptions
+
+## Code moves in the ROM (2026-10-08, patches/006-code-moves.patch)
+- replaces byte battles v1 (damage from script output); damage is plain FireRed again
+- when a Pokémon gets to use a move (after sleep/paralysis/confusion/protect checks), the game asks the host and waits (≤30 s); both sides; mailbox `gCodeRedMove` (48 B)
+- host replies hit / miss (+ why) / vanilla; no host, timeout or reload = plain FireRed
+- a miss: "<name> used <move>!" → "CHARMANDER's code crashed!" (or got it wrong / was too long / didn't write any code); PP still spent
+- my call, flag to owner: a hit still rolls FireRed accuracy, so SANDBOX / accuracy and evasion stages keep working
+- not asked: STRUGGLE, locked-in turns of multi-turn moves (Thrash, Fly's 2nd turn), link and Pokédude battles
+- checked in the simulator: `sim/experiments/code_moves.py` (rival battle under no host / all hit / all miss / mixed; CI seed 0)

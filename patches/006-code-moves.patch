@@ -1,0 +1,265 @@
+Code Red: code moves (the battle rule, approved tentatively 2026-10-08). When a Pokémon
+gets to use a move, the host has it write the move's code and runs it on the target's
+bytes: hit = FireRed carries on as usual (accuracy roll included); miss = the move fails
+and the text box says why (crashed / wrong / too long / no code). Both sides.
+Host-optional: no host, no reply in time, or a cancelled request = plain FireRed.
+Replaces byte battles v1 (damage from script output); damage is FireRed's again.
+diff --git a/data/battle_scripts_1.s b/data/battle_scripts_1.s
+index 8aa0a100..b118acf2 100644
+--- a/data/battle_scripts_1.s
++++ b/data/battle_scripts_1.s
+@@ -271,6 +271,15 @@ BattleScript_MoveEnd::
+ 	moveendall
+ 	end
+ 
++@ Code Red: the Pokémon's code missed (crashed, wrong answer, too long, no code); the move fails.
++BattleScript_CodeRedMoveMissed::
++	attackstring
++	ppreduce
++	pause B_WAIT_TIME_SHORT
++	printfromtable gCodeRedMissStringIds
++	waitmessage B_WAIT_TIME_LONG
++	goto BattleScript_MoveEnd
++
+ BattleScript_MakeMoveMissed::
+ 	orbyte gMoveResultFlags, MOVE_RESULT_MISSED
+ BattleScript_PrintMoveMissed::
+diff --git a/include/battle_scripts.h b/include/battle_scripts.h
+index ed2af35f..56d27f77 100644
+--- a/include/battle_scripts.h
++++ b/include/battle_scripts.h
+@@ -5,6 +5,7 @@
+ 
+ extern const u8 BattleScript_HitFromCritCalc[];
+ extern const u8 BattleScript_MoveEnd[];
++extern const u8 BattleScript_CodeRedMoveMissed[];
+ extern const u8 BattleScript_MakeMoveMissed[];
+ extern const u8 BattleScript_PrintMoveMissed[];
+ extern const u8 BattleScript_MoveMissedPause[];
+diff --git a/include/constants/battle_string_ids.h b/include/constants/battle_string_ids.h
+index 24cc01ca..1b4052dc 100644
+--- a/include/constants/battle_string_ids.h
++++ b/include/constants/battle_string_ids.h
+@@ -384,8 +384,12 @@
+ #define STRINGID_TRAINER1WINTEXT 383
+ #define STRINGID_TRAINER1MON2COMEBACK 384
+ #define STRINGID_TRAINER1MON1AND2COMEBACK 385
++#define STRINGID_CODEREDCRASHED 386
++#define STRINGID_CODEREDWRONG 387
++#define STRINGID_CODEREDTOOLONG 388
++#define STRINGID_CODEREDNOCODE 389
+ 
+-#define BATTLESTRINGS_COUNT     386
++#define BATTLESTRINGS_COUNT     390
+ 
+ // This is the string id that gBattleStringsTable starts with.
+ // String ids before this (e.g. STRINGID_INTROMSG) are not in the table,
+diff --git a/src/battle_message.c b/src/battle_message.c
+index a6392be9..acc5c58b 100644
+--- a/src/battle_message.c
++++ b/src/battle_message.c
+@@ -63,6 +63,10 @@ static const u8 sText_StopLearningMove[] = _("{PAUSE 32}Stop learning\n{B_BUFF2}
+ static const u8 sText_DidNotLearnMove[] = _("{B_BUFF1} did not learn\n{B_BUFF2}.\p");
+ static const u8 sText_UseNextPkmn[] = _("Use next POKéMON?");
+ static const u8 sText_AttackMissed[] = _("{B_ATK_NAME_WITH_PREFIX}'s\nattack missed!");
++static const u8 sText_CodeRedCrashed[] = _("{B_ATK_NAME_WITH_PREFIX}'s\ncode crashed!");
++static const u8 sText_CodeRedWrong[] = _("{B_ATK_NAME_WITH_PREFIX}'s\ncode got it wrong!");
++static const u8 sText_CodeRedTooLong[] = _("{B_ATK_NAME_WITH_PREFIX}'s\ncode was too long!");
++static const u8 sText_CodeRedNoCode[] = _("{B_ATK_NAME_WITH_PREFIX}\ndidn't write any code!");
+ static const u8 sText_PkmnProtectedItself[] = _("{B_DEF_NAME_WITH_PREFIX}\nprotected itself!");
+ static const u8 sText_AvoidedDamage[] = _("{B_DEF_NAME_WITH_PREFIX} avoided\ndamage with {B_DEF_ABILITY}!");
+ static const u8 sText_PkmnMakesGroundMiss[] = _("{B_DEF_NAME_WITH_PREFIX} makes GROUND\nmoves miss with {B_DEF_ABILITY}!");
+@@ -888,7 +892,11 @@ const u8 *const gBattleStringsTable[BATTLESTRINGS_COUNT - BATTLESTRINGS_TABLE_ST
+     [STRINGID_TRAINER1MON1COMEBACK - BATTLESTRINGS_TABLE_START]          = sText_Trainer1RecallPkmn1,
+     [STRINGID_TRAINER1WINTEXT - BATTLESTRINGS_TABLE_START]               = sText_Trainer1WinText,
+     [STRINGID_TRAINER1MON2COMEBACK - BATTLESTRINGS_TABLE_START]          = sText_Trainer1RecallPkmn2,
+-    [STRINGID_TRAINER1MON1AND2COMEBACK - BATTLESTRINGS_TABLE_START]      = sText_Trainer1RecallBoth
++    [STRINGID_TRAINER1MON1AND2COMEBACK - BATTLESTRINGS_TABLE_START]      = sText_Trainer1RecallBoth,
++    [STRINGID_CODEREDCRASHED - BATTLESTRINGS_TABLE_START]                = sText_CodeRedCrashed,
++    [STRINGID_CODEREDWRONG - BATTLESTRINGS_TABLE_START]                  = sText_CodeRedWrong,
++    [STRINGID_CODEREDTOOLONG - BATTLESTRINGS_TABLE_START]                = sText_CodeRedTooLong,
++    [STRINGID_CODEREDNOCODE - BATTLESTRINGS_TABLE_START]                 = sText_CodeRedNoCode,
+ };
+ 
+ const u16 gMissStringIds[] =
+diff --git a/src/battle_script_commands.c b/src/battle_script_commands.c
+index 67f90a37..7dc3d52f 100644
+--- a/src/battle_script_commands.c
++++ b/src/battle_script_commands.c
+@@ -37,6 +37,10 @@
+ #include "constants/pokemon.h"
+ #include "constants/maps.h"
+ 
++bool8 CodeRedMovePending(void);
++bool8 CodeRedMoveAsk(void);
++void CodeRedMoveContinue(void);
++
+ extern const u8 *const gBattleScriptsForMoveEffects[];
+ 
+ #define DEFENDER_IS_PROTECTED ((gProtectStructs[gBattlerTarget].protected) && (gBattleMoves[gCurrentMove].flags & FLAG_PROTECT_AFFECTED))
+@@ -820,6 +824,11 @@ static void Cmd_attackcanceler(void)
+ {
+     s32 i;
+ 
++    if (CodeRedMovePending())
++    {
++        CodeRedMoveContinue(); // Code Red: the Pokémon is still writing its code
++        return;
++    }
+     if (gBattleOutcome != 0)
+     {
+         gCurrentActionFuncId = B_ACTION_FINISHED;
+@@ -904,7 +913,7 @@ static void Cmd_attackcanceler(void)
+         gBattleCommunication[MISS_TYPE] = B_MSG_PROTECTED;
+         gBattlescriptCurrInstr++;
+     }
+-    else
++    else if (!CodeRedMoveAsk()) // Code Red: TRUE = asked the host; CodeRedMoveContinue finishes the command
+     {
+         gBattlescriptCurrInstr++;
+     }
+diff --git a/src/code_red_battle.c b/src/code_red_battle.c
+new file mode 100644
+index 00000000..f196530b
+--- /dev/null
++++ b/src/code_red_battle.c
+@@ -0,0 +1,139 @@
++#include "global.h"
++#include "battle.h"
++#include "battle_scripts.h"
++#include "battle_anim.h"
++#include "battle_main.h"
++#include "battle_util.h"
++#include "pokemon.h"
++#include "constants/battle.h"
++#include "constants/battle_string_ids.h"
++#include "constants/moves.h"
++
++// Code moves (Code Red battle rule): when a Pokémon gets to use a move, the host
++// (browser) has it write the move's code, runs the code on the target's bytes and
++// replies hit, miss or vanilla. A miss fails the move completely and the text box
++// says why; a hit (or vanilla) lets FireRed carry on as usual, accuracy roll
++// included. Both sides. Host-optional: with no host (enabled == 0), no reply in
++// time, or a cancelled request, the move is plain FireRed. Fixed 48-byte transport.
++struct CodeRedMove {
++    u32 magic;               // 'CRM1'
++    u16 version;             // 1
++    u8 state;                // 0 idle, 1 pending, 2 reply, 4 cancelled
++    u8 enabled;              // set by the host
++    u32 requestId;
++    u32 epoch;               // stamped by the host
++    u16 move;
++    u8 attackerSide;         // 0 player, 1 opponent
++    u8 attackerLevel;
++    u16 attackerSpecies;
++    u16 targetSpecies;
++    u32 attackerPersonality; // which Pokémon is writing (its memory lives with it)
++    u32 targetPersonality;
++    u8 targetLevel;
++    u8 targetType1;          // battle types: the target's data formats
++    u8 targetType2;
++    u8 verdict;              // host: 0 vanilla, 1 hit, 2 miss
++    u32 battleTypeFlags;
++    u16 trainerId;           // opponent trainer (0 = wild)
++    u8 reason;               // host, on a miss: CODE_RED_MISS_*
++    u8 unused;
++    u16 waited;              // frames waited for this request
++    u16 unused2;
++};
++STATIC_ASSERT(sizeof(struct CodeRedMove) == 48, CodeRedMoveSize);
++EWRAM_DATA volatile struct CodeRedMove gCodeRedMove = {0};
++static EWRAM_DATA u32 sMoveRequestId = 0;
++static EWRAM_DATA bool8 sAsked = FALSE;
++
++#define CRM_MAGIC 0x314D5243
++#define CRM_WAIT_FRAMES 1800 // ~30 s: model + network + one retry
++
++enum { CODE_RED_VANILLA, CODE_RED_HIT, CODE_RED_MISS };
++
++// Text box after a miss (gBattleCommunication[MULTISTRING_CHOOSER] = reason).
++const u16 gCodeRedMissStringIds[] =
++{
++    STRINGID_CODEREDCRASHED,  // 0 the code threw (or never returned)
++    STRINGID_CODEREDWRONG,    // 1 wrong answer
++    STRINGID_CODEREDTOOLONG,  // 2 over the byte budget
++    STRINGID_CODEREDNOCODE,   // 3 no code block
++};
++
++static bool8 HostReady(void)
++{
++    volatile struct CodeRedMove *m = &gCodeRedMove;
++    return m->magic == CRM_MAGIC && m->version == 1 && m->enabled
++        && !(gBattleTypeFlags & (BATTLE_TYPE_LINK | BATTLE_TYPE_POKEDUDE));
++}
++
++// TRUE while Cmd_attackcanceler is waiting on the host: it must resume here, not rerun its checks.
++bool8 CodeRedMovePending(void)
++{
++    return sAsked;
++}
++
++// Called where Cmd_attackcanceler lets the move go ahead. TRUE = a request is out
++// (the command repeats next frame and CodeRedMoveContinue finishes it).
++bool8 CodeRedMoveAsk(void)
++{
++    volatile struct CodeRedMove *m = &gCodeRedMove;
++    struct BattlePokemon *a = &gBattleMons[gBattlerAttacker], *t = &gBattleMons[gBattlerTarget];
++
++    if (!HostReady() || gCurrentMove == MOVE_STRUGGLE || (a->status2 & STATUS2_MULTIPLETURNS))
++        return FALSE; // no host, or a locked-in turn of a move already coded
++    m->requestId = ++sMoveRequestId;
++    m->epoch = 0;
++    m->move = gCurrentMove;
++    m->attackerSide = GET_BATTLER_SIDE(gBattlerAttacker);
++    m->attackerLevel = a->level;
++    m->attackerSpecies = a->species;
++    m->targetSpecies = t->species;
++    m->attackerPersonality = a->personality;
++    m->targetPersonality = t->personality;
++    m->targetLevel = t->level;
++    m->targetType1 = t->type1;
++    m->targetType2 = t->type2;
++    m->battleTypeFlags = gBattleTypeFlags;
++    m->trainerId = (gBattleTypeFlags & BATTLE_TYPE_TRAINER) ? gTrainerBattleOpponent_A : 0;
++    m->verdict = CODE_RED_VANILLA;
++    m->reason = 0;
++    m->waited = 0;
++    m->state = 1; // publish last
++    sAsked = TRUE;
++    return TRUE;
++}
++
++// Finish Cmd_attackcanceler once the host has answered (or given up).
++void CodeRedMoveContinue(void)
++{
++    volatile struct CodeRedMove *m = &gCodeRedMove;
++    u8 verdict = CODE_RED_VANILLA;
++
++    switch (m->state)
++    {
++    case 1:
++        if (m->enabled && ++m->waited < CRM_WAIT_FRAMES)
++            return; // still writing
++        break;      // host gone or too slow: plain FireRed
++    case 2:
++        verdict = m->verdict;
++        break;
++    default:        // cancelled (state load / reset on the host side) or idle
++        break;
++    }
++    m->state = 0;
++    sAsked = FALSE;
++    if (verdict == CODE_RED_MISS)
++    {
++        CancelMultiTurnMoves(gBattlerAttacker);
++        gMoveResultFlags |= MOVE_RESULT_MISSED;
++        gLastLandedMoves[gBattlerTarget] = 0;
++        gLastHitByType[gBattlerTarget] = 0;
++        gBattleCommunication[MULTISTRING_CHOOSER] = m->reason < ARRAY_COUNT(gCodeRedMissStringIds) ? m->reason : 0;
++        gBattlescriptCurrInstr = BattleScript_CodeRedMoveMissed;
++    }
++    else
++    {
++        gBattlescriptCurrInstr++;
++    }
++}
