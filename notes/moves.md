@@ -101,8 +101,8 @@ S = a starter learns it before Brock · K = FireRed name kept
 | FLUSH | Water Gun | 40/100 | hit | an empty list |  |
 | FILTER | Water Pulse | 60/100 | confuse hit | the numbers that are 50 or more (the ones under 50 dropped) |  |
 | BUFFER | Withdraw | –/– | defense up | the last 3 numbers | S |
-| DRIP | Bubble | 20/100 | speed down hit | the numbers at odd indexes (1, 3, 5…) | S |
-| THROTTLE | Water Sport | –/100 | water sport | the numbers up to, but not including, the first one over 100 (all of them if none is) |  |
+| DRIP | Bubble | 20/100 | speed down hit | every second number starting from the second one: the numbers at positions 1, 3, 5… counting from 0 | S |
+| THROTTLE | Water Sport | –/100 | water sport | the numbers that are 100 or less, in their order |  |
 
 ### Grass: grow and gather: repeat, group, every other, totals of parts
 
@@ -110,7 +110,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 |---|---|---|---|---|---|
 | CRAWL | Vine Whip | 35/100 | hit | the numbers at even indexes (0, 2, 4…) | S |
 | HIBERNATE | Sleep Powder | –/75 | sleep | the average number, rounded down |  |
-| STANDBY | Spore | –/100 | sleep | each number repeated twice, in order ([1, 2] → [1, 1, 2, 2]) |  |
+| STANDBY | Spore | –/100 | sleep | one flat list where each number appears twice in a row ([1, 2] → [1, 1, 2, 2]; not a list of pairs) |  |
 | SHARDS | Razor Leaf | 55/95 | high critical | the numbers split into two halves, as a list of two lists (the first half is half the length, rounded down) |  |
 | SPINLOCK | Stun Spore | –/75 | paralyze | how many numbers are under 50 |  |
 | SCRAPE | Absorb | 20/100 | absorb | half the sum, rounded down |  |
