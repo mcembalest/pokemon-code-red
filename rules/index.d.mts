@@ -65,3 +65,6 @@ export function readsRight(run: RunResult, bytes: number[]): boolean
 export function learn(readers: Readers, type: TypeName, line: string, slots: number): Readers
 export function learnFromHit(args: { readers: Readers; type: TypeName; code: string | null; data: unknown; bytes: number[]; slots: number; dex?: string[]; runSource: RunSource }): Promise<Readers>
 export function same(a: unknown, b: unknown): boolean
+export function extractCode(reply: string | null | undefined): { code: string | null; reason: string | null }
+export function formatOf(romType: string): TypeName
+export function stageOf(species: string): number

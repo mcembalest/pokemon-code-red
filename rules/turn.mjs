@@ -9,6 +9,13 @@ export const WORKED = [42, 13, 140, 77]
 
 // ---------- the target's bytes ----------
 
+/** A FireRed type (as the ROM names it) → its data format. Types with no format yet (ICE, GHOST, DRAGON, DARK,
+ *  the ??? type) send a plain list for now. */
+export const formatOf = romType => {
+  const t = String(romType).trim().toUpperCase()
+  return Object.hasOwn(FORMATS, t) ? t : 'NORMAL'
+}
+
 /** Small deterministic PRNG (xorshift32), same as models/contracts.mjs. */
 export function rng(seed) {
   let s = (Math.imul((seed >>> 0) ^ 0x9e3779b9, 2654435761) >>> 0) || 1
@@ -70,6 +77,21 @@ export function turnPrompt({ self, target, move, type, know = null, budget, tuto
 export const turnData = (bytes, type, tutorial = false) => (tutorial ? [...bytes] : FORMATS[type].encode(bytes))
 
 // ---------- judging ----------
+
+/**
+ * Pull the code out of a plain-text reply. Lenient on purpose (the code is what's judged):
+ * - a fenced block → its body; text outside a fence → no code ("prose")
+ * - no fence at all → the whole reply is the code (prose then fails to run)
+ */
+export function extractCode(reply) {
+  const text = String(reply ?? '').trim()
+  const fences = text.match(/```/g)?.length ?? 0
+  if (fences === 0) return text ? { code: text, reason: null } : { code: null, reason: 'empty reply' }
+  const m = text.match(/^```(?:javascript|js)?[ \t]*\n([\s\S]*?)\n?```$/)
+  if (!m) return { code: null, reason: fences > 2 ? 'more than one code block' : 'prose outside the code block' }
+  if (m[1].includes('```')) return { code: null, reason: 'more than one code block' }
+  return { code: m[1], reason: null }
+}
 
 // The function the Pokémon defined for this move: its exact name, or the same name in another case (copyPaste, COPYPASTE).
 const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '')

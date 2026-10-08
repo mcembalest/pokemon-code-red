@@ -17,6 +17,7 @@ setup: deps
 	python3 scripts/setup_browser.py
 deps:
 	cd runner && npm ci
+	cd kernel && npm ci
 	cd player && npm ci
 browser-setup:
 	python3 scripts/setup_browser.py

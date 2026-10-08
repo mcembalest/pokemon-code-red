@@ -1,6 +1,7 @@
 // First agent moment: while Oak asks "So! You want ___?" in the lab, show the
-// starter as a coding agent: its persona and the scripts it knows (its moves).
-import { STARTERS, scriptFor } from './moves.ts'
+// starter as a coding agent: its persona and the moves it knows, as the code each one asks for.
+import { byFireRed } from '../../../rules/index.mjs'
+import { STARTERS } from './moves.ts'
 
 export interface LabMemory { u8(a: number): number; u16(a: number): number; u32(a: number): number }
 
@@ -28,16 +29,15 @@ export function offeredStarter(mem: LabMemory, sym: { gTasks: number; monPicTask
 export function starterCardHtml(species: number): string {
   const s = STARTERS[species]!
   const esc = (t: string) => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!))
-  const scripts = s.moves.map(m => {
-    const sc = scriptFor(m, m !== 'GROWL' && m !== 'TAIL WHIP')
-    const comment = sc.source.split('\n').find(l => l.startsWith('//'))?.replace(/^\/\/\s*/, '') ?? ''
-    return `<li><b>▶ ${esc(sc.file)}</b> <span>${esc(m)}</span><small>${esc(comment)}</small></li>`
+  const moves = s.moves.map(m => {
+    const move = byFireRed(m)
+    return move ? `<li><b>▶ ${esc(move.name)}</b> <span>${esc(`function ${move.fn}(data)`)}</span><small>returns ${esc(move.spec)}</small></li>` : ''
   }).join('')
   return `<div class="code-red-card-head">${esc(s.name)} <span>coding agent</span></div>
 <p>${esc(s.persona)}</p>
-<p class="code-red-card-sub">Knows ${s.moves.length} of 4 scripts:</p>
-<ul>${scripts}</ul>
-<p class="code-red-card-sub">HP = byte budget. A script's output lands in the foe's context; every byte it absorbs costs it HP.</p>`
+<p class="code-red-card-sub">Knows ${s.moves.length} moves:</p>
+<ul>${moves}</ul>
+<p class="code-red-card-sub">Call a move and ${esc(s.name)} writes it in JavaScript. The game runs it on the foe's data: the right answer hits.</p>`
 }
 
 export function createStarterCard(host: HTMLElement, read: () => number | null, onShow: (species: number) => void = () => {}) {

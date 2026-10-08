@@ -33,3 +33,13 @@ export function partyDex({ seen = [], badges = [] } = {}) {
   for (const b of badges) for (const t of BADGES[b]?.readers ?? []) out.add(t)
   return [...out]
 }
+
+/** Evolutions so far, by species (FireRed names). Unlisted species count as 0 (first stage, or no evolution). */
+const STAGE_1 = ['IVYSAUR', 'CHARMELEON', 'WARTORTLE', 'METAPOD', 'KAKUNA', 'PIDGEOTTO', 'RATICATE', 'FEAROW', 'ARBOK', 'RAICHU',
+  'SANDSLASH', 'NIDORINA', 'NIDORINO', 'CLEFABLE', 'NINETALES', 'WIGGLYTUFF', 'GOLBAT', 'GLOOM', 'PARASECT', 'VENOMOTH', 'DUGTRIO',
+  'PERSIAN', 'GOLDUCK', 'PRIMEAPE', 'ARCANINE', 'POLIWHIRL', 'KADABRA', 'MACHOKE', 'WEEPINBELL', 'TENTACRUEL', 'GRAVELER', 'RAPIDASH',
+  'SLOWBRO', 'MAGNETON', 'DODRIO', 'DEWGONG', 'MUK', 'CLOYSTER', 'HAUNTER', 'HYPNO', 'KINGLER', 'ELECTRODE', 'EXEGGUTOR', 'MAROWAK',
+  'WEEZING', 'RHYDON', 'SEADRA', 'SEAKING', 'STARMIE', 'GYARADOS', 'VAPOREON', 'JOLTEON', 'FLAREON', 'OMASTAR', 'KABUTOPS', 'DRAGONAIR']
+const STAGE_2 = ['VENUSAUR', 'CHARIZARD', 'BLASTOISE', 'BUTTERFREE', 'BEEDRILL', 'PIDGEOT', 'NIDOQUEEN', 'NIDOKING', 'VILEPLUME',
+  'POLIWRATH', 'ALAKAZAM', 'MACHAMP', 'VICTREEBEL', 'GOLEM', 'GENGAR', 'DRAGONITE']
+export const stageOf = species => (STAGE_2.includes(species) ? 2 : STAGE_1.includes(species) ? 1 : 0)

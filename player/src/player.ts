@@ -22,8 +22,9 @@ import { CloudBrain, MockBrain, ReplayBrain } from './agents/brains.ts'
 import type { DecisionRecord } from './agents/agent.ts'
 import { BattleReader, greedyPolicy, type BattleMon } from './agents/battle.ts'
 import { BattleAutopilot, createThinkingBox, type Pad } from './agents/autopilot.ts'
-import { ByteBattle, type ScriptRunner } from './agents/byte-battle.ts'
-import { ByteMailbox } from './bridge/battle-bytes.ts'
+import { CodeBattle, localCodeMemory, mockWriter, type CodeWriter, type Sandbox } from './agents/code-battle.ts'
+import { createCodePanel } from './agents/code-panel.ts'
+import { CodeMoveMailbox } from './bridge/code-move.ts'
 import { createStarterCard, offeredStarter } from './agents/starter-card.ts'
 
 /** Written by the build next to the copy patch (scripts/bundle.py). */
@@ -66,8 +67,11 @@ const TEMPLATE = `
   <p class="code-red-status" data-status role="status" aria-live="polite">Loading…</p>
   <p class="code-red-error" data-error role="alert" hidden></p>
   <p class="code-red-muted code-red-help"><span data-who hidden></span>PC → Code opens a JavaScript scratchpad. Type names on naming screens. Tap 10× to speed up (or hold Space on a keyboard). Your in-game save is kept in this browser and survives updates.</p>
-  <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>
+  <div class="code-red-stage" data-stage>
+    <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>
+  </div>
   <div class="code-red-toolbar" data-toolbar hidden>
+    <button class="code-red-speed" data-code type="button" aria-pressed="true" hidden>Code</button>
     <button class="code-red-speed" data-agent type="button" aria-pressed="false" hidden>Agent</button>
     <button class="code-red-speed" data-speed type="button" aria-pressed="false">10×</button>
   </div>`
@@ -85,6 +89,9 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   const game = root.querySelector<HTMLElement>('[data-game]')!
   const toolbar = root.querySelector<HTMLElement>('[data-toolbar]')!
   const speedButton = root.querySelector<HTMLButtonElement>('[data-speed]')!
+  const codeButton = root.querySelector<HTMLButtonElement>('[data-code]')!
+  const stage = root.querySelector<HTMLElement>('[data-stage]')!
+  let fastForward = false
   const joinForm = root.querySelector<HTMLFormElement>('[data-join]')!
   const who = root.querySelector<HTMLElement>('[data-who]')!
   const api = options.api === false ? null : options.api || DEFAULT_API
@@ -199,7 +206,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   }
 
   /** Prototype: lead Pokémon picks its own battle moves (agents/autopilot.ts). Off unless ?agents= is set. */
-  function startAgents(gm: GameManager, memory: GbaMemory, rom: RomInfo, runner: ScriptRunner) {
+  function startAgents(gm: GameManager, memory: GbaMemory, rom: RomInfo, runner: Sandbox) {
     if (!agentsMode || !romBytes || !BattleReader.supported(rom.symbols)) return
     const ejs = emulator.EJS_emulator!
     const reader = new BattleReader(memory, romBytes, rom.symbols)
@@ -220,27 +227,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       play: () => { if (!consoleActive) ejs.play(true) },
     }
     const box = createThinkingBox(game)
-    // Byte battles: damaging moves run their script; output bytes = damage (patches/006).
-    let bytes: ByteBattle | null = null
-    const byteSym = rom.symbols.gCodeRedBattleBytes
-    if (byteSym) {
-      bytes = new ByteBattle(new ByteMailbox(memory, byteSym.address), runner, reader, hit => {
-        box.hit(hit)
-        // Type match-ups, STAB, crits and the random roll scale what lands: watch the target's HP.
-        const target = hit.side === 0 ? 1 : 0, started = Date.now()
-        const watch = setInterval(() => {
-          let hp: number
-          try { hp = reader.mon(target).hp } catch { clearInterval(watch); return }
-          if (hp !== hit.targetHpBefore || Date.now() - started > 5000) {
-            clearInterval(watch)
-            if (hp < hit.targetHpBefore && !hit.error) box.absorbed(hit.bytes, hit.targetHpBefore - hp, hit.target)
-          }
-        }, 50)
-        backend?.track('byte_hit', { attacker: hit.attacker, target: hit.target, move: hit.move, bytes: hit.bytes, ...(hit.error ? { error: hit.error } : {}) })
-      })
-      const poll = setInterval(() => { if (memory.ready()) void bytes!.poll() }, 16)
-      disposers.push(() => clearInterval(poll))
-    }
+    startCodeMoves(gm, memory, rom, runner, reader)
     // First agent moment: the starter card in Oak's lab.
     const tasks = rom.symbols.gTasks, monPic = rom.symbols['script_menu.Task_ScriptShowMonPic']
     if (tasks && monPic) {
@@ -249,7 +236,6 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       disposers.push(() => card.dispose())
     }
     const pilot = new BattleAutopilot(reader, agent, box, pad, {
-      incoming: () => { const h = bytes?.lastHit[0]; return h ? `${JSON.stringify(h.output.slice(0, 80))} (${h.bytes} bytes, from ${h.target === h.attacker ? 'yourself' : h.attacker}'s ${h.file})` : null },
       onDecision: r => {
         agentRecords.push(r)
         backend?.track('agent_decision', { brain: r.brain, key: r.key, observation: r.observation, action: r.decision.action, args: r.decision.args, thought: r.decision.thought, ms: r.ms, ...(r.fallback ? { fallback: r.fallback } : {}) })
@@ -272,6 +258,47 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       agentButton.classList.toggle('code-red-speed-on', pilot.enabled)
     }
     disposers.push(() => { stop(); clearInterval(refresh); box.element.remove(); agentButton.hidden = true; agentButton.onclick = agentButton.onpointerdown = null })
+  }
+
+  /** Code moves (patches/006-code-moves.patch): both sides write each move; the code panel streams it. */
+  function startCodeMoves(gm: GameManager, memory: GbaMemory, rom: RomInfo, runner: Sandbox, reader: BattleReader) {
+    const sym = rom.symbols.gCodeRedMove
+    if (!sym) return // older ROM build
+    const panel = createCodePanel(stage, { fast: () => fastForward })
+    const hidden = (() => { try { return localStorage.getItem('code-red-code-panel') === 'hidden' } catch { return false } })()
+    panel.setVisible(!hidden)
+    codeButton.hidden = false
+    codeButton.setAttribute('aria-pressed', String(panel.visible))
+    codeButton.classList.toggle('code-red-speed-on', panel.visible)
+    codeButton.onpointerdown = event => event.preventDefault()
+    codeButton.onclick = () => {
+      panel.setVisible(!panel.visible)
+      codeButton.setAttribute('aria-pressed', String(panel.visible))
+      codeButton.classList.toggle('code-red-speed-on', panel.visible)
+      try { localStorage.setItem('code-red-code-panel', panel.visible ? 'shown' : 'hidden') } catch { /* private mode */ }
+    }
+    const writer: CodeWriter = agentsMode === 'cloud' && backend && api ? cloudWriter(assets, api, () => backend.session?.token ?? '') : mockWriter()
+    const s = rom.symbols
+    const badgeNames = ['BOULDER', 'CASCADE', 'THUNDER', 'RAINBOW', 'SOUL', 'MARSH', 'VOLCANO', 'EARTH']
+    const badges = () => {
+      const snap = s.gSaveBlock1Ptr && s.gSaveBlock2Ptr && s.gPlayerParty && s.gPlayerPartyCount && memory.ready()
+        ? readSnapshot(memory, { saveBlock1Ptr: s.gSaveBlock1Ptr.address, saveBlock2Ptr: s.gSaveBlock2Ptr.address, partyCount: s.gPlayerPartyCount.address, party: s.gPlayerParty.address }) : null
+      return snap ? badgeNames.filter((_, i) => snap.badges >> i & 1) : []
+    }
+    const battle = new CodeBattle(new CodeMoveMailbox(memory, sym.address), reader, writer, runner, panel, localCodeMemory(safeStorage()), {
+      badges,
+      onTurn: t => backend?.track('code_move', { ...t, code: t.code?.slice(0, 300) }),
+    })
+    let inBattle = false
+    const poll = setInterval(() => {
+      if (!memory.ready()) return
+      void battle.poll()
+      let now = false
+      try { now = reader.inBattle() } catch { /* memory not ready */ }
+      if (inBattle && !now) battle.battleOver()
+      inBattle = now
+    }, 16)
+    disposers.push(() => { clearInterval(poll); panel.dispose(); codeButton.hidden = true; codeButton.onclick = codeButton.onpointerdown = null })
   }
 
   async function romInfo(): Promise<RomInfo> {
@@ -330,6 +357,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       const lifecycle = bindGameLifecycle(gm, () => { if (consoleActive) { calc.cancel(true); keyboard.release() } })
       const naming = bindGameText(game, new NamingMailbox(memory, symbol('gCodeRedNamingMailbox')), epoch, () => keyboard.release(), () => consoleActive || menuOpen())
       const speed = createSpeed(gm.functions, (on, toggled) => {
+        fastForward = on
         speedButton.setAttribute('aria-pressed', String(toggled))
         speedButton.classList.toggle('code-red-speed-on', on)
       })
@@ -447,4 +475,29 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     input.disabled = false
     chooser.hidden = false
   })()
+}
+
+const safeStorage = (): Storage | null => { try { return localStorage } catch { return null } }
+
+/** The model writes code through the backend (/v1/ai, session token), streamed by pi-ai (kernel bundle). */
+function cloudWriter(assets: string, api: string, token: () => string): CodeWriter {
+  type Kernel = {
+    createModels(): { setProvider(p: unknown): void }
+    gameApiProvider(o: { baseUrl: string; token: () => string; modelIds?: string[] }): unknown
+    writeCode(o: { models: unknown; model: { provider: string; modelId: string }; system: string; user: string; temperature: number; onText: (d: string) => void }): Promise<{ text: string }>
+    GAME_PROVIDER: string; BATTLE_MODEL: string
+  }
+  let loading: Promise<{ k: Kernel; models: unknown }> | null = null
+  const load = () => loading ??= (import(/* @vite-ignore */ assets + 'kernel/kernel.js') as Promise<Kernel>).then(k => {
+    const models = k.createModels()
+    models.setProvider(k.gameApiProvider({ baseUrl: api.replace(/\/$/, '') + '/v1/ai', token, modelIds: [k.BATTLE_MODEL] }))
+    return { k, models }
+  }).catch(e => { loading = null; throw e })
+  return {
+    async write(prompt, onText) {
+      const { k, models } = await load()
+      const { text } = await k.writeCode({ models, model: { provider: k.GAME_PROVIDER, modelId: k.BATTLE_MODEL }, system: prompt.system, user: prompt.user, temperature: prompt.temperature, onText })
+      return text
+    },
+  }
 }

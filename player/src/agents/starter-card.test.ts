@@ -20,9 +20,11 @@ test('offeredStarter: monpic task active + in the lab + VAR_TEMP_2', () => {
   assert.equal(offeredStarter(m, SYM), null, 'task ended')
 })
 
-test('card lists the starter scripts', () => {
+test('card lists the starter moves with their Code Red names and code', () => {
   const html = starterCardHtml(7)
   assert.match(html, /SQUIRTLE/)
-  assert.match(html, /tackle\.js/); assert.match(html, /tail_whip\.js/)
-  assert.match(html, /Knows 2 of 4 scripts/)
+  assert.match(html, /PING/); assert.match(html, /function ping\(data\)/)
+  assert.match(html, /DOWNGRADE/)
+  assert.match(html, /Knows 2 moves/)
+  assert.doesNotMatch(html, /undefined/)
 })

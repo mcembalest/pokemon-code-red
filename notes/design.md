@@ -191,3 +191,12 @@ Target: agents run in the browser (local models); Worker = accounts, progress, r
 - my call, flag to owner: a hit still rolls FireRed accuracy, so SANDBOX / accuracy and evasion stages keep working
 - not asked: STRUGGLE, locked-in turns of multi-turn moves (Thrash, Fly's 2nd turn), link and Pokédude battles
 - checked in the simulator: `sim/experiments/code_moves.py` (rival battle under no host / all hit / all miss / mixed; CI seed 0)
+
+## Battle loop in the page (2026-10-08, branch battle-rules)
+- `player/src/agents/code-battle.ts`: answers the ROM's code-move requests; prompt/judge/learning from `rules/`; model via the kernel bundle (pi-ai → backend `/v1/ai`, streamed); mock writer with `?agents=mock` or no backend
+- `player/src/agents/code-panel.ts`: foe on top, you below; beside the game at ≥980 px, under it below; Code toggle (remembered); first 12 turns replayed at a readable pace (~2 s), 10× shows at once
+- memory for now in the browser's local storage: readers per Pokémon (by personality), Pokédex = types battled (counts from the next battle), trainers know the types you've shown them; moves to cloud saves later
+- simplification: the rival uses the trainer rule (knows your starter's format from the 2nd battle on), no separate schedule yet
+- types with no format yet (ICE, GHOST, DRAGON, DARK) send a plain list
+- daily model cap raised to 1.5M tokens per player (worker var)
+- journey 11 (real model, shared rules, no aces): 0.90 overall; Brock 0.99–1.0, Misty 0.94–0.95; only dip = Cerulean rival's ABRA (first PSYCHIC) 0.65–0.70; badges change little. Without aces the gyms are not walls: owner decision needed

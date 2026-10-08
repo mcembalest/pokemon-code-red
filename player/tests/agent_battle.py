@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Battle-agent prototype in Chromium: the starter picks its own moves (mock brain).
+"""Battle in Chromium: code moves (mock model writes both sides' code, the code panel streams it,
+the ROM takes hit/miss) + the move-picking agent prototype (mock brain) + replay.
 
 Starts from a simulator checkpoint (the sim and the browser run the same mGBA core,
 so its save states load in the page): first rival battle, action menu.
@@ -34,7 +35,8 @@ def battle(p, url, records=None):
     assert page.locator('[data-agent]').is_visible(), 'Agent toggle should show with ?agents='
     page.evaluate('b64 => EJS_emulator.gameManager.loadState(Uint8Array.from(atob(b64), c => c.charCodeAt(0)))', base64.b64encode(STATE.read_bytes()).decode())
     page.wait_for_timeout(1000)
-    page.evaluate('''window.__heads = []; new MutationObserver(() => { const h = document.querySelector("[data-agent-box] .code-red-agent-head")?.textContent; const f = document.querySelector("[data-agent-box] .code-red-agent-foot")?.textContent; if (h && window.__heads.at(-1) !== h + " | " + f) window.__heads.push(h + " | " + f) }).observe(document.querySelector("[data-game]"), { subtree: true, childList: true, characterData: true })''')
+    # Every verdict the code panel shows: "<side>: <head> | <foot>".
+    page.evaluate('''window.__verdicts = []; new MutationObserver(() => { for (const p of document.querySelectorAll(".code-red-code-pane")) { const s = p.dataset.state; if (s === "hit" || s === "miss" || s === "vanilla") { const v = p.dataset.side + ": " + p.querySelector("header").textContent + " | " + p.querySelector("footer").textContent; if (!window.__verdicts.includes(v)) window.__verdicts.push(v) } } }).observe(document.querySelector("[data-stage]"), { subtree: true, childList: true, characterData: true, attributes: true })''')
     # Agents mode starts with the agent in control (button pressed).
     assert page.get_attribute('[data-agent]', 'aria-pressed') == 'true'
     page.wait_for_function('document.querySelector("[data-agent-box]")?.dataset.turns >= "1"', timeout=60000)
@@ -44,8 +46,9 @@ def battle(p, url, records=None):
     print('first turn:', first, flush=True)
     assert 'CHARMANDER' in first and '▶' in first, first
     if records is None:
-        page.wait_for_function('document.querySelector("[data-agent-box] .code-red-agent-foot")?.textContent.includes("absorbed")', timeout=60000)
-        page.locator('[data-game]').screenshot(path=str(OUT / 'byte-hit.png'))
+        page.wait_for_function('window.__verdicts.some(v => v.startsWith("you:")) && window.__verdicts.some(v => v.startsWith("foe:"))', timeout=90000)
+        page.screenshot(path=str(OUT / 'code-panel.png'), full_page=True)
+        assert page.locator('[data-code]').is_visible(), 'Code toggle shows'
     page.evaluate('gm = EJS_emulator.gameManager; gm.functions.setFastForwardRatio(10); gm.functions.toggleFastForward(1)')
     done = '''a => { const m = EJS_emulator.gameManager.Module; return new DataView(m.HEAPU8.buffer, m._ejs_cr_ewram()).getUint8(a - 0x02000000) !== 0 }'''
     for i in range(24):
@@ -58,11 +61,11 @@ def battle(p, url, records=None):
     outcome = page.evaluate(done.replace('!== 0', ''), outcome_addr)
     turns = int(page.get_attribute('[data-agent-box]', 'data-turns') or 0)
     recs = page.evaluate('window.CodeRed.agentRecords()')
-    heads = page.evaluate('window.__heads')
-    hits = [h for h in heads if '.js' in h and 'byte' in h]
-    print('byte hits:', hits, flush=True)
-    assert any('CHARMANDER ▶ scratch.js' in h for h in hits), heads
-    assert any('SQUIRTLE ▶ tackle.js' in h for h in hits), heads
+    verdicts = page.evaluate('window.__verdicts')
+    print('code verdicts:', verdicts, flush=True)
+    assert any(v.startswith('you: CHARMANDER') and 'a plain list' in v for v in verdicts), verdicts  # first battle = tutorial
+    assert any(v.startswith('foe: Foe SQUIRTLE') for v in verdicts), verdicts
+    assert any("code hit!" in v for v in verdicts), verdicts
     page.locator('canvas').screenshot(path=str(OUT / 'after.png'))
     browser.close()
     result = {'outcome': {1: 'won', 2: 'lost'}.get(outcome, outcome), 'turns': turns, 'errors': errors, 'external': external}
@@ -95,7 +98,7 @@ def starter_card(p):
     page.locator('[data-game]').screenshot(path=str(OUT / 'starter-card.png'))
     text = page.text_content('[data-starter-card]')
     print('starter card:', text.replace('\n', ' ')[:200], flush=True)
-    assert 'CHARMANDER' in text and 'scratch.js' in text and 'growl.js' in text, text
+    assert 'CHARMANDER' in text and 'SLICE' in text and 'ERRORMSG' in text and 'function slice(data)' in text, text
     browser.close()
 
 

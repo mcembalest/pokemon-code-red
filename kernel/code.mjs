@@ -4,20 +4,8 @@ import { CodemodeSandbox, renderDeclarations } from '@earendil-works/pi-codemode
 
 export { renderDeclarations }
 
-/**
- * Pull the code out of a plain-text reply. Lenient on purpose (the code is what's judged):
- * - a fenced block → its body; text outside a fence → no code ("prose")
- * - no fence at all → the whole reply is the code (prose then fails to parse)
- */
-export function extractCode(reply) {
-  const text = String(reply ?? '').trim()
-  const fences = text.match(/```/g)?.length ?? 0
-  if (fences === 0) return text ? { code: text, reason: null } : { code: null, reason: 'empty reply' }
-  const m = text.match(/^```(?:javascript|js)?[ \t]*\n([\s\S]*?)\n?```$/)
-  if (!m) return { code: null, reason: fences > 2 ? 'more than one code block' : 'prose outside the code block' }
-  if (m[1].includes('```')) return { code: null, reason: 'more than one code block' }
-  return { code: m[1], reason: null }
-}
+// One reply → code rule for the game, the lab and the kernel: rules/turn.mjs.
+export { extractCode } from '../rules/turn.mjs'
 
 /**
  * Young coders often write `async function scratch() { ... }` and never call it.

@@ -1,6 +1,7 @@
 // Build the embeddable player bundle into player/dist/.
 //   dist/code-red.js, code-red.css, index.html  player
 //   dist/runner/                                  QuickJS worker (../runner)
+//   dist/kernel/                                  pi-ai models + streaming (../kernel)
 //   dist/emulator/                                pinned EmulatorJS + Code Red core
 //   dist/rom/                                     rom.json + copy patch (no ROM bytes)
 // Inputs: ../.cache/browser/data (make browser-setup), ../build/core/ (core),
@@ -52,6 +53,13 @@ need(join(root, 'runner/node_modules'), 'cd runner && npm ci')
 execFileSync(process.execPath, ['build.mjs'], { cwd: join(root, 'runner'), stdio: 'inherit' })
 mkdirSync(join(dist, 'runner'))
 for (const file of ['client.js', 'worker.js', 'emscripten-module.wasm', 'LICENSES.txt']) cpSync(join(root, 'runner/dist', file), join(dist, 'runner', file))
+
+// Kernel: pi-ai models + streaming (the code a Pokémon writes in battle comes through it).
+need(join(root, 'kernel/node_modules'), 'cd kernel && npm ci')
+execFileSync(process.execPath, ['build.mjs'], { cwd: join(root, 'kernel'), stdio: 'inherit' })
+mkdirSync(join(dist, 'kernel'))
+for (const file of ['kernel.js', 'codemode-worker.js', 'quickjs.wasm']) cpSync(join(root, 'kernel/dist', file), join(dist, 'kernel', file))
+for (const file of ['kernel.js.LEGAL.txt', 'codemode-worker.js.LEGAL.txt']) if (existsSync(join(root, 'kernel/dist', file))) cpSync(join(root, 'kernel/dist', file), join(dist, 'kernel', file))
 
 // Player.
 cpSync(join(here, 'index.html'), join(dist, 'index.html'))
