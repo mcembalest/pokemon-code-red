@@ -55,16 +55,16 @@ export function knowFor(type, { dex = [], readers = {} } = {}) {
  *   know   knowFor(...) result or null
  *   budget max characters of code
  *   tutorial  first battle: the target sends a plain list, no format
- *   words  { data, v } : what the data is called in prose ('bytes' | 'numbers') and the reader variable ('bytes' | 'nums').
- *          Lab 3 (2026-10-08) compares them: "bytes" makes Llama reach for Node Buffers.
+ *   words  { data, v } : what the data is called in prose and the reader variable. Default 'numbers' / 'nums':
+ *          lab 3 (2026-10-08) measured 'bytes' / 'bytes' at 0.29 first-time hits vs 0.52, with 78 Node-Buffer hallucinations vs 0.
  */
-export const WORDS = { data: 'bytes', v: 'bytes' }
+export const WORDS = { data: 'numbers', v: 'nums' }
 export function turnPrompt({ self, target, move, type, know = null, budget, tutorial = false, words = WORDS }) {
   const system = [`You are ${self.name}, a level ${self.level} Pokémon. You fight by writing JavaScript.`,
     `When ${self.wild ? 'you pick' : 'your trainer calls'} a move, you write the code for it, then stop.`,
     'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.'].join('\n')
   const call = self.wild ? `You use ${move.name}!` : `Your trainer says: use ${move.name}!`
-  const line = l => (words.v === 'bytes' ? l : l.replace(/\bbytes\b/g, words.v))
+  const line = l => (words.v === 'nums' ? l : l.replace(/\bnums\b/g, words.v))
   const knowLine = k => (k.from === 'dex' ? `Pokédex: ${type} data reads like this: ${line(k.line)}` : `You remember how you read ${type} data: ${line(k.line)}`)
   const formatLines = tutorial || type === 'NORMAL'
     ? [`- data = the foe's ${words.data}, already a plain list of numbers. Example: [${EXAMPLE_BYTES.join(', ')}].`]
@@ -138,11 +138,11 @@ export function missText(name, reason) {
 
 // ---------- learning ----------
 
-/** The reader line in the Pokémon's code (`const bytes = ...`), if any. */
-export const readerLine = code => { const m = code?.match(/const\s+(bytes|nums)\s*=\s*[^\n;]+/); return m ? m[0].replace(/^const\s+nums\b/, 'const bytes') : null }
+/** The reader line in the Pokémon's code (`const nums = ...`; `bytes` accepted and normalized), if any. */
+export const readerLine = code => { const m = code?.match(/const\s+(nums|bytes)\s*=\s*[^\n;]+/); return m ? m[0].replace(/^const\s+bytes\b/, 'const nums') : null }
 
 /** Source that runs a reader line on the data and returns what it read. */
-export const readerSource = (line, data) => `const data = ${JSON.stringify(data)}\n${line}\nreturn bytes`
+export const readerSource = (line, data) => `const data = ${JSON.stringify(data)}\n${line.replace(/^const\s+bytes\b/, 'const nums')}\nreturn nums`
 
 /** Does the reader really read this data (run = sandbox result of readerSource)? Only verified readers are learned. */
 export const readsRight = (run, bytes) => run.ok && same(run.value, bytes)

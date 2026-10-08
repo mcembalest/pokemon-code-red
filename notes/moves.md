@@ -14,23 +14,23 @@ Example numbers: [42, 13, 140]
 
 | Type | Data arrives as | Example | Pokédex reader | Its moves… |
 |---|---|---|---|---|
-| Normal | a plain list of numbers | `[42,13,140]` | `const bytes = data` | file operations: count, slice, pick, copy, join, reverse |
-| Fire | a write log: records { at: <position>, value: <number> } in the order they were written, not in position order | `[{"at":1,"value":13},{"at":0,"value":42},{"at":2,"value":140}]` | `const bytes = [...data].sort((a, b) => a.at - b.at).map(r => r.value)` | writes: change values in place |
-| Water | text with one number per line (a stream) | `"42\n13\n140"` | `const bytes = data.split('\n').map(Number)` | flow: filter, take, drop, flush, buffer |
-| Grass | a log line of 'byte=<number>' entries separated by spaces, e.g. 'byte=42 byte=13' | `"byte=42 byte=13 byte=140"` | `const bytes = data.split(' ').map(s => Number(s.split('=')[1]))` | grow and gather: repeat, group, every other, totals of parts |
-| Electric | binary: each byte written in base 2, separated by spaces (power on/off) | `"101010 1101 10001100"` | `const bytes = data.split(' ').map(s => parseInt(s, 2))` | peaks: the largest, the spike, surges and cuts |
-| Ice | a list of snapshots { v: <version>, bytes: [...] }; the latest (last) one holds the real numbers | `[{"v":1,"bytes":[114,101,40]},{"v":2,"bytes":[42,13,140]}]` | `const bytes = data.at(-1).bytes` | freeze: unchanged copies, cold storage |
-| Fighting | a list of [a, b] pairs, one pair per byte; the byte is a + b (raw compute) | `[[21,21],[12,1],[70,70]]` | `const bytes = data.map(([a, b]) => a + b)` | brute arithmetic: squares, products, multiples |
-| Poison | text: the numbers are separated by the letter x, with an x at both ends, e.g. 'x42x13x140x' (malware hides them) | `"x42x13x140x"` | `const bytes = data.split('x').filter(s => s).map(Number)` | corrupt: inject, offset, smuggle |
-| Ground | CSV text: numbers separated by commas (an on-prem spreadsheet) | `"42,13,140"` | `const bytes = data.split(',').map(Number)` | ground: caps, floors, remainders |
-| Flying | JSON text (cloud data) | `"[42,13,140]"` | `const bytes = JSON.parse(data)` | distribute: serialize, broadcast, scale down |
-| Psychic | an object whose keys are 'b' + position ('b0', 'b1', …), in a jumbled order (it reads minds, not lists) | `{"b1":13,"b0":42,"b2":140}` | `const bytes = Object.keys(data).sort((a, b) => a.slice(1) - b.slice(1)).map(k => data[k])` | inspect: sort, rank, round, mirror, find |
-| Bug | a buggy copy: some numbers appear twice in a row; keep one of each (bugs duplicate data) | `[42,13,13,140]` | `const bytes = data.filter((x, i) => i === 0 || x !== data[i - 1])` | introduce bugs: off-by-one, double frees, leaks |
-| Rock | a hex dump: two hex digits per byte, separated by spaces (hardware) | `"2a 0d 8c"` | `const bytes = data.split(' ').map(h => parseInt(h, 16))` | raw bytes: sums, sort, running registers |
-| Ghost | invisible: a string whose character codes are the numbers (spyware hides in plain sight) | `"*\r"` | `const bytes = [...data].map(c => c.charCodeAt(0))` | peek at what is hidden |
-| Dragon | kernel memory: one hex string with no separators, two hex digits per byte | `"2a0d8c"` | `const bytes = data.match(/../g).map(h => parseInt(h, 16))` | absolute: fixed effects from size |
-| Dark | a signed token: three parts separated by '.', the numbers are the middle part, separated by commas, e.g. 'v1.42,13,140.ok' | `"v1.42,13,140.ok"` | `const bytes = data.split('.')[1].split(',').map(Number)` | pick by credential: specific positions, the first match |
-| Steel | encrypted: each number XOR 255 gives the byte | `[213,242,115]` | `const bytes = data.map(x => x ^ 255)` | cipher: XOR, hash, mask |
+| Normal | a plain list of numbers | `[42,13,140]` | `const nums = data` | file operations: count, slice, pick, copy, join, reverse |
+| Fire | a write log: records { at: <position>, value: <number> } in the order they were written, not in position order | `[{"at":1,"value":13},{"at":0,"value":42},{"at":2,"value":140}]` | `const nums = [...data].sort((a, b) => a.at - b.at).map(r => r.value)` | writes: change values in place |
+| Water | text with one number per line (a stream) | `"42\n13\n140"` | `const nums = data.split('\n').map(Number)` | flow: filter, take, drop, flush, buffer |
+| Grass | a log line of 'byte=<number>' entries separated by spaces, e.g. 'byte=42 byte=13' | `"byte=42 byte=13 byte=140"` | `const nums = data.split(' ').map(s => Number(s.split('=')[1]))` | grow and gather: repeat, group, every other, totals of parts |
+| Electric | binary: each byte written in base 2, separated by spaces (power on/off) | `"101010 1101 10001100"` | `const nums = data.split(' ').map(s => parseInt(s, 2))` | peaks: the largest, the spike, surges and cuts |
+| Ice | a list of snapshots { v: <version>, bytes: [...] }; the latest (last) one holds the real numbers | `[{"v":1,"bytes":[114,101,40]},{"v":2,"bytes":[42,13,140]}]` | `const nums = data.at(-1).bytes` | freeze: unchanged copies, cold storage |
+| Fighting | a list of [a, b] pairs, one pair per byte; the byte is a + b (raw compute) | `[[21,21],[12,1],[70,70]]` | `const nums = data.map(([a, b]) => a + b)` | brute arithmetic: squares, products, multiples |
+| Poison | text: the numbers are separated by the letter x, with an x at both ends, e.g. 'x42x13x140x' (malware hides them) | `"x42x13x140x"` | `const nums = data.split('x').filter(s => s).map(Number)` | corrupt: inject, offset, smuggle |
+| Ground | CSV text: numbers separated by commas (an on-prem spreadsheet) | `"42,13,140"` | `const nums = data.split(',').map(Number)` | ground: caps, floors, remainders |
+| Flying | JSON text (cloud data) | `"[42,13,140]"` | `const nums = JSON.parse(data)` | distribute: serialize, broadcast, scale down |
+| Psychic | an object whose keys are 'b' + position ('b0', 'b1', …), in a jumbled order (it reads minds, not lists) | `{"b1":13,"b0":42,"b2":140}` | `const nums = Object.keys(data).sort((a, b) => a.slice(1) - b.slice(1)).map(k => data[k])` | inspect: sort, rank, round, mirror, find |
+| Bug | a buggy copy: some numbers appear twice in a row; keep one of each (bugs duplicate data) | `[42,13,13,140]` | `const nums = data.filter((x, i) => i === 0 || x !== data[i - 1])` | introduce bugs: off-by-one, double frees, leaks |
+| Rock | a hex dump: two hex digits per byte, separated by spaces (hardware) | `"2a 0d 8c"` | `const nums = data.split(' ').map(h => parseInt(h, 16))` | raw bytes: sums, sort, running registers |
+| Ghost | invisible: a string whose character codes are the numbers (spyware hides in plain sight) | `"*\r"` | `const nums = [...data].map(c => c.charCodeAt(0))` | peek at what is hidden |
+| Dragon | kernel memory: one hex string with no separators, two hex digits per byte | `"2a0d8c"` | `const nums = data.match(/../g).map(h => parseInt(h, 16))` | absolute: fixed effects from size |
+| Dark | a signed token: three parts separated by '.', the numbers are the middle part, separated by commas, e.g. 'v1.42,13,140.ok' | `"v1.42,13,140.ok"` | `const nums = data.split('.')[1].split(',').map(Number)` | pick by credential: specific positions, the first match |
+| Steel | encrypted: each number XOR 255 gives the byte | `[213,242,115]` | `const nums = data.map(x => x ^ 255)` | cipher: XOR, hash, mask |
 
 ## Moves (103)
 

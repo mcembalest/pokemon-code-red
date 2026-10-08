@@ -166,7 +166,7 @@ export function mockWriter(options: { missEvery?: number; chunk?: number; delay?
       const wrong = ++n % missEvery === 0
       const src = move.ref.toString().replace(/^\(?\s*b?\s*\)?\s*=>\s*/, '')
       const offByOne = wrong && (n % 2 === 1 || tutorial) && !src.startsWith('{')
-      const reader = tutorial || (wrong && !offByOne) ? 'const bytes = data' : HINTS[type]
+      const reader = tutorial || (wrong && !offByOne) ? 'const nums = data' : HINTS[type]
       const uses = (name: string) => new RegExp(`\\b${name}\\(`).test(src)
       const helpers = [
         uses('sum') && 'const sum = xs => xs.reduce((a, x) => a + x, 0)',
@@ -174,7 +174,7 @@ export function mockWriter(options: { missEvery?: number; chunk?: number; delay?
         uses('min') && 'const min = xs => Math.min(...xs)',
         uses('asc') && 'const asc = xs => [...xs].sort((x, y) => x - y)',
       ].filter(Boolean).map(h => `  ${h}`)
-      let body = src.replace(/\bb\b/g, 'bytes')
+      let body = src.replace(/\bb\b/g, 'nums')
       if (offByOne) body = `(${body}) + 1 // grab one more`
       const lines = body.startsWith('{')
         ? body.slice(1, -1).trim().split(/;\s*|\n/).filter(Boolean).map(l => `  ${l.trim()}`)

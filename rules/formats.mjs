@@ -33,15 +33,16 @@ function shuffled(b) {
   const keys = b.map((_, i) => i)
   return [...keys.filter(i => i % 2 === 1).reverse(), ...keys.filter(i => i % 2 === 0)]
 }
-/** The Pokédex reader per type: one line of JavaScript that reads this type's data into a list of numbers. */
+/** The Pokédex reader per type: one line of JavaScript that reads this type's data into a list of numbers.
+ *  The variable is `nums`: lab 3 (2026-10-08) showed `bytes` makes Llama reach for Node Buffers (first-time hits 0.29 → 0.52). */
 export const HINTS = {
-  NORMAL: 'const bytes = data', FLYING: 'const bytes = JSON.parse(data)', WATER: "const bytes = data.split('\\n').map(Number)",
-  GRASS: "const bytes = data.split(' ').map(s => Number(s.split('=')[1]))", ROCK: "const bytes = data.split(' ').map(h => parseInt(h, 16))",
-  ELECTRIC: "const bytes = data.split(' ').map(s => parseInt(s, 2))", GROUND: "const bytes = data.split(',').map(Number)",
-  FIRE: 'const bytes = [...data].sort((a, b) => a.at - b.at).map(r => r.value)', POISON: "const bytes = data.split('x').filter(s => s).map(Number)", BUG: 'const bytes = data.filter((x, i) => i === 0 || x !== data[i - 1])',
-  PSYCHIC: 'const bytes = Object.keys(data).sort((a, b) => a.slice(1) - b.slice(1)).map(k => data[k])', FIGHTING: 'const bytes = data.map(([a, b]) => a + b)', STEEL: 'const bytes = data.map(x => x ^ 255)',
-  ICE: 'const bytes = data.at(-1).bytes', GHOST: 'const bytes = [...data].map(c => c.charCodeAt(0))', DRAGON: 'const bytes = data.match(/../g).map(h => parseInt(h, 16))',
-  DARK: "const bytes = data.split('.')[1].split(',').map(Number)",
+  NORMAL: 'const nums = data', FLYING: 'const nums = JSON.parse(data)', WATER: "const nums = data.split('\\n').map(Number)",
+  GRASS: "const nums = data.split(' ').map(s => Number(s.split('=')[1]))", ROCK: "const nums = data.split(' ').map(h => parseInt(h, 16))",
+  ELECTRIC: "const nums = data.split(' ').map(s => parseInt(s, 2))", GROUND: "const nums = data.split(',').map(Number)",
+  FIRE: 'const nums = [...data].sort((a, b) => a.at - b.at).map(r => r.value)', POISON: "const nums = data.split('x').filter(s => s).map(Number)", BUG: 'const nums = data.filter((x, i) => i === 0 || x !== data[i - 1])',
+  PSYCHIC: 'const nums = Object.keys(data).sort((a, b) => a.slice(1) - b.slice(1)).map(k => data[k])', FIGHTING: 'const nums = data.map(([a, b]) => a + b)', STEEL: 'const nums = data.map(x => x ^ 255)',
+  ICE: 'const nums = data.at(-1).bytes', GHOST: 'const nums = [...data].map(c => c.charCodeAt(0))', DRAGON: 'const nums = data.match(/../g).map(h => parseInt(h, 16))',
+  DARK: "const nums = data.split('.')[1].split(',').map(Number)",
 }
 
 export const EXAMPLE_BYTES = [42, 13, 140]

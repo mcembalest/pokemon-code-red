@@ -1,34 +1,24 @@
 {
-  "note": "Move table 3 (wording): 'bytes' vs 'numbers' in the prompt, all 103 moves, NORMAL/FIRE/BUG first time + NORMAL known, 2 samples each.",
+  "note": "Move table 4 (spine + numbers/nums wording + NORMAL needs no reader): all 103 moves, 6 formats (NORMAL, WATER, ROCK, FIRE, BUG, DARK), first vs known, 3 samples; levels 5/10/15.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": "all",
   "types": [
     "NORMAL",
+    "WATER",
+    "ROCK",
     "FIRE",
-    "BUG"
+    "BUG",
+    "DARK"
   ],
   "known": [
-    false
+    false,
+    true
   ],
-  "samples": 2,
+  "samples": 3,
   "levels": [
     5,
     10,
     15
   ],
-  "concurrency": 16,
-  "words": [
-    {
-      "data": "bytes",
-      "v": "bytes"
-    },
-    {
-      "data": "numbers",
-      "v": "bytes"
-    },
-    {
-      "data": "numbers",
-      "v": "nums"
-    }
-  ]
+  "concurrency": 16
 }

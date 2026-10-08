@@ -44,7 +44,7 @@ test('formats: every type round-trips, and its Pokédex reader reads it', async 
     for (const t of TYPES) {
       const data = FORMATS[t].encode(b)
       assert.deepEqual(FORMATS[t].decode(data), b, t)
-      const run = await runSource(`const data = ${JSON.stringify(data)}\n${HINTS[t]}\nreturn bytes`)
+      const run = await runSource(`const data = ${JSON.stringify(data)}\n${HINTS[t]}\nreturn nums`)
       assert.deepEqual(run.value, b, `${t} reader`)
     }
   }
@@ -66,19 +66,19 @@ test('prompt: the calibrated journey text', () => {
   assert.equal(p.user, [
     'Foe: SQUIRTLE Lv5 (WATER). Your trainer says: use SLICE!',
     'Write the function: function slice(data)',
-    '- data = the foe\'s bytes, this turn in WATER format: text with one number per line (a stream). Example: "42\\n13\\n140" is [42, 13, 140].',
-    '- First line of the function: const bytes = <read data into a list of numbers>',
+    '- data = the foe\'s numbers, this turn in WATER format: text with one number per line (a stream). Example: "42\\n13\\n140" is [42, 13, 140].',
+    '- First line of the function: const nums = <read data into a list of numbers>',
     '- slice returns the first 3 numbers (a list). On the numbers [42,13,140,77] it returns [42,13,140].',
     '- Byte budget: your whole code block must be at most 250 characters, comments included.',
   ].join('\n'))
   const dex = turnPrompt({ self: { name: 'PIDGEY', level: 3, wild: true }, target: { name: 'CHARMANDER', level: 5, types: ['FIRE'] }, move: byName.PING, type: 'FIRE', know: knowFor('FIRE', { dex: ['FIRE'] }), budget: 230 })
   assert.match(dex.user, /You use PING!/)
-  assert.match(dex.user, /- Pokédex: FIRE data reads like this: const bytes = \[\.\.\.data\]\.sort/)
+  assert.match(dex.user, /- Pokédex: FIRE data reads like this: const nums = \[\.\.\.data\]\.sort/)
   assert.match(dex.system, /When you pick a move/)
-  const mem = turnPrompt({ self: { name: 'CHARMANDER', level: 9 }, target: { name: 'PIKACHU', level: 5, types: ['ELECTRIC'] }, move: byName.BURNDISC, type: 'ELECTRIC', know: knowFor('ELECTRIC', { readers: { ELECTRIC: 'const bytes = x' } }), budget: 290 })
-  assert.match(mem.user, /- You remember how you read ELECTRIC data: const bytes = x/)
+  const mem = turnPrompt({ self: { name: 'CHARMANDER', level: 9 }, target: { name: 'PIKACHU', level: 5, types: ['ELECTRIC'] }, move: byName.BURNDISC, type: 'ELECTRIC', know: knowFor('ELECTRIC', { readers: { ELECTRIC: 'const nums = x' } }), budget: 290 })
+  assert.match(mem.user, /- You remember how you read ELECTRIC data: const nums = x/)
   const tut = turnPrompt({ self: { name: 'CHARMANDER', level: 5 }, target: { name: 'SQUIRTLE', level: 5, types: ['WATER'] }, move: byName.SLICE, type: 'WATER', budget: 250, tutorial: true })
-  assert.match(tut.user, /- data = the foe's bytes, already a plain list of numbers\. Example: \[42, 13, 140\]\./)
+  assert.match(tut.user, /- data = the foe's numbers, already a plain list of numbers\. Example: \[42, 13, 140\]\./)
   assert.doesNotMatch(tut.user, /format|First line/)
 })
 
@@ -90,9 +90,9 @@ test('knowing: the Pokédex comes before memory', () => {
 
 test('judging: right answer hits; wrong, crash, too long and no code miss', async () => {
   const bytes = [42, 13, 140, 77], data = turnData(bytes, 'GROUND'), move = byName.SLICE, budget = 250
-  const good = "function slice(data) {\n  const bytes = data.split(',').map(Number)\n  return bytes.slice(0, 3)\n}"
+  const good = "function slice(data) {\n  const nums = data.split(',').map(Number)\n  return nums.slice(0, 3)\n}"
   assert.deepEqual(await judge({ move, bytes, data, code: good, budget, runSource }), { hit: true })
-  const body = "const bytes = data.split(',').map(Number)\nreturn bytes.slice(0, 3)"
+  const body = "const nums = data.split(',').map(Number)\nreturn nums.slice(0, 3)"
   assert.equal((await judge({ move, bytes, data, code: body, budget, runSource })).hit, true, 'a bare function body counts')
   const camel = good.replace('function slice', 'function Slice')
   assert.equal((await judge({ move, bytes, data, code: camel, budget, runSource })).hit, true, 'same name in another case')
@@ -107,11 +107,11 @@ test('judging: right answer hits; wrong, crash, too long and no code miss', asyn
 
 test('learning: only verified readers; most recent kept within slots; Pokédex types not memorized', async () => {
   const bytes = [42, 13, 140, 77], data = turnData(bytes, 'ROCK')
-  const right = "function slice(data) {\n  const bytes = data.split(' ').map(h => parseInt(h, 16))\n  return bytes.slice(0, 3)\n}"
-  assert.equal(readerLine(right), "const bytes = data.split(' ').map(h => parseInt(h, 16))")
+  const right = "function slice(data) {\n  const nums = data.split(' ').map(h => parseInt(h, 16))\n  return nums.slice(0, 3)\n}"
+  assert.equal(readerLine(right), "const nums = data.split(' ').map(h => parseInt(h, 16))")
   let readers = await learnFromHit({ readers: {}, type: 'ROCK', code: right, data, bytes, slots: 2, runSource })
   assert.deepEqual(Object.keys(readers), ['ROCK'])
-  const lucky = "function hash(data) { const bytes = data.split(' ').map(Number); return 0 }"
+  const lucky = "function hash(data) { const nums = data.split(' ').map(Number); return 0 }"
   assert.deepEqual(await learnFromHit({ readers: {}, type: 'ROCK', code: lucky, data, bytes, slots: 2, runSource }), {}, 'a lucky hit teaches nothing')
   assert.deepEqual(await learnFromHit({ readers: {}, type: 'ROCK', code: right, data, bytes, slots: 2, dex: ['ROCK'], runSource }), {})
   readers = learn(readers, 'WATER', 'w', 2)
