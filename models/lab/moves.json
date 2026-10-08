@@ -1,24 +1,34 @@
 {
-  "note": "Move table 2 (spine): all 103 moves re-specced by type family; 6 formats incl. the new ones (NORMAL, WATER, ROCK, FIRE, BUG, DARK), first vs known, 3 samples each; levels 5/10/15.",
+  "note": "Move table 3 (wording): 'bytes' vs 'numbers' in the prompt, all 103 moves, NORMAL/FIRE/BUG first time + NORMAL known, 2 samples each.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": "all",
   "types": [
     "NORMAL",
-    "WATER",
-    "ROCK",
     "FIRE",
-    "BUG",
-    "DARK"
+    "BUG"
   ],
   "known": [
-    false,
-    true
+    false
   ],
-  "samples": 3,
+  "samples": 2,
   "levels": [
     5,
     10,
     15
   ],
-  "concurrency": 16
+  "concurrency": 16,
+  "words": [
+    {
+      "data": "bytes",
+      "v": "bytes"
+    },
+    {
+      "data": "numbers",
+      "v": "bytes"
+    },
+    {
+      "data": "numbers",
+      "v": "nums"
+    }
+  ]
 }
