@@ -164,3 +164,11 @@ Cloudflare Worker ── D1 (players, saves meta, progress events, challenge res
    └── LLM provider (interim; agent actions; recorded for replay)
 ```
 Target: agents run in the browser (local models); Worker = accounts, progress, recorded decisions.
+
+## Battle rules approved, tentatively (owner, 2026-10-08)
+- core rule (draft 5, `notes/battle-lab.md`): move = a function the Pokémon writes; foe type = its data format; readers from verified hits + Pokédex
+- 13 type formats: approved for now
+- gym walls: OK with format switching being hard; open to more ideas (options in the briefing doc)
+- late game must get harder; calibrate to Misty first: I play in the simulator, then the owner plays organically, then decide
+- foes write code, streamed on screen during battle
+- open decisions: briefing doc "Code Red briefing: decisions to Misty" (claude.ai Docs)
