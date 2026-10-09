@@ -19,7 +19,8 @@ import { FIRERED } from './firered.mjs'
  */
 const isBytes = (v, n) => Array.isArray(v) && v.length === n && v.every(x => Number.isInteger(x) && x >= 0 && x <= 255)
 const crossings = v => { let n = 0, last = 0; for (const x of v) { const s = Math.sign(x - 128); if (s && last && s !== last) n++; if (s) last = s } return n }
-const soundCheck = ({ hi, lo, switches }) => (v, b) => !isBytes(v, v?.length) || v.length < 100 || v.length > 512 ? 'not 100 to 512 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : Math.max(...v) < hi ? `never loud (above ${hi})` : Math.min(...v.slice(1)) > lo ? `never quiet (below ${lo})` : crossings(v) < switches ? `switches fewer than ${switches} times` : null
+// a sound may run long: the GBA keeps the first 512 samples (the page clips), so only "too short" is a miss
+const soundCheck = ({ hi, lo, switches }) => (v, b) => !isBytes(v, v?.length) || v.length < 100 ? 'not at least 100 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : Math.max(...v) < hi ? `never loud (above ${hi})` : Math.min(...v.slice(1)) > lo ? `never quiet (below ${lo})` : crossings(v) < switches ? `switches fewer than ${switches} times` : null
 const imageCheck = ({ white, dark }) => (v, b) => !isBytes(v, v?.length) || v.length < 1024 ? 'not 1024 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : v.filter(x => x > 200).length < white ? `not enough white (fewer than ${white} numbers above 200)` : v.filter(x => x < 50).length < dark ? `not enough black (fewer than ${dark} numbers below 50)` : null
 /** A sound: `run` samples of `hi` then `run` of `lo`, repeating (the pitch); a picture: white with black from `from` to `to`, or the reverse. */
 // refs are built from source text with the numbers inlined: the stand-in model (player mockWriter) prints ref.toString() as its code.
