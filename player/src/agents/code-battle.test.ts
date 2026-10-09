@@ -236,7 +236,7 @@ test('payload move: a hit hands the bytes to the game before the reply; a miss h
   g.request({ move: 45 }); await b.poll() // the mock's every-2nd mistake: 399 samples → wrong shape → miss, nothing delivered
   assert.equal(g.reply().verdict, 2)
   assert.equal(memory.u8(AT + 6), 0)
-  assert.match(log.end.at(-1)!.detail ?? '', /not 400 numbers|first number should be/)
+  assert.match(log.end.at(-1)!.detail ?? '', /at least 100|first number should be/)
 })
 
 test('doubt: your pick against its instinct shakes its code (not the move); the panel says what it wanted', async () => {

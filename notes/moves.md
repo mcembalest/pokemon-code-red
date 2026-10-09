@@ -48,7 +48,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | UNDO | Double Slap | 15/85 | multi hit | the numbers without the first one |  |
 | SPAM | Fury Attack | 15/85 | multi hit | a list of 5 copies of the first number |  |
 | GREP | Fury Swipes | 18/80 | multi hit | the numbers that are under 50 |  |
-| DIM | Sing | –/55 | sleep | how many numbers are even |  |
+| DIM | Sing | –/55 | sleep | a soft hum, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate eight at a time: eight 160s, eight 96s, eight 160s, … until the list has 400 numbers |  |
 | BLUR | Smokescreen | –/100 | accuracy down | the numbers in reverse order |  |
 | REBOOT | Headbutt | 70/100 | flinch hit | the first number plus the last |  |
 | CRASH | Hyper Fang | 80/90 | flinch hit | the number at index (first number % number of numbers) |  |
@@ -63,7 +63,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | ERROR | Growl | –/100 | attack down | a buzz, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate 230, 30, 230, 30, … until the list has 400 numbers | S |
 | FLASH | Flash | –/70 | accuracy down | a flash, as a list of 1024 numbers (a 32 by 32 picture): the first is how many numbers the foe had (data.length); then 255 (white) until the list has 640 numbers, then 0 (black) until it has 1024 | K |
 | SPOOF | Camouflage | –/100 | camouflage | the list with the first and last numbers swapped |  |
-| FEEDBACK | Supersonic | –/55 | confuse | the sum of the first two numbers |  |
+| FEEDBACK | Supersonic | –/55 | confuse | a feedback whine, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate six at a time: six 230s, six 30s, six 230s, … until the list has 400 numbers |  |
 | LOCKDOWN | Defense Curl | –/– | defense curl | a list holding only the first number |  |
 | DISTORTION | Screech | –/85 | defense down 2 | the numbers after the first half (the first half is half the length, rounded down) |  |
 | DISABLE | Disable | –/55 | disable | the last number minus the first | K |
@@ -83,7 +83,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | SPINUP | Rapid Spin | 20/100 | rapid spin | the numbers with the first one moved to the end |  |
 | RECOVER | Recover | –/– | restore hp | how many numbers are greater than 50 | K |
 | FAILOVER | Whirlwind | –/100 | roar | the numbers with the last one moved to the front |  |
-| BUZZ | Sonic Boom | 1/90 | sonicboom | how many numbers are over 20 |  |
+| BUZZ | Sonic Boom | 1/90 | sonicboom | a buzz, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate two at a time: 230, 230, 30, 30, 230, 230, 30, 30, … until the list has 400 numbers |  |
 | UPGRADE | Growth | –/– | special attack up | the list with one extra number at the end: how many numbers there were |  |
 | FREEZE | Scary Face | –/90 | speed down 2 | how many numbers are over 150 |  |
 | SPLASH | Splash | –/– | splash | nothing: return without a value | K |
@@ -122,7 +122,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
 | POWERCUT | Thunder Wave | –/100 | paralyze | the numbers in their order, without the largest one |  |
-| SPARK | Spark | 65/100 | paralyze hit | the largest number minus the smallest | K |
+| SPARK | Spark | 65/100 | paralyze hit | a spark, as a list of 1024 numbers (a 32 by 32 picture): the first is how many numbers the foe had (data.length); then 0 (black) everywhere except 255 (white) at positions 480 to 543 (a bright bar across the middle) | K |
 | SURGE | Thunder Shock | 40/100 | paralyze hit | the largest number plus 1 |  |
 | CHARGE | Charge | –/100 | charge | the largest number times 2 | K |
 

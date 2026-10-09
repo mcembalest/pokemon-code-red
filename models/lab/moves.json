@@ -1,9 +1,11 @@
 {
-  "note": "Payload moves on Qwen2.5-Coder-32B (payloadModel), recipe specs as shipped. 2026-10-09: recipes 98%/83%; free-form specs on the same model 68%/38% (off-by-one lengths, dark shape drawn at 100-200).",
+  "note": "More payload moves on Qwen2.5-Coder-32B: BUZZ, DIM, FEEDBACK (sounds at different pitches), SPARK (a bright bar). 4 samples; recipe specs.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": [
-    "ERROR",
-    "FLASH"
+    "BUZZ",
+    "DIM",
+    "FEEDBACK",
+    "SPARK"
   ],
   "types": [
     "NORMAL",
