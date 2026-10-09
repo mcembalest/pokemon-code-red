@@ -1,5 +1,5 @@
 {
-  "note": "Payload on Qwen2.5-Coder-32B with FREE-FORM specs (the creative version the 3B scored 0 on): can the bigger model be creative in the budget?",
+  "note": "Payload moves on Qwen2.5-Coder-32B (payloadModel), recipe specs as shipped. 2026-10-09: recipes 98%/83%; free-form specs on the same model 68%/38% (off-by-one lengths, dark shape drawn at 100-200).",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": [
     "ERROR",
@@ -23,9 +23,5 @@
     15
   ],
   "concurrency": 16,
-  "payloadModel": "@cf/qwen/qwen2.5-coder-32b-instruct",
-  "specs": {
-    "ERROR": "an error sound: a list of 400 numbers from 0 to 255 (a sound wave; 128 is silence), loud and buzzing in whatever pattern you like: it must go above 200 and cross 128 at least 3 times, and its first number is how many numbers the foe had (data.length)",
-    "FLASH": "a flash: a 32 by 32 picture as a list of 1024 numbers from 0 to 255 (brightness, row by row), mostly white (at least 300 numbers above 200) with a dark shape of your choosing (at least 100 numbers below 50); its first number is how many numbers the foe had (data.length)"
-  }
+  "payloadModel": "@cf/qwen/qwen2.5-coder-32b-instruct"
 }

@@ -137,7 +137,10 @@ def heal(g: World) -> bool:
     """From a city (or its center): heal at the Pokémon Center, then step back outside."""
     city = g.map()
     center = city + '_POKEMON_CENTER_1F' if not city.endswith('_POKEMON_CENTER_1F') else city
-    if g.map() != center and not g.travel(center):
+    try:
+        if g.map() != center and not g.travel(center):
+            return False
+    except ValueError:  # not in a city (a wild battle, a warp or a ledge left us mid-route): no center from here
         return False
     talk_to(g, 'OBJ_EVENT_GFX_NURSE', across_counter=True)
     ok = all(m['hp'] == m['max_hp'] for m in g.party())
@@ -186,10 +189,16 @@ def journey(g: World, dest: str, center_city: str, avoid: tuple = (), low: float
     hurt = lambda: g.party()[0]['hp'] < low * g.party()[0]['max_hp']
     for _ in range(tries):
         if hurt():
-            g.travel(center_city, avoid=avoid)
-            heal(g)
-        if g.travel(dest, avoid=avoid, stop=hurt):
-            return True
+            try:
+                if g.travel(center_city, avoid=avoid):
+                    heal(g)
+            except ValueError:
+                pass  # stranded off the planner's map: the next travel() re-plans from where we are
+        try:
+            if g.travel(dest, avoid=avoid, stop=hurt):
+                return True
+        except ValueError:
+            continue
         if not hurt():
             g.screenshot(ROOT / f'build/sim/stuck-{g.map()}.png')
     return g.map() == dest
@@ -238,8 +247,15 @@ def ready_for_boss(g: World, center_city: str, back_to: str, avoid: tuple = (), 
         if g.map() == back_to and (not spot or g.pos() == spot) and lead['hp'] >= need * lead['max_hp']:
             return True
         if lead['hp'] < need * lead['max_hp']:
-            g.travel(center_city, avoid=avoid)
-            heal(g)
+            try:
+                reached = g.travel(center_city, avoid=avoid)
+            except ValueError:
+                reached = False
+            if reached or g.map() == center_city:
+                heal(g)
+            else:  # stranded mid-route (text timing shifts the RNG, a wild battle moved us): walk out, then try again
+                journey(g, center_city, center_city, avoid)
+                continue
         journey(g, back_to, center_city, avoid)
     return False
 
