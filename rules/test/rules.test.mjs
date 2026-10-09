@@ -184,7 +184,7 @@ test('payload moves: the check judges the bytes, a hit carries them, the prompt 
   assert.deepEqual(verdict(error, bytes, run(error.ref(bytes))).payload.kind, 'sound')
   assert.equal(verdict(error, bytes, run(new Array(400).fill(128))).want, 'first number should be 4'); assert.match(verdict(error, bytes, run([4, 230, 30])).want, /100 to 512/)
   assert.match(verdict(error, bytes, run([4, ...new Array(399).fill(128)])).want, /loud/)
-  assert.match(verdict(flash, bytes, run([4, ...new Array(1023).fill(255)])).want, /dark shape/)
+  assert.match(verdict(flash, bytes, run([4, ...new Array(1023).fill(255)])).want, /black/)
   const loop = `function error(data) { const nums = data; const out = [nums.length]; for (let i = 1; i < 400; i++) out.push(i % 20 < 10 ? 230 : 30); return out }`
   const v = await judge({ move: error, bytes, data: bytes, code: loop, budget: 300, runSource: async src => ({ ok: true, value: new Function(src)() }) })
   assert.equal(v.hit, true); assert.equal(v.payload.bytes.length, 400)
