@@ -51,10 +51,18 @@ export interface CodeMemory {
   /** Types the party has battled (Pokédex readers). */
   seen(): string[]
   addSeen(types: string[]): void
+  /** Code history: the last turns this Pokémon wrote (PokÉEG System 2 view). */
+  recent?(personality: number): CodeTurn[]
+  remember?(personality: number, turn: CodeTurn): void
   /** The whole mind store, for the cloud save bundle (and back). */
   export?(): unknown
   import?(state: unknown): void
 }
+
+export interface CodeTurn {
+  at: number; move: string; type: TypeName; target: string; verdict: Verdict; reason?: string; notch: number; budget: number; code: string
+}
+export const HISTORY = 20
 
 export interface TurnRecord {
   side: 0 | 1; attacker: string; target: string; move: string; type: TypeName; tutorial: boolean; know: string | null; notch?: number
@@ -146,14 +154,15 @@ export class CodeBattle {
     const reason = v.reason as MissReason | undefined
     await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s code hit!` : missText(attacker, reason ?? 'crashed'), ...(v.got ? { detail: `returned ${v.got}, needed ${v.want}` } : v.error ? { detail: v.error } : {}) })
     this.mailbox.reply(req, verdict, reason ?? 'crashed')
+    if (side === 0) this.memory.remember?.(req.attackerPersonality, { at: Date.now(), move: move.name, type, target, verdict, ...(reason ? { reason } : {}), notch, budget, code: (code ?? '').slice(0, 1200) })
     this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}) })
   }
 }
 
 /** Code memory in the page's local storage (per browser; moves with cloud saves later). */
 export function localCodeMemory(storage: Pick<Storage, 'getItem' | 'setItem'> | null, key = 'code-red-code-memory-v1'): CodeMemory {
-  type State = { mons: Record<string, Readers>; hot: Record<string, string>; seen: string[] }
-  let state: State = { mons: {}, hot: {}, seen: [] }
+  type State = { mons: Record<string, Readers>; hot: Record<string, string>; seen: string[]; recent: Record<string, CodeTurn[]> }
+  let state: State = { mons: {}, hot: {}, seen: [], recent: {} }
   try { const raw = storage?.getItem(key); if (raw) state = { ...state, ...JSON.parse(raw) as Partial<State> } } catch { /* fresh */ }
   const save = () => { try { storage?.setItem(key, JSON.stringify(state)) } catch { /* in memory only */ } }
   const add = (list: string[], more: string[]) => { for (const t of more) if (!list.includes(t)) list.push(t); save() }
@@ -164,10 +173,12 @@ export function localCodeMemory(storage: Pick<Storage, 'getItem' | 'setItem'> | 
     setHot: (pid, text) => { state.hot[String(pid)] = text; save() },
     seen: () => [...state.seen],
     addSeen: types => add(state.seen, types),
+    recent: pid => [...(state.recent[String(pid)] ?? [])],
+    remember: (pid, turn) => { const list = state.recent[String(pid)] ??= []; list.push(turn); if (list.length > HISTORY) list.splice(0, list.length - HISTORY); save() },
     export: () => JSON.parse(JSON.stringify(state)) as unknown,
     import: incoming => {
       const next = (incoming && typeof incoming === 'object' ? incoming : {}) as Partial<State>
-      state = { mons: next.mons ?? {}, hot: next.hot ?? {}, seen: Array.isArray(next.seen) ? next.seen : [] }
+      state = { mons: next.mons ?? {}, hot: next.hot ?? {}, seen: Array.isArray(next.seen) ? next.seen : [], recent: next.recent ?? {} }
       save()
     },
   }

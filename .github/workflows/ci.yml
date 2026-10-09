@@ -61,6 +61,8 @@ jobs:
           sim/build_core.sh
           python3 sim/make_states.py
           python3 player/tests/agent_battle.py
+      - name: PokÉEG (owned Pokémon from RAM, hot memory, recent code)
+        run: python3 player/tests/pokeeg.py
       - name: Touch input + 10x toggle (iPhone emulation, Chromium)
         run: python3 player/tests/mobile.py --engine chromium --out build/mobile-chromium
       - name: iPhone Safari diagnostics (WebKit)

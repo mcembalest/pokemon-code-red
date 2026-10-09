@@ -17,6 +17,8 @@ import { CalcController } from './bridge/calc-controller.ts'
 import { NamingMailbox } from './bridge/naming.ts'
 import { Backend, DEFAULT_API, localSessionStore } from './backend.ts'
 import { CloudSync, localSyncMark } from './cloud.ts'
+import { OwnedReader } from './agents/owned.ts'
+import { createPokeeg } from './agents/pokeeg.ts'
 import { ProgressWatcher, readSnapshot } from './progress.ts'
 import { Agent } from './agents/agent.ts'
 import { CloudBrain, MockBrain, ReplayBrain } from './agents/brains.ts'
@@ -85,8 +87,10 @@ const TEMPLATE = `
   <div class="code-red-stage" data-stage>
     <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>
   </div>
+  <div data-eeg-host></div>
   <div class="code-red-toolbar" data-toolbar hidden>
     <button class="code-red-speed" data-code type="button" aria-pressed="true" hidden>Code</button>
+    <button class="code-red-speed" data-eeg type="button" aria-pressed="false" hidden>PokÉEG</button>
     <button class="code-red-speed" data-agent type="button" aria-pressed="false" hidden>Agent</button>
     <button class="code-red-speed" data-speed type="button" aria-pressed="false">10×</button>
   </div>`
@@ -105,6 +109,8 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   const toolbar = root.querySelector<HTMLElement>('[data-toolbar]')!
   const speedButton = root.querySelector<HTMLButtonElement>('[data-speed]')!
   const codeButton = root.querySelector<HTMLButtonElement>('[data-code]')!
+  const eegButton = root.querySelector<HTMLButtonElement>('[data-eeg]')!
+  const eegHost = root.querySelector<HTMLElement>('[data-eeg-host]')!
   const stage = root.querySelector<HTMLElement>('[data-stage]')!
   let fastForward = false
   const joinForm = root.querySelector<HTMLFormElement>('[data-join]')!
@@ -336,8 +342,22 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
         ? readSnapshot(memory, { saveBlock1Ptr: s.gSaveBlock1Ptr.address, saveBlock2Ptr: s.gSaveBlock2Ptr.address, partyCount: s.gPlayerPartyCount.address, party: s.gPlayerParty.address }) : null
       return snap ? badgeNames.filter((_, i) => snap.badges >> i & 1) : []
     }
-    // Until the PokÉEG exists: window.CodeRed.setHot(personality, text) pins hot memory for a Pokémon (dev / testing).
-    ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, setHot: (pid: number, text: string) => minds.setHot(pid, text), hot: (pid: number) => minds.hot(pid), readers: (pid: number) => minds.readers(pid) }
+    // window.CodeRed.setHot(personality, text) pins hot memory from the console too (dev / testing).
+    ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, setHot: (pid: number, text: string) => minds.setHot(pid, text), hot: (pid: number) => minds.hot(pid), readers: (pid: number) => minds.readers(pid), owned: () => owned?.all() ?? null }
+    // The PokÉEG: every owned Pokémon's mind (party + boxes), from the toolbar.
+    const owned = romBytes && OwnedReader.supported(rom.symbols) ? new OwnedReader(memory, romBytes, rom.symbols) : null
+    if (owned) {
+      const eeg = createPokeeg(eegHost, { owned: () => { try { return memory.ready() ? owned.all() : null } catch { return null } }, minds, badges, onHot: (pid, text) => backend?.track('hot_memory', { pid, chars: text.length }) })
+      eegButton.hidden = false
+      eegButton.onpointerdown = event => event.preventDefault()
+      eegButton.onclick = () => {
+        eeg.setVisible(!eeg.visible)
+        eegButton.setAttribute('aria-pressed', String(eeg.visible))
+        eegButton.classList.toggle('code-red-speed-on', eeg.visible)
+        if (eeg.visible) eeg.element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+      disposers.push(() => { eeg.dispose(); eegButton.hidden = true; eegButton.onclick = eegButton.onpointerdown = null })
+    }
     const battle = new CodeBattle(new CodeMoveMailbox(memory, sym.address), reader, writer, runner, panel, minds, {
       badges,
       onTurn: t => backend?.track('code_move', { ...t, code: t.code?.slice(0, 300) }),
