@@ -5,14 +5,14 @@ import { PAYLOAD_MAGIC, PayloadMailbox, packImage, packSound } from './payload.t
 
 test('packImage: 1024 pixels → 512 bytes of 4bpp tiles in 1D 32×32 order, 16 shades', () => {
   const px = new Array(1024).fill(255)
-  px[0] = 0; px[1] = 16 * 7 // first two pixels of tile 0: shade 0 then shade 7
+  px[0] = 0; px[1] = 128 // first two pixels of tile 0: black (shade 1) then mid grey (shade 8)
   px[8] = 0 // pixel (x=8, y=0) starts tile 1
   px[32 * 8] = 0 // pixel (x=0, y=8) starts tile 4
   const t = packImage(px)
   assert.equal(t.length, 512)
-  assert.equal(t[0], 0x70) // low nibble = x even (shade 0), high nibble = x odd (shade 7)
+  assert.equal(t[0], 0x81) // low nibble = x even (shade 1), high nibble = x odd (shade 8); 0 is transparent
   assert.equal(t[1], 0xFF)
-  assert.equal(t[32], 0xF0); assert.equal(t[4 * 32], 0xF0)
+  assert.equal(t[32], 0xF1); assert.equal(t[4 * 32], 0xF1)
 })
 
 test('packSound: unsigned around 128 → signed 8-bit, clipped to 512 samples', () => {

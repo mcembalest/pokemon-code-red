@@ -21,11 +21,11 @@ const isBytes = (v, n) => Array.isArray(v) && v.length === n && v.every(x => Num
 const crossings = v => { let n = 0, last = 0; for (const x of v) { const s = Math.sign(x - 128); if (s && last && s !== last) n++; if (s) last = s } return n }
 export const PAYLOAD = {
   sound: { kind: 'sound', n: 400,
-    check: (v, b) => !isBytes(v, 400) ? 'not 400 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : Math.max(...v) < 200 ? 'never loud (above 200)' : Math.min(...v.slice(1)) > 56 ? 'never quiet (below 56)' : crossings(v) < 3 ? 'switches fewer than 3 times' : null,
+    check: (v, b) => !isBytes(v, v?.length) || v.length < 100 || v.length > 512 ? 'not 100 to 512 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : Math.max(...v) < 200 ? 'never loud (above 200)' : Math.min(...v.slice(1)) > 56 ? 'never quiet (below 56)' : crossings(v) < 3 ? 'switches fewer than 3 times' : null,
     ref: b => [b.length, ...Array.from({ length: 399 }, (_, i) => (i % 20 < 10 ? 230 : 30))] },
   image: { kind: 'image', n: 1024,
-    check: (v, b) => !isBytes(v, 1024) ? 'not 1024 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : v.filter(x => x > 200).length < 400 ? 'not mostly white (fewer than 400 numbers above 200)' : v.filter(x => x < 50).length < 100 ? 'no dark shape (fewer than 100 numbers below 50)' : null,
-    ref: b => [b.length, ...Array.from({ length: 1023 }, (_, k) => { const i = k + 1, x = i % 32, y = i >> 5; return x >= 10 && x < 22 && y >= 10 && y < 22 ? 0 : 255 })] },
+    check: (v, b) => !isBytes(v, v?.length) || v.length < 1024 ? 'not 1024 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : v.filter(x => x > 200).length < 400 ? 'not mostly white (fewer than 400 numbers above 200)' : v.filter(x => x < 50).length < 100 ? 'no dark shape (fewer than 100 numbers below 50)' : null,
+    ref: b => [b.length, ...Array.from({ length: 1023 }, (_, k) => (k + 1 >= 352 && k + 1 < 672 ? 0 : 255))] },
 }
 
 const sum = b => b.reduce((a, x) => a + x, 0)
@@ -68,8 +68,8 @@ const TABLE = [
   ['Harden', 'HARDEN', "each number written as a string, like 42 → '42' (a list of strings)", b => b.map(String)],
   ['Bind', 'BIND', 'the first and last number, as a list of two', b => [b[0], b.at(-1)]],
   ['Wrap', 'WRAP', 'the numbers wrapped in another list', b => [[...b]]],
-  ['Growl', 'ERROR', 'a buzz, as a list of 400 numbers: the first is how many numbers the foe had (the length of the list), then 399 more that alternate ten at a time: ten 230s, ten 30s, ten 230s, and so on', PAYLOAD.sound],
-  ['Flash', 'FLASH', 'a flash, as a list of 1024 numbers (a 32 by 32 picture, row by row): the first is how many numbers the foe had (the length of the list), then 1023 more: 255 (white) everywhere except a 12 by 12 square of 0s (black) in the middle (rows 10 to 21, columns 10 to 21)', PAYLOAD.image],
+  ['Growl', 'ERROR', 'a buzz, as a list of 400 numbers: the first is how many numbers the foe had (data.length), then 399 more that alternate ten at a time: ten 230s, ten 30s, ten 230s, and so on', PAYLOAD.sound],
+  ['Flash', 'FLASH', 'a flash, as a list of 1024 numbers (a 32 by 32 picture): the first is how many numbers the foe had (data.length), then 1023 more: 0 (black) at positions 352 to 671, 255 (white) everywhere else', PAYLOAD.image],
   ['Camouflage', 'SPOOF', 'the list with the first and last numbers swapped', b => [b.at(-1), ...b.slice(1, -1), b[0]]],
   ['Supersonic', 'FEEDBACK', 'the sum of the first two numbers', b => b[0] + b[1]],
   ['Defense Curl', 'LOCKDOWN', 'a list holding only the first number', b => [b[0]]],

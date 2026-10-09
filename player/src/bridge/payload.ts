@@ -18,7 +18,7 @@ type Memory = Pick<GbaMemory, 'ready' | 'u8' | 'u16' | 'u32' | 'w8' | 'w16' | 'w
 export function packImage(pixels: number[]): Uint8Array {
   const out = new Uint8Array(PAYLOAD_BYTES)
   for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
-    const shade = (Math.max(0, Math.min(255, pixels[y * 32 + x] ?? 0)) >> 4) & 0xF
+    const shade = 1 + Math.round(Math.max(0, Math.min(255, pixels[y * 32 + x] ?? 0)) * 14 / 255) // 1..15: index 0 is transparent on the GBA
     const at = ((y >> 3) * 4 + (x >> 3)) * 32 + (y & 7) * 4 + ((x & 7) >> 1)
     out[at] = x & 1 ? (out[at]! & 0x0F) | (shade << 4) : (out[at]! & 0xF0) | shade
   }

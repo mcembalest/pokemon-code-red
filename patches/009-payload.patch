@@ -6,10 +6,10 @@ cry player or draws a 32×32 16-grey sprite over the target. The hook lives in p
 (CodeRedMoveContinue → CodeRedPayloadShow). EWRAM is ~120 bytes from full after this.
 diff --git a/src/code_red_payload.c b/src/code_red_payload.c
 new file mode 100644
-index 00000000..e641b267
+index 00000000..624c889d
 --- /dev/null
 +++ b/src/code_red_payload.c
-@@ -0,0 +1,124 @@
+@@ -0,0 +1,125 @@
 +// Code Red: payload moves (owner, 2026-10-09: bytes are the universal medium). Some moves make bytes instead of
 +// answering — ERROR makes a sound, FLASH a picture. The page judges the bytes and, on a hit, drops them here before
 +// it replies; when the battle takes the hit (CodeRedMoveContinue) the GBA plays or draws them.
@@ -104,8 +104,9 @@ index 00000000..e641b267
 +    struct SpritePalette pal = { palette, PAYLOAD_TAG };
 +    s16 sx, sy;
 +    if (length < PAYLOAD_BYTES) return;
-+    for (i = 0; i < 16; i++)
-+        palette[i] = RGB(i * 2, i * 2, i * 2); // 16 greys, black to white (the page packs pixels as 4bpp tiles)
++    palette[0] = RGB_BLACK; // index 0 is transparent in a 4bpp sprite: the page packs pixels into 1..15
++    for (i = 1; i < 16; i++)
++        palette[i] = RGB((i - 1) * 31 / 14, (i - 1) * 31 / 14, (i - 1) * 31 / 14); // 15 greys, black to white
 +    FreeSpriteTilesByTag(PAYLOAD_TAG);
 +    FreeSpritePaletteByTag(PAYLOAD_TAG);
 +    LoadSpriteSheet(&sheet);
