@@ -22,8 +22,11 @@ const crossings = v => { let n = 0, last = 0; for (const x of v) { const s = Mat
 const soundCheck = ({ hi, lo, switches }) => (v, b) => !isBytes(v, v?.length) || v.length < 100 || v.length > 512 ? 'not 100 to 512 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : Math.max(...v) < hi ? `never loud (above ${hi})` : Math.min(...v.slice(1)) > lo ? `never quiet (below ${lo})` : crossings(v) < switches ? `switches fewer than ${switches} times` : null
 const imageCheck = ({ white, dark }) => (v, b) => !isBytes(v, v?.length) || v.length < 1024 ? 'not 1024 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : v.filter(x => x > 200).length < white ? `not enough white (fewer than ${white} numbers above 200)` : v.filter(x => x < 50).length < dark ? `not enough black (fewer than ${dark} numbers below 50)` : null
 /** A sound: `run` samples of `hi` then `run` of `lo`, repeating (the pitch); a picture: white with black from `from` to `to`, or the reverse. */
-const sound = (hi, lo, run) => ({ kind: 'sound', n: 400, check: soundCheck({ hi: hi - 10, lo: lo + 10, switches: 3 }), ref: b => [b.length, ...Array.from({ length: 399 }, (_, i) => (Math.floor(i / run) % 2 ? lo : hi))] })
-const image = (bg, fg, from, to, { white, dark }) => ({ kind: 'image', n: 1024, check: imageCheck({ white, dark }), ref: b => [b.length, ...Array.from({ length: 1023 }, (_, k) => (k + 1 >= from && k + 1 < to ? fg : bg))] })
+// refs are built from source text with the numbers inlined: the stand-in model (player mockWriter) prints ref.toString() as its code.
+const sound = (hi, lo, run) => ({ kind: 'sound', n: 400, check: soundCheck({ hi: hi - 10, lo: lo + 10, switches: 3 }),
+  ref: (0, eval)(`b => [b.length, ...Array.from({ length: 399 }, (_, i) => (Math.floor(i / ${run}) % 2 ? ${lo} : ${hi}))]`) })
+const image = (bg, fg, from, to, { white, dark }) => ({ kind: 'image', n: 1024, check: imageCheck({ white, dark }),
+  ref: (0, eval)(`b => [b.length, ...Array.from({ length: 1023 }, (_, k) => (k + 1 >= ${from} && k + 1 < ${to} ? ${fg} : ${bg}))]`) })
 export const PAYLOAD = {
   sound: sound(230, 30, 1),            // ERROR: a harsh 4 kHz buzz
   buzz: sound(230, 30, 2),             // BUZZ: 2 kHz
