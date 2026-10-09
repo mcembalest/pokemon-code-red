@@ -163,8 +163,25 @@ test('local code memory persists across page loads', () => {
   const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => { data.set(k, v) } }
   const a = localCodeMemory(storage)
   a.setReaders(5, { ROCK: 'const bytes = x' }); a.addSeen(['ROCK', 'ROCK'])
+  for (let i = 0; i < 25; i++) a.remember!(5, { at: i, move: 'SCRATCH', type: 'NORMAL', target: 'RATTATA', verdict: 'hit', notch: 0, budget: 300, code: `// ${i}` })
   const b = localCodeMemory(storage)
   assert.deepEqual(b.readers(5), { ROCK: 'const bytes = x' }); assert.deepEqual(b.seen(), ['ROCK'])
+  assert.equal(b.recent!(5).length, 20); assert.equal(b.recent!(5)[0]!.at, 5) // last 20 kept
+  const bundle = b.export!()
+  const c = localCodeMemory(null); c.import!(bundle)
+  assert.deepEqual(c.export!(), bundle)
+})
+
+test('a player turn is remembered in the Pokémon\'s code history; foe turns are not', async () => {
+  const g = game(), { panel } = fakePanel()
+  const minds = store()
+  const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, minds)
+  await b.poll(); g.request({ side: 0 }); await b.poll()
+  g.request({ side: 1 }); await b.poll()
+  const mine = minds.recent!(111)
+  assert.deepEqual(minds.recent!(222), [])
+  assert.equal(mine.length, 1)
+  assert.equal(mine[0]!.verdict, 'hit'); assert.match(mine[0]!.code, /function/)
 })
 
 test('status moves hit the code: Growl on the attacker shakes it (smaller budget, hotter writing); its own Withdraw steadies it', async () => {

@@ -27,12 +27,15 @@ WANTED = {
     'gBattleOutcome': 1,
     'gCodeRedMove': 48,
     'gTasks': 16 * 40,
+    'gPokemonStoragePtr': 4,  # PC boxes (PokÉEG: every owned Pokémon)
     # code / ROM data (bytes = 0: not RAM)
     'BattleMainCB2': 0,
     'gBattleMoves': 0,
     'gMoveNames': 0,
     'gSpeciesNames': 0,
     'gTypeNames': 0,
+    'gSpeciesInfo': 0,       # types, growth rate
+    'gExperienceTables': 0,  # level from experience (box Pokémon store no level)
 }
 
 # Static functions share names across files: (object, name) -> exported key "object.name".
