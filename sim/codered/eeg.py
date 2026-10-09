@@ -1,9 +1,9 @@
-"""Host side of the PokÉEG mailbox (patches/008-pokeeg.patch, struct CodeRedEeg, 164 B) for the simulator.
+"""Host side of the PokÉEG mailbox (patches/008-pokeeg.patch, struct CodeRedEeg, 260 B (v2)) for the simulator.
 
   0 u32 magic 'CRE1'  4 u16 version  6 u8 state (0 idle, 1 request, 2 reply, 4 cancelled)  7 u8 op (1 mind, 2 edit hot)
   8 u32 requestId  12 u32 epoch  16 u32 personality  20 u16 species  22 u8 level  23 u8 open
  24 u8 readers  25 u8 dex  26 u16 budget  28 u8 focus×100  29 u8 nHistory  30 u8 history[10]
- 40 u8 format[24] (game text)  64 u8 hot[100] (game text)
+ 40 u8 format[24] (game text)  64 u8 hot[100] (game text; one '\n' allowed)  164 u8 readersText[48]  212 u8 dexText[48]
 
 mind(request) -> dict(readers, dex, budget, focus, history, format, hot) answers op 1; for op 2 the host
 "types" `hot_reply` (the page opens an editor) and answers with state 2.
@@ -20,12 +20,26 @@ def encode_text(text: str, size: int) -> bytes:
     for c in text:
         if len(out) >= size - 1:
             break
-        if '0' <= c <= '9': out.append(0xA1 + ord(c) - 48)
+        if c == '\n': out.append(0xFE)
+        elif '0' <= c <= '9': out.append(0xA1 + ord(c) - 48)
         elif 'A' <= c <= 'Z': out.append(0xBB + ord(c) - 65)
         elif 'a' <= c <= 'z': out.append(0xD5 + ord(c) - 97)
         else: out.append(CHARS.get(c, 0xAC))
     out.append(0xFF)
     return bytes(out.ljust(size, b'\xff'))
+
+
+def wrap(text: str, width: int = 30) -> str:
+    """Two lines at most (what the mind window holds), like the page does."""
+    words, lines, cur = text.split(), [], ''
+    for w in words:
+        if len(cur) + len(w) + (1 if cur else 0) > width and cur:
+            lines.append(cur); cur = w
+        else:
+            cur = (cur + ' ' + w).strip()
+    if cur: lines.append(cur)
+    out = '\n'.join(lines[:2])
+    return out if len(lines) <= 2 else out[:-1] + '…'
 
 
 class EegHost:
@@ -65,7 +79,9 @@ class EegHost:
             h = list(m.get('history', []))[-10:]
             g.w8(a + 29, len(h)); g.write(a + 30, bytes(h).ljust(10, b'\0'))
             g.write(a + 40, encode_text(m.get('format', ''), 24))
-            g.write(a + 64, encode_text(m.get('hot', ''), 100))
+            g.write(a + 64, encode_text(wrap(m.get('hot', '')), 100))
+            g.write(a + 164, encode_text(m.get('readers_text', ''), 48))
+            g.write(a + 212, encode_text(m.get('dex_text', ''), 48))
         g.w8(a + 6, 2)  # reply (op 2: the page's editor closed)
         self._pending = None
 
