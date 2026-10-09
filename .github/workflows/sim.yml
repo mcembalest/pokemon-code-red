@@ -50,8 +50,11 @@ jobs:
           PY
           exit $status
       - name: Code moves (both sides; no host / hit / miss / mixed)
-        if: matrix.seed == 0
+        if: matrix.seed == 0 && !cancelled()  # even when the Misty route flaked
         run: python3 sim/experiments/code_moves.py --starter BULBASAUR | python3 -c "import json,sys; r=json.load(sys.stdin); print(json.dumps(r['checks'], indent=1)); sys.exit(0 if all(r['checks'].values()) else 1)"
       - name: PokÉEG screen (bedroom PC; no host, mock host, note edit round trip)
-        if: matrix.seed == 0
+        if: matrix.seed == 0 && !cancelled()  # even when the Misty route flaked
         run: python3 sim/experiments/pokeeg.py
+      - name: Payload moves (ERROR's buzz plays, FLASH's picture draws, the battle goes on)
+        if: matrix.seed == 0 && !cancelled()  # even when the Misty route flaked
+        run: python3 sim/experiments/payload.py

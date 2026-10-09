@@ -120,10 +120,10 @@ index 67f90a37..7dc3d52f 100644
      }
 diff --git a/src/code_red_battle.c b/src/code_red_battle.c
 new file mode 100644
-index 00000000..590a3e51
+index 00000000..e5fc2910
 --- /dev/null
 +++ b/src/code_red_battle.c
-@@ -0,0 +1,152 @@
+@@ -0,0 +1,156 @@
 +#include "global.h"
 +#include "battle.h"
 +#include "battle_scripts.h"
@@ -204,6 +204,8 @@ index 00000000..590a3e51
 +}
 +
 +// TRUE while Cmd_attackcanceler is waiting on the host: it must resume here, not rerun its checks.
++void CodeRedPayloadShow(void);
++
 +bool8 CodeRedMovePending(void)
 +{
 +    return sAsked;
@@ -273,6 +275,8 @@ index 00000000..590a3e51
 +    }
 +    else
 +    {
++        if (verdict == CODE_RED_HIT)
++            CodeRedPayloadShow(); // the move's bytes, if it made any (a sound, a picture)
 +        gBattlescriptCurrInstr++;
 +    }
 +}

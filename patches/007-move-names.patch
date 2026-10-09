@@ -1,5 +1,5 @@
-Code Red: move names (owner-approved, 2026-10-07; spine revision 2026-10-08; sensory pass 2026-10-09): moves renamed to plain
-sensory words that fit their type family (SCRATCH -> SLICE, GROWL -> ERROR, HYPER FANG -> CRASH ...); 15 keep their FireRed name.
+Code Red: move names (owner-approved, 2026-10-07; spine revision 2026-10-08): moves renamed to plain technical
+words that fit their type family (SCRATCH -> SLICE, GROWL -> ERRORMSG ...); 15 keep their FireRed name.
 Generated from rules/moves.mjs.
 
 diff --git a/src/data/text/move_names.h b/src/data/text/move_names.h

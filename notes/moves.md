@@ -32,7 +32,7 @@ Example numbers: [42, 13, 140]
 | Dark | a signed token: three parts separated by '.', the numbers are the middle part, separated by commas, e.g. 'v1.42,13,140.ok' | `"v1.42,13,140.ok"` | `const nums = data.split('.')[1].split(',').map(Number)` | pick by credential: specific positions, the first match |
 | Steel | encrypted: each number XOR 255 gives the byte | `[213,242,115]` | `const nums = data.map(x => x ^ 255)` | cipher: XOR, hash, mask |
 
-## Moves (103)
+## Moves (104)
 
 S = a starter learns it before Brock · K = FireRed name kept
 
@@ -60,7 +60,8 @@ S = a starter learns it before Brock · K = FireRed name kept
 | HARDEN | Harden | –/– | defense up | each number written as a string, like 42 → '42' (a list of strings) | K |
 | BIND | Bind | 15/75 | trap | the first and last number, as a list of two | K |
 | WRAP | Wrap | 15/85 | trap | the numbers wrapped in another list | K |
-| ERROR | Growl | –/100 | attack down | the text 'ERROR ' followed by how many numbers there are, e.g. 'ERROR 3' | S |
+| ERROR | Growl | –/100 | attack down | a buzz, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate 230, 30, 230, 30, … until the list has 400 numbers | S |
+| FLASH | Flash | –/70 | accuracy down | a flash, as a list of 1024 numbers (a 32 by 32 picture): the first is how many numbers the foe had (data.length); then 255 (white) until the list has 640 numbers, then 0 (black) until it has 1024 | K |
 | SPOOF | Camouflage | –/100 | camouflage | the list with the first and last numbers swapped |  |
 | FEEDBACK | Supersonic | –/55 | confuse | the sum of the first two numbers |  |
 | LOCKDOWN | Defense Curl | –/– | defense curl | a list holding only the first number |  |

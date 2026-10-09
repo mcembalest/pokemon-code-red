@@ -11,6 +11,23 @@
 // Indexes count from 0. No answer is null. Ties → the first one. "Rounded down" = Math.floor.
 import { FIRERED } from './firered.mjs'
 
+/**
+ * Payload moves (owner, 2026-10-09): bytes are the universal medium, so a move may *make* bytes instead of answering —
+ * a sound the GBA plays, a picture it draws. There is no single right answer: `check(value, bytes)` returns null for a
+ * hit or why it missed. The foe's data still matters (the first number must be its count: the type's format must be read).
+ * `ref` is the example shown in the prompt (a function of the foe's bytes), `kind` is what the GBA does with the bytes.
+ */
+const isBytes = (v, n) => Array.isArray(v) && v.length === n && v.every(x => Number.isInteger(x) && x >= 0 && x <= 255)
+const crossings = v => { let n = 0, last = 0; for (const x of v) { const s = Math.sign(x - 128); if (s && last && s !== last) n++; if (s) last = s } return n }
+export const PAYLOAD = {
+  sound: { kind: 'sound', n: 400,
+    check: (v, b) => !isBytes(v, v?.length) || v.length < 100 || v.length > 512 ? 'not 100 to 512 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : Math.max(...v) < 200 ? 'never loud (above 200)' : Math.min(...v.slice(1)) > 56 ? 'never quiet (below 56)' : crossings(v) < 3 ? 'switches fewer than 3 times' : null,
+    ref: b => [b.length, ...Array.from({ length: 399 }, (_, i) => (i % 2 ? 30 : 230))] },
+  image: { kind: 'image', n: 1024,
+    check: (v, b) => !isBytes(v, v?.length) || v.length < 1024 ? 'not 1024 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : v.filter(x => x > 200).length < 300 ? 'not enough white (fewer than 300 numbers above 200)' : v.filter(x => x < 50).length < 100 ? 'no dark shape (fewer than 100 numbers below 50)' : null,
+    ref: b => [b.length, ...Array.from({ length: 1023 }, (_, k) => (k + 1 < 640 ? 255 : 0))] },
+}
+
 const sum = b => b.reduce((a, x) => a + x, 0)
 const max = b => Math.max(...b)
 const min = b => Math.min(...b)
@@ -51,7 +68,8 @@ const TABLE = [
   ['Harden', 'HARDEN', "each number written as a string, like 42 → '42' (a list of strings)", b => b.map(String)],
   ['Bind', 'BIND', 'the first and last number, as a list of two', b => [b[0], b.at(-1)]],
   ['Wrap', 'WRAP', 'the numbers wrapped in another list', b => [[...b]]],
-  ['Growl', 'ERROR', "the text 'ERROR ' followed by how many numbers there are, e.g. 'ERROR 3'", b => `ERROR ${b.length}`],
+  ['Growl', 'ERROR', 'a buzz, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate 230, 30, 230, 30, … until the list has 400 numbers', PAYLOAD.sound],
+  ['Flash', 'FLASH', 'a flash, as a list of 1024 numbers (a 32 by 32 picture): the first is how many numbers the foe had (data.length); then 255 (white) until the list has 640 numbers, then 0 (black) until it has 1024', PAYLOAD.image],
   ['Camouflage', 'SPOOF', 'the list with the first and last numbers swapped', b => [b.at(-1), ...b.slice(1, -1), b[0]]],
   ['Supersonic', 'FEEDBACK', 'the sum of the first two numbers', b => b[0] + b[1]],
   ['Defense Curl', 'LOCKDOWN', 'a list holding only the first number', b => [b[0]]],
@@ -165,9 +183,11 @@ const shapeOf = ref => {
   return v === undefined ? 'no key' : v === null ? 'null' : Array.isArray(v) ? 'a list' : typeof v === 'string' ? 'text' : 'a number'
 }
 
-export const MOVES = TABLE.map(([firered, name, spec, ref]) => {
+export const MOVES = TABLE.map(([firered, name, spec, refOrPayload]) => {
   const [type, power, acc, effect] = FIRERED[firered]
-  return { firered, name, fn: fnName(name), spec, shape: shapeOf(ref), ref, type, power, acc, effect, starter: STARTER_MOVES.has(firered), kept: name === firered.toUpperCase() }
+  const payload = typeof refOrPayload === 'object' ? refOrPayload : null
+  const ref = payload ? payload.ref : refOrPayload
+  return { firered, name, fn: fnName(name), spec, shape: shapeOf(ref), ref, type, power, acc, effect, starter: STARTER_MOVES.has(firered), kept: name === firered.toUpperCase(), ...(payload ? { payload } : {}) }
 })
 
 export const byName = Object.fromEntries(MOVES.map(m => [m.name, m]))

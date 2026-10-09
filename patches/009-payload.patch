@@ -1,0 +1,137 @@
+Code Red: payload moves (owner, 2026-10-09: bytes are the universal medium). A move may make bytes
+instead of answering: ERROR makes a sound, FLASH a picture. The page judges the bytes and, on a hit,
+drops them into gCodeRedPayload (540 B: header + 16-byte wave header + 512 bytes) already in GBA form
+(signed 8 kHz samples / 4bpp tiles); when the battle takes the hit, the GBA plays the sound through the
+cry player or draws a 32×32 16-grey sprite over the target. The hook lives in patch 006
+(CodeRedMoveContinue → CodeRedPayloadShow). EWRAM is ~120 bytes from full after this.
+diff --git a/src/code_red_payload.c b/src/code_red_payload.c
+new file mode 100644
+index 00000000..624c889d
+--- /dev/null
++++ b/src/code_red_payload.c
+@@ -0,0 +1,125 @@
++// Code Red: payload moves (owner, 2026-10-09: bytes are the universal medium). Some moves make bytes instead of
++// answering — ERROR makes a sound, FLASH a picture. The page judges the bytes and, on a hit, drops them here before
++// it replies; when the battle takes the hit (CodeRedMoveContinue) the GBA plays or draws them.
++// EWRAM is nearly full (FireRed leaves ~700 B), so the page delivers bytes already in GBA form into one 512-byte buffer:
++//   sound: up to 512 signed 8-bit samples at 8 kHz, looped as a cry-player tone for SOUND_FRAMES frames
++//   image: 16 4bpp tiles (a 32×32 sprite, 16 grey shades), drawn over the target for IMAGE_FRAMES frames
++#include "global.h"
++#include "gflib.h"
++#include "battle.h"
++#include "battle_anim.h"
++#include "decompress.h"
++#include "task.h"
++#include "gba/m4a_internal.h"
++
++extern struct MusicPlayerInfo *gMPlay_PokemonCry;
++
++#define PAYLOAD_MAGIC 0x31505243 // 'CRP1'
++#define PAYLOAD_BYTES 512
++#define PAYLOAD_NONE 0
++#define PAYLOAD_SOUND 1
++#define PAYLOAD_IMAGE 2
++#define PAYLOAD_TAG 0xCCEE
++#define IMAGE_FRAMES 48
++#define SOUND_FRAMES 36
++
++struct CodeRedPayload {
++    /*0x00*/ u32 magic;
++    /*0x04*/ u16 version;   // 1
++    /*0x06*/ u8 kind;       // host: 0 none, 1 sound, 2 image (the game clears it after playing)
++    /*0x07*/ u8 pad;
++    /*0x08*/ u16 length;    // bytes used (sound: samples; image: 512)
++    /*0x0A*/ u16 played;    // game: how many payloads it has played (the host can tell it took)
++    // a WaveData header (16 bytes) the game fills; the engine reads its samples right after it: `data`
++    /*0x0C*/ u16 waveType;
++    /*0x0E*/ u16 waveStatus;
++    /*0x10*/ u32 waveFreq;
++    /*0x14*/ u32 waveLoopStart;
++    /*0x18*/ u32 waveSize;
++    /*0x1C*/ u8 data[PAYLOAD_BYTES];
++};
++STATIC_ASSERT(sizeof(struct CodeRedPayload) == 28 + PAYLOAD_BYTES, CodeRedPayloadSize);
++EWRAM_DATA volatile struct CodeRedPayload gCodeRedPayload = {0};
++static EWRAM_DATA struct ToneData sTone = {0};
++
++static const struct OamData sOam = {
++    .y = 0, .affineMode = ST_OAM_AFFINE_OFF, .objMode = ST_OAM_OBJ_NORMAL, .bpp = ST_OAM_4BPP,
++    .shape = SPRITE_SHAPE(32x32), .size = SPRITE_SIZE(32x32), .priority = 0, .paletteNum = 0,
++};
++static void SpriteCB_Payload(struct Sprite *sprite);
++static const struct SpriteTemplate sTemplate = {
++    .tileTag = PAYLOAD_TAG, .paletteTag = PAYLOAD_TAG, .oam = &sOam,
++    .anims = gDummySpriteAnimTable, .images = NULL, .affineAnims = gDummySpriteAffineAnimTable, .callback = SpriteCB_Payload,
++};
++
++static void PlaySoundPayload(u16 length)
++{
++    volatile struct CodeRedPayload *p = &gCodeRedPayload;
++    if (length < 32) return;
++    p->waveType = 0;
++    p->waveStatus = 0x4000; // loop while the note is held
++    p->waveFreq = 8000 * 1024;
++    p->waveLoopStart = 0;
++    p->waveSize = length;
++    sTone.type = 0; sTone.key = 60; sTone.length = 0; sTone.pan_sweep = 0;
++    sTone.wav = (struct WaveData *)&p->waveType;
++    sTone.attack = 255; sTone.decay = 0; sTone.sustain = 255; sTone.release = 0;
++    SetPokemonCryVolume(120);
++    SetPokemonCryPanpot(0);
++    SetPokemonCryPitch(15360);
++    SetPokemonCryLength(SOUND_FRAMES);
++    SetPokemonCryProgress(0);
++    SetPokemonCryRelease(0);
++    SetPokemonCryChorus(0);
++    SetPokemonCryPriority(10);
++    gMPlay_PokemonCry = SetPokemonCryTone(&sTone);
++}
++
++static void SpriteCB_Payload(struct Sprite *sprite)
++{
++    if (++sprite->data[0] < IMAGE_FRAMES)
++        return;
++    FreeSpriteTilesByTag(PAYLOAD_TAG);
++    FreeSpritePaletteByTag(PAYLOAD_TAG);
++    DestroySprite(sprite);
++}
++
++static void ShowImagePayload(u16 length)
++{
++    u16 i;
++    u16 palette[16];
++    struct SpriteSheet sheet = { (const u8 *)gCodeRedPayload.data, PAYLOAD_BYTES, PAYLOAD_TAG };
++    struct SpritePalette pal = { palette, PAYLOAD_TAG };
++    s16 sx, sy;
++    if (length < PAYLOAD_BYTES) return;
++    palette[0] = RGB_BLACK; // index 0 is transparent in a 4bpp sprite: the page packs pixels into 1..15
++    for (i = 1; i < 16; i++)
++        palette[i] = RGB((i - 1) * 31 / 14, (i - 1) * 31 / 14, (i - 1) * 31 / 14); // 15 greys, black to white
++    FreeSpriteTilesByTag(PAYLOAD_TAG);
++    FreeSpritePaletteByTag(PAYLOAD_TAG);
++    LoadSpriteSheet(&sheet);
++    LoadSpritePalette(&pal);
++    sx = GetBattlerSpriteCoord(gBattlerTarget, BATTLER_COORD_X_2);
++    sy = GetBattlerSpriteCoord(gBattlerTarget, BATTLER_COORD_Y_PIC_OFFSET);
++    i = CreateSprite(&sTemplate, sx, sy, 0);
++    if (i < MAX_SPRITES)
++        gSprites[i].data[0] = 0;
++}
++
++// Called when the battle takes a code-move hit: play/draw whatever the host dropped off, once.
++void CodeRedPayloadShow(void)
++{
++    volatile struct CodeRedPayload *p = &gCodeRedPayload;
++    u8 kind;
++    if (p->magic != PAYLOAD_MAGIC || p->version != 1)
++        return;
++    kind = p->kind;
++    p->kind = PAYLOAD_NONE;
++    if (kind == PAYLOAD_SOUND)
++        PlaySoundPayload(p->length > PAYLOAD_BYTES ? PAYLOAD_BYTES : p->length);
++    else if (kind == PAYLOAD_IMAGE)
++        ShowImagePayload(p->length);
++    else
++        return;
++    p->played++;
++}

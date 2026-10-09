@@ -49,6 +49,14 @@ def battle(p, url, records=None):
         page.wait_for_function('window.__verdicts.some(v => v.startsWith("you:")) && window.__verdicts.some(v => v.startsWith("foe:"))', timeout=90000)
         page.screenshot(path=str(OUT / 'code-panel.png'), full_page=True)
         assert page.locator('[data-code]').is_visible(), 'Code toggle shows'
+        # Payload moves (patches/009): bytes handed to the game are played/drawn when the next code move hits.
+        if json.loads((ROOT / 'build/rom/rom.json').read_text())['symbols'].get('gCodeRedPayload'):
+            before = page.evaluate('window.CodeRed.payloadsPlayed()')
+            assert page.evaluate('window.CodeRed.payload("sound", [4, ...Array.from({length: 399}, (_, i) => i % 2 ? 30 : 230)])')
+            n = len(page.evaluate('window.__verdicts.filter(v => v.startsWith("you:") && v.includes("hit"))'))
+            page.wait_for_function(f'window.__verdicts.filter(v => v.startsWith("you:") && v.includes("hit")).length > {n}', timeout=120000)
+            page.wait_for_function(f'window.CodeRed.payloadsPlayed() > {before}', timeout=30000)
+            print('payload: the game played the buzz on the next hit', flush=True)
     page.evaluate('gm = EJS_emulator.gameManager; gm.functions.setFastForwardRatio(10); gm.functions.toggleFastForward(1)')
     done = '''a => { const m = EJS_emulator.gameManager.Module; return new DataView(m.HEAPU8.buffer, m._ejs_cr_ewram()).getUint8(a - 0x02000000) !== 0 }'''
     for i in range(24):

@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import {
   BADGES, FORMATS, HINTS, MOVES, budgetAt, byFireRed, byName, focusAt, judge, knowFor, learn, learnFromHit, missText,
-  partyDex, readerLine, rng, same, slotsAt, targetBytes, turnData, turnPrompt, turnType,
+  partyDex, readerLine, rng, same, slotsAt, targetBytes, turnData, turnPrompt, turnType, verdict,
 } from '../index.mjs'
 
 // Node-only stand-in for the sandbox (the game uses the QuickJS runner, the lab uses kernel runBlock).
@@ -16,8 +16,8 @@ test('rules are browser-safe: no node: imports', () => {
   for (const f of readdirSync(dir).filter(f => f.endsWith('.mjs'))) assert.doesNotMatch(readFileSync(new URL(f, dir), 'utf8'), /from ['"]node:/, f)
 })
 
-test('moves: 103, unique function names, answers never null, FireRed stats attached', () => {
-  assert.equal(MOVES.length, 103)
+test('moves: 104, unique function names, answers never null, FireRed stats attached', () => {
+  assert.equal(MOVES.length, 104)
   assert.equal(new Set(MOVES.map(m => m.fn)).size, MOVES.length)
   const r = rng(1)
   for (let k = 0; k < 50; k++) {
@@ -174,4 +174,21 @@ test('one context budget: the reader and hot memory are charged against the budg
   assert.match(p.user, /- Your notes: be brief/)
   assert.match(p.user, new RegExp(`at most ${350 - HINTS.ROCK.length - 8} characters, comments included \\(350 minus the ${HINTS.ROCK.length + 8} your memory takes\\)`))
   assert.deepEqual(Object.keys(learn({ A: '1', B: '2', C: '3' }, 'D', '4')), ['A', 'B', 'C', 'D'], 'no slot cap')
+})
+
+test('payload moves: the check judges the bytes, a hit carries them, the prompt shows a loop-sized example', async () => {
+  const error = byName.ERROR, flash = byName.FLASH
+  const bytes = [42, 13, 140, 77]
+  const run = v => ({ ok: true, value: v })
+  assert.equal(verdict(error, bytes, run(error.ref(bytes))).hit, true)
+  assert.deepEqual(verdict(error, bytes, run(error.ref(bytes))).payload.kind, 'sound')
+  assert.equal(verdict(error, bytes, run(new Array(400).fill(128))).want, 'first number should be 4'); assert.match(verdict(error, bytes, run([4, 230, 30])).want, /100 to 512/)
+  assert.match(verdict(error, bytes, run([4, ...new Array(399).fill(128)])).want, /loud/)
+  assert.match(verdict(flash, bytes, run([4, ...new Array(1023).fill(255)])).want, /dark shape/)
+  const loop = `function error(data) { const nums = data; const out = [nums.length]; for (let i = 1; i < 400; i++) out.push(i % 20 < 10 ? 230 : 30); return out }`
+  const v = await judge({ move: error, bytes, data: bytes, code: loop, budget: 300, runSource: async src => ({ ok: true, value: new Function(src)() }) })
+  assert.equal(v.hit, true); assert.equal(v.payload.bytes.length, 400)
+  const { user } = turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: flash, type: 'NORMAL', budget: 300 })
+  assert.match(user, /one short loop/)
+  assert.ok(user.length < 1200, String(user.length))
 })

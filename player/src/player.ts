@@ -20,6 +20,7 @@ import { CloudSync, localSyncMark } from './cloud.ts'
 import { OwnedReader } from './agents/owned.ts'
 import { createHotEditor, createPokeeg } from './agents/pokeeg.ts'
 import { EegMailbox } from './bridge/eeg.ts'
+import { PayloadMailbox } from './bridge/payload.ts'
 import { EegLink } from './agents/eeg-link.ts'
 import { budgetAt, formatOf, stageOf } from '../../rules/index.mjs'
 import type { TypeName } from '../../rules/index.mjs'
@@ -459,8 +460,13 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
         disposers.push(() => editor.element.remove())
       }
     }
+    const payloadSym = rom.symbols.gCodeRedPayload
+    const payloadBox = payloadSym ? new PayloadMailbox(memory, payloadSym.address) : null
+    // Dev / tests: window.CodeRed.payload('sound'|'image', bytes) hands the game bytes to play on the next code hit.
+    ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, payload: (kind: 'sound' | 'image', bytes: number[]) => payloadBox?.deliver(kind, bytes) ?? false, payloadsPlayed: () => payloadBox?.played() ?? 0 }
     const battle = new CodeBattle(new CodeMoveMailbox(memory, sym.address), reader, writer, runner, panel, minds, {
       badges,
+      ...(payloadBox ? { payload: payloadBox } : {}),
       onTurn: t => backend?.track('code_move', { ...t, code: t.code?.slice(0, 300) }),
     })
     let inBattle = false

@@ -65,3 +65,40 @@ class CodeMoveHost:
                 run(1, *buttons)
                 self.service()
         g.run = stepped
+
+
+# ---------------------------------------------------------------- payloads (patches/009-payload.patch)
+PAYLOAD_MAGIC = 0x31505243
+PAYLOAD_KIND = {'sound': 1, 'image': 2}
+
+
+def pack_image(pixels: list[int]) -> bytes:
+    """1024 brightness bytes → 512 bytes of 4bpp tiles (1D 32×32 sprite order), like the page does."""
+    out = bytearray(512)
+    for y in range(32):
+        for x in range(32):
+            shade = 1 + round(max(0, min(255, pixels[y * 32 + x])) * 14 / 255)  # 1..15: index 0 is transparent on the GBA
+            at = ((y >> 3) * 4 + (x >> 3)) * 32 + (y & 7) * 4 + ((x & 7) >> 1)
+            out[at] = (out[at] & 0x0F) | (shade << 4) if x & 1 else (out[at] & 0xF0) | shade
+    return bytes(out)
+
+
+def pack_sound(samples: list[int]) -> bytes:
+    return bytes(((max(0, min(255, s)) - 128) & 0xFF) for s in samples[:512])
+
+
+class PayloadHost:
+    """Writes a move's bytes into gCodeRedPayload before the hit is reported; `played()` says the game took them."""
+    def __init__(self, g):
+        self.g, self.a = g, g.sym('gCodeRedPayload')
+
+    def deliver(self, kind: str, data: list[int]) -> None:
+        g, a = self.g, self.a
+        packed = pack_image(data) if kind == 'image' else pack_sound(data)
+        g.w8(a + 6, 0)
+        g.w32(a, PAYLOAD_MAGIC); g.w16(a + 4, 1); g.w16(a + 8, len(packed))
+        g.write(a + 28, packed)
+        g.w8(a + 6, PAYLOAD_KIND[kind])
+
+    def kind(self) -> int: return self.g.u8(self.a + 6)
+    def played(self) -> int: return self.g.u16(self.a + 10) if self.g.u32(self.a) == PAYLOAD_MAGIC else 0
