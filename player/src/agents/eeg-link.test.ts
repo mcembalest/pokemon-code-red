@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { GbaMemory, fakeCore } from '../bridge/memory.ts'
-import { EEG_MAGIC, EegMailbox, encodeText } from '../bridge/eeg.ts'
+import { EEG_MAGIC, EegMailbox, encodeText, wrapNote } from '../bridge/eeg.ts'
 import { decodeText } from './battle.ts'
 import { localCodeMemory } from './code-battle.ts'
 import { EegLink, mindOf } from './eeg-link.ts'
@@ -12,7 +12,7 @@ function game() {
   let id = 0
   // What the ROM does in Eeg_Ask (patches/008-pokeeg.patch).
   const ask = (op: 1 | 2, o: { pid?: number; species?: number; level?: number } = {}) => {
-    memory.w8(AT + 6, 0); memory.w32(AT, EEG_MAGIC); memory.w16(AT + 4, 1); memory.w8(AT + 7, op); memory.w32(AT + 8, ++id)
+    memory.w8(AT + 6, 0); memory.w32(AT, EEG_MAGIC); memory.w16(AT + 4, 2); memory.w8(AT + 7, op); memory.w32(AT + 8, ++id)
     memory.w32(AT + 16, o.pid ?? 111); memory.w16(AT + 20, o.species ?? 4); memory.w8(AT + 22, o.level ?? 12); memory.w8(AT + 23, 1)
     memory.w8(AT + 6, 1)
   }
@@ -38,6 +38,7 @@ test('mindOf: readers, Pokédex, budget, focus, last turns, short format, hot me
   assert.ok(m.budget > 400)
   assert.deepEqual(m.history, [true, false, true])
   assert.equal(m.format, 'write log'); assert.equal(m.hot, 'be brave'); assert.ok(m.focus > 0 && m.focus <= 100)
+  assert.equal(m.readersText, 'Rock, Water'); assert.equal(m.dexText, 'Rock, Grass, Normal, Ground')
 })
 
 test('link: answers a mind request, follows the cursor, runs the editor and writes the note back', async () => {
@@ -52,7 +53,7 @@ test('link: answers a mind request, follows the cursor, runs the editor and writ
   g.ask(1)
   link.poll()
   assert.equal(g.state(), 2)
-  assert.equal(g.text(40, 24), 'write log'); assert.equal(g.text(64, 100), 'old note')
+  assert.equal(g.text(40, 24), 'write log'); assert.equal(g.text(64, 100), 'old note'); assert.equal(g.text(164, 48), ''); assert.equal(g.text(212, 48), '')
   assert.deepEqual(followed, [111])
   g.ask(2)
   link.poll()
@@ -78,4 +79,12 @@ test('link: the game cancels the editor (B) → the page editor is aborted and n
   assert.equal(signal?.aborted, true); assert.equal(link.editingNow, false)
   await new Promise(r => setTimeout(r, 0))
   assert.equal(minds.hot(111), ''); assert.equal(g.state(), 4)
+})
+
+test('wrapNote: two lines of 30, longer notes end with …; the newline survives encoding', () => {
+  assert.equal(wrapNote('be brave'), 'be brave')
+  assert.equal(wrapNote('always return a plain number, never a list or a string'), 'always return a plain number,\nnever a list or a string')
+  const long = wrapNote('one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen')
+  assert.equal(long.split('\n').length, 2); assert.ok(long.endsWith('…'))
+  assert.equal(encodeText('a\nb', 4)[1], 0xFE)
 })

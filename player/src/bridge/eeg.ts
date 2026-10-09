@@ -1,16 +1,31 @@
-// PokÉEG mailbox (ROM: patches/008-pokeeg.patch, struct CodeRedEeg, 164 B). The in-game PokÉEG screen
+// PokÉEG mailbox (ROM: patches/008-pokeeg.patch, struct CodeRedEeg, 260 B, version 2). The in-game PokÉEG screen
 // asks the page for one Pokémon's mind at a time, and for the page's editor when the player picks
 // "Hot memory"; the page's own panel follows the in-game cursor while the screen is open.
 //   0 u32 magic 'CRE1'  4 u16 version  6 u8 state (0 idle, 1 request, 2 reply, 4 cancelled)  7 u8 op (1 mind, 2 edit hot)
 //   8 u32 requestId  12 u32 epoch  16 u32 personality  20 u16 species  22 u8 level  23 u8 open (the screen is up)
 //  24 u8 readers  25 u8 dex  26 u16 budget  28 u8 focus×100  29 u8 nHistory  30 u8 history[10]  40 u8 format[24]  64 u8 hot[100]
+// 164 u8 readersText[48] ("Water, Rock")  212 u8 dexText[48]  — game text, EOS-terminated; hot may hold one newline (two lines)
 import type { GbaMemory } from './memory.ts'
 
 export const EEG_MAGIC = 0x31455243
-export const EEG_SIZE = 164
+export const EEG_SIZE = 260
+export const EEG_VERSION = 2
 
 export interface EegRequest { id: number; op: 1 | 2; personality: number; species: number; level: number }
-export interface Mind { readers: number; dex: number; budget: number; focus: number; history: boolean[]; format: string; hot: string }
+export interface Mind { readers: number; dex: number; budget: number; focus: number; history: boolean[]; format: string; hot: string; readersText: string; dexText: string }
+
+/** At most two lines of `width` characters (what the in-game NOTE tab holds); a longer note ends with …. */
+export function wrapNote(text: string, width = 30): string {
+  const lines: string[] = []
+  let cur = ''
+  for (const w of text.split(/\s+/).filter(Boolean)) {
+    if (cur && cur.length + 1 + w.length > width) { lines.push(cur); cur = w }
+    else cur = cur ? cur + ' ' + w : w
+  }
+  if (cur) lines.push(cur)
+  const out = lines.slice(0, 2).join('\n')
+  return lines.length > 2 ? out.slice(0, -1) + '…' : out
+}
 
 type Memory = Pick<GbaMemory, 'ready' | 'u8' | 'u16' | 'u32' | 'w8' | 'w16' | 'w32'>
 
@@ -22,7 +37,7 @@ export function encodeText(text: string, size: number): Uint8Array {
   for (const c of text) {
     if (i >= size - 1) break
     const code = c.charCodeAt(0)
-    out[i++] = code >= 48 && code <= 57 ? 0xA1 + code - 48 : code >= 65 && code <= 90 ? 0xBB + code - 65 : code >= 97 && code <= 122 ? 0xD5 + code - 97 : CHARS[c] ?? 0xAC
+    out[i++] = c === '\n' ? 0xFE : code >= 48 && code <= 57 ? 0xA1 + code - 48 : code >= 65 && code <= 90 ? 0xBB + code - 65 : code >= 97 && code <= 122 ? 0xD5 + code - 97 : CHARS[c] ?? 0xAC
   }
   return out
 }
@@ -41,7 +56,7 @@ export class EegMailbox {
 
   snapshot(): EegRequest | null {
     const m = this.memory, a = this.address
-    if (!m.ready() || m.u32(a) !== EEG_MAGIC || m.u16(a + 4) !== 1 || m.u8(a + 6) !== 1) return null
+    if (!m.ready() || m.u32(a) !== EEG_MAGIC || m.u16(a + 4) !== EEG_VERSION || m.u8(a + 6) !== 1) return null
     const op = m.u8(a + 7)
     if (op !== 1 && op !== 2) return null
     return { id: m.u32(a + 8) >>> 0, op, personality: m.u32(a + 16) >>> 0, species: m.u16(a + 20), level: m.u8(a + 22) }
@@ -61,7 +76,9 @@ export class EegMailbox {
     m.w8(a + 29, h.length)
     for (let i = 0; i < 10; i++) m.w8(a + 30 + i, i < h.length && h[i] ? 1 : 0)
     encodeText(mind.format, 24).forEach((b, i) => m.w8(a + 40 + i, b))
-    encodeText(mind.hot, 100).forEach((b, i) => m.w8(a + 64 + i, b))
+    encodeText(wrapNote(mind.hot), 100).forEach((b, i) => m.w8(a + 64 + i, b))
+    encodeText(mind.readersText, 48).forEach((b, i) => m.w8(a + 164 + i, b))
+    encodeText(mind.dexText, 48).forEach((b, i) => m.w8(a + 212 + i, b))
     m.w8(a + 6, 2)
     return true
   }

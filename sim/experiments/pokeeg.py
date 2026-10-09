@@ -58,16 +58,18 @@ def main():
     g.load_state(at_pc)
     g.run = type(g).run.__get__(g)
     host = EegHost(g, lambda r: {'readers': 2, 'dex': 3, 'budget': 350, 'focus': 80, 'history': [1, 1, 0, 1, 1],
-                                 'format': 'write log', 'hot': 'return a plain number'})
+                                 'format': 'write log', 'hot': 'return a plain number', 'readers_text': 'Water, Rock', 'dex_text': 'Normal, Rock, Ground'})
     host.attach(); host.enable()
     assert open_eeg(g), 'PokÉEG did not open (host)'
     g.run(120)
     g.screenshot(SHOTS / 'pokeeg-host.png')
     results['host'] = {'requests': [r['op'] for r in host.requests], 'personality': host.requests[0]['personality'] if host.requests else None}
     assert host.requests and host.requests[0]['op'] == 1, results
-    # A → submenu → Hot memory → the game asks the page to edit (op 2); the host replies with a new note.
-    g.press('A'); g.run(30)
-    g.screenshot(SHOTS / 'pokeeg-submenu.png')
+    # R steps through the tabs: SYSTEM → READERS → CODE → NOTE; a screenshot of each.
+    for tab in ('readers', 'code', 'note'):
+        g.press('RIGHT'); g.run(20)
+        g.screenshot(SHOTS / f'pokeeg-tab-{tab}.png')
+    # A on the NOTE tab → the game asks the page to edit (op 2); the host replies with a new note.
     host.hot_reply = 'be brave'
     g.press('A'); g.run(200)
     g.screenshot(SHOTS / 'pokeeg-edited.png')

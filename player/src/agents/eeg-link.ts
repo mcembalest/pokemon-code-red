@@ -23,9 +23,14 @@ export function mindOf(o: { personality: number; species: number; level: number 
   const badges = c.badges()
   const name = c.speciesName(o.species)
   const type = c.typeOf(o.species)
+  const learned = Object.keys(c.minds.readers(o.personality))
+  const dex = partyDex({ seen: c.minds.seen(), badges })
+  const pretty = (t: string) => t[0] + t.slice(1).toLowerCase()
   return {
-    readers: Object.keys(c.minds.readers(o.personality)).length,
-    dex: partyDex({ seen: c.minds.seen(), badges }).length,
+    readers: learned.length,
+    dex: dex.length,
+    readersText: learned.map(pretty).join(', '),
+    dexText: dex.map(pretty).join(', '),
     budget: budgetAt(o.level, { stage: stageOf(name), badges }),
     focus: Math.round(focusAt(o.level) * 100),
     history: (c.minds.recent?.(o.personality) ?? []).slice(-10).map(t => t.verdict === 'hit'),

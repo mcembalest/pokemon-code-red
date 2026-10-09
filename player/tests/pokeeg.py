@@ -40,7 +40,7 @@ def in_game(page):
     sel = page.get_attribute('.code-red-eeg-list [aria-pressed="true"]', 'data-pid')
     owned = page.evaluate('window.CodeRed.owned()')
     assert owned and sel == str(owned[0]['personality']), (sel, owned)
-    # A → submenu → Hot memory: the page's editor opens over the game with the current note.
+    # A → the NOTE tab; A again → the page's editor opens over the game with the current note.
     press(page, A, after=30); press(page, A, after=30)
     page.wait_for_selector('.code-red-hot-editor:not([hidden])', timeout=10000)
     assert page.input_value('[data-hot-text]') == 'return a plain number'

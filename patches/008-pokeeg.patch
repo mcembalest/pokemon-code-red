@@ -7,10 +7,10 @@ Menu entries live in patch 003 (PC menu, bedroom PC); this patch is the screen i
 No host → the mind lines say so; the list still works.
 diff --git a/src/code_red_eeg.c b/src/code_red_eeg.c
 new file mode 100644
-index 00000000..590c76ca
+index 00000000..e9c94b37
 --- /dev/null
 +++ b/src/code_red_eeg.c
-@@ -0,0 +1,630 @@
+@@ -0,0 +1,674 @@
 +// Code Red: the PokÉEG, in the game (owner, 2026-10-09). From the PC: every Pokémon the player
 +// owns (party, then the boxes), and for the one under the cursor a look inside its mind.
 +// The game knows the Pokémon; the page knows the mind (readers, hot memory, code history live in the
@@ -62,9 +62,11 @@ index 00000000..590c76ca
 +    /*0x1D*/ u8 nHistory;      // ≤ 10
 +    /*0x1E*/ u8 history[10];   // 1 hit, 0 miss, oldest first
 +    /*0x28*/ u8 format[24];    // game text, EOS-terminated: how its data arrives ("write log")
-+    /*0x40*/ u8 hot[100];      // game text, EOS-terminated: hot memory
++    /*0x40*/ u8 hot[100];      // game text, EOS-terminated: hot memory (may hold one newline: two lines)
++    /*0xA4*/ u8 readersText[48]; // game text: the formats it learned to read ("Water, Rock"), or empty
++    /*0xD4*/ u8 dexText[48];     // game text: the Pokédex's formats, or empty
 +};
-+STATIC_ASSERT(sizeof(struct CodeRedEeg) == 164, CodeRedEegSize);
++STATIC_ASSERT(sizeof(struct CodeRedEeg) == 260, CodeRedEegSize);
 +EWRAM_DATA volatile struct CodeRedEeg gCodeRedEeg = {0};
 +static EWRAM_DATA u32 sEegRequestId = 0;
 +
@@ -85,10 +87,12 @@ index 00000000..590c76ca
 +    u16 maxShowed;
 +    u8 arrows;
 +    u8 gfxStep;
-+    u8 subWindow;
 +    u16 waited;
 +    u32 shownId;
++    u8 tab;       // 0 SYSTEM, 1 READERS, 2 CODE, 3 NOTE
++    bool8 haveMind; // the page answered for the Pokémon under the cursor
 +};
++enum { TAB_SYSTEM, TAB_READERS, TAB_CODE, TAB_NOTE, TAB_COUNT };
 +static EWRAM_DATA struct EegState *sEeg = NULL;
 +static EWRAM_DATA u8 *sEegBg1Tilemap = NULL;
 +
@@ -104,7 +108,6 @@ index 00000000..590c76ca
 +    [WIN_MSG]   = { .bg = 0, .tilemapLeft = 2, .tilemapTop = 15, .width = 26, .height = 4, .paletteNum = 11, .baseBlock = 0x016f },
 +    DUMMY_WIN_TEMPLATE
 +};
-+static const struct WindowTemplate sSubmenuTemplate = { .bg = 0, .tilemapLeft = 20, .tilemapTop = 9, .width = 9, .height = 4, .paletteNum = 15, .baseBlock = 0x0120 };
 +static const u8 sTextColors[][3] = {
 +    {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_WHITE, TEXT_COLOR_DARK_GRAY},
 +    {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_LIGHT_GRAY},
@@ -120,27 +123,31 @@ index 00000000..590c76ca
 +static const u8 sText_Asking[] = _("Reading its mind…");
 +static const u8 sText_NoHost[] = _("Its mind is on the page: open\nCode Red in the browser.");
 +static const u8 sText_ExitDesc[] = _("Back to the PC.");
-+static const u8 sText_System[] = _(" system: ");
-+static const u8 sText_Readers[] = _("readers ");
-+static const u8 sText_Dex[] = _(" · Pokédex ");
-+static const u8 sText_Budget[] = _(" · budget ");
-+static const u8 sText_Last[] = _("last: ");
-+static const u8 sText_None[] = _("nothing written yet");
-+static const u8 sText_Note[] = _("note: ");
-+static const u8 sText_NoNote[] = _("no hot memory (A to add)");
-+static const u8 sText_Hit[] = _("o");
-+static const u8 sText_Miss[] = _("x");
++static const u8 sText_TabSystem[] = _("SYSTEM");
++static const u8 sText_TabReaders[] = _("READERS");
++static const u8 sText_TabCode[] = _("CODE");
++static const u8 sText_TabNote[] = _("NOTE");
++static const u8 *const sTabNames[TAB_COUNT] = { sText_TabSystem, sText_TabReaders, sText_TabCode, sText_TabNote };
++static const u8 sText_LR[] = _("{LEFT_ARROW}{RIGHT_ARROW}");
++static const u8 sText_System[] = _(" system");
++static const u8 sText_Arrives[] = _("Data arrives as: ");
++static const u8 sText_Learned[] = _("Learned: ");
++static const u8 sText_Dex[] = _("Pokédex: ");
++static const u8 sText_NoneYet[] = _("none yet");
++static const u8 sText_Budget[] = _("Budget: ");
++static const u8 sText_BytesATurn[] = _(" bytes a turn");
++static const u8 sText_LastTurns[] = _("Last ");
++static const u8 sText_Turns[] = _(" turns: ");
++static const u8 sText_HitN[] = _(" hit, ");
++static const u8 sText_MissN[] = _(" miss");
++static const u8 sText_NoCode[] = _("No code written yet.");
++static const u8 sText_NoNote[] = _("No note yet.\nPress A to write one.");
++static const u8 sText_ChangeNote[] = _("\nPress A to change it.");
 +static const u8 sText_EditHot[] = _("Type its note on the page.\nB here cancels.");
-+static const u8 sText_HotMemory[] = _("Hot memory");
-+static const struct MenuAction sSubmenuOptions[] = {
-+    { sText_HotMemory, {.void_u8 = NULL} },
-+    { gFameCheckerText_Cancel, {.void_u8 = NULL} },
-+};
 +
 +static void Eeg_RunSetup(void);
 +static bool8 Eeg_DoGfxSetup(void);
 +static void Task_EegMain(u8 taskId);
-+static void Task_EegSubmenu(u8 taskId);
 +static void Task_EegEditHot(u8 taskId);
 +static void Task_EegTurnOff(u8 taskId);
 +static void Eeg_MoveCursor(s32 index, bool8 onInit, struct ListMenu *list);
@@ -193,7 +200,7 @@ index 00000000..590c76ca
 +{
 +    gCodeRedEeg.state = 0;
 +    gCodeRedEeg.magic = EEG_MAGIC;
-+    gCodeRedEeg.version = 1;
++    gCodeRedEeg.version = 2;
 +    gCodeRedEeg.op = op;
 +    gCodeRedEeg.requestId = ++sEegRequestId;
 +    gCodeRedEeg.personality = e->personality;
@@ -204,44 +211,101 @@ index 00000000..590c76ca
 +    sEeg->waited = 0;
 +}
 +
++static void Eeg_PrintTabs(void)
++{
++    u8 x = 2, i;
++    for (i = 0; i < TAB_COUNT; i++)
++    {
++        Eeg_Print(WIN_MIND, FONT_SMALL, sTabNames[i], x, 0, i == sEeg->tab ? MIND_COLOR : 2);
++        x += GetStringWidth(FONT_SMALL, sTabNames[i], 0) + 10;
++    }
++    Eeg_Print(WIN_MIND, FONT_SMALL, sText_LR, 200 - GetStringWidth(FONT_SMALL, sText_LR, 0) - 2, 0, 2);
++}
++
++/** Two lines under the tabs: the message, or the current tab of the mind. */
++static void Eeg_PrintBody(const u8 *text)
++{
++    Eeg_Print(WIN_MIND, FONT_NORMAL, text, 2, 13, MIND_COLOR);
++}
++
++/** Copy mailbox text (EOS-terminated, at most max bytes) to s; returns the new end. StringCopyN copies past EOS, so not that. */
++static u8 *Eeg_CopyText(u8 *s, const volatile u8 *text, u8 max)
++{
++    u8 i;
++    for (i = 0; i < max && text[i] != EOS; i++)
++        *s++ = text[i];
++    *s = EOS;
++    return s;
++}
++
++static u8 *Eeg_AppendOr(u8 *s, const volatile u8 *text, const u8 *fallback, u8 max)
++{
++    if (text[0] == EOS)
++        return StringAppend(s, fallback);
++    return Eeg_CopyText(s, text, max);
++}
++
 +static void Eeg_PrintMind(void)
 +{
 +    u8 *s = gStringVar4;
-+    u8 i;
-+    const u8 *typeName = gTypeNames[gSpeciesInfo[gCodeRedEeg.species].types[0]];
++    u8 i, hits = 0;
 +    FillWindowPixelBuffer(WIN_MIND, 0);
-+    // 1: FIRE system: write log
-+    s = StringCopy(gStringVar4, typeName);
-+    s = StringAppend(s, sText_System);
-+    StringAppendN(s, (const u8 *)gCodeRedEeg.format, 23);
-+    gStringVar4[40] = EOS;
-+    Eeg_Print(WIN_MIND, FONT_SMALL, gStringVar4, 2, 1, MIND_COLOR);
-+    // 2: readers 2 · Pokédex 3 · budget 350 · focus 0.80
-+    s = StringCopy(gStringVar4, sText_Readers);
-+    s = ConvertIntToDecimalStringN(s, gCodeRedEeg.readers, STR_CONV_MODE_LEFT_ALIGN, 2);
-+    s = StringAppend(s, sText_Dex);
-+    s = ConvertIntToDecimalStringN(s, gCodeRedEeg.dex, STR_CONV_MODE_LEFT_ALIGN, 2);
-+    s = StringAppend(s, sText_Budget);
-+    ConvertIntToDecimalStringN(s, gCodeRedEeg.budget, STR_CONV_MODE_LEFT_ALIGN, 4);
-+    Eeg_Print(WIN_MIND, FONT_SMALL, gStringVar4, 2, 12, MIND_COLOR);
-+    // 3: last: ooxoo
-+    s = StringCopy(gStringVar4, sText_Last);
-+    if (gCodeRedEeg.nHistory == 0)
-+        StringAppend(s, sText_None);
-+    else
-+        for (i = 0; i < gCodeRedEeg.nHistory && i < 10; i++)
-+            s = StringAppend(s, gCodeRedEeg.history[i] ? sText_Hit : sText_Miss);
-+    Eeg_Print(WIN_MIND, FONT_SMALL, gStringVar4, 2, 23, MIND_COLOR);
-+    // 4: note: …
-+    if (gCodeRedEeg.hot[0] == EOS)
-+        StringCopy(gStringVar4, sText_NoNote);
-+    else
++    Eeg_PrintTabs();
++    if (!sEeg->haveMind)
 +    {
-+        s = StringCopy(gStringVar4, sText_Note);
-+        StringAppendN(s, (const u8 *)gCodeRedEeg.hot, 36);
-+        gStringVar4[42] = EOS;
++        Eeg_PrintBody(sText_NoHost);
++        CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
++        return;
 +    }
-+    Eeg_Print(WIN_MIND, FONT_SMALL, gStringVar4, 2, 34, MIND_COLOR);
++    switch (sEeg->tab)
++    {
++    case TAB_SYSTEM: // FIRE system \n Data arrives as: write log
++        s = StringCopy(gStringVar4, gTypeNames[gSpeciesInfo[gCodeRedEeg.species].types[0]]);
++        s = StringAppend(s, sText_System);
++        *s++ = CHAR_NEWLINE;
++        s = StringCopy(s, sText_Arrives);
++        Eeg_AppendOr(s, gCodeRedEeg.format, sText_NoneYet, 23);
++        break;
++    case TAB_READERS: // Learned: Water, Rock \n Pokédex: Normal, Rock, Ground
++        s = StringCopy(gStringVar4, sText_Learned);
++        s = Eeg_AppendOr(s, gCodeRedEeg.readersText, sText_NoneYet, 47);
++        *s++ = CHAR_NEWLINE;
++        s = StringCopy(s, sText_Dex);
++        Eeg_AppendOr(s, gCodeRedEeg.dexText, sText_NoneYet, 47);
++        break;
++    case TAB_CODE: // Budget: 350 bytes a turn \n Last 5 turns: 4 hit, 1 miss
++        s = StringCopy(gStringVar4, sText_Budget);
++        s = ConvertIntToDecimalStringN(s, gCodeRedEeg.budget, STR_CONV_MODE_LEFT_ALIGN, 4);
++        s = StringAppend(s, sText_BytesATurn);
++        *s++ = CHAR_NEWLINE;
++        if (gCodeRedEeg.nHistory == 0)
++            StringCopy(s, sText_NoCode);
++        else
++        {
++            for (i = 0; i < gCodeRedEeg.nHistory && i < 10; i++) hits += gCodeRedEeg.history[i] ? 1 : 0;
++            s = StringCopy(s, sText_LastTurns);
++            s = ConvertIntToDecimalStringN(s, gCodeRedEeg.nHistory, STR_CONV_MODE_LEFT_ALIGN, 2);
++            s = StringAppend(s, sText_Turns);
++            s = ConvertIntToDecimalStringN(s, hits, STR_CONV_MODE_LEFT_ALIGN, 2);
++            s = StringAppend(s, sText_HitN);
++            s = ConvertIntToDecimalStringN(s, gCodeRedEeg.nHistory - hits, STR_CONV_MODE_LEFT_ALIGN, 2);
++            StringAppend(s, sText_MissN);
++        }
++        break;
++    default: // the note itself (the page wraps it onto two lines), or how to write one
++        if (gCodeRedEeg.hot[0] == EOS)
++            StringCopy(gStringVar4, sText_NoNote);
++        else
++        {
++            s = Eeg_CopyText(gStringVar4, gCodeRedEeg.hot, 99);
++            for (i = 0; gStringVar4[i] != EOS; i++)
++                if (gStringVar4[i] == CHAR_NEWLINE) break;
++            if (gStringVar4[i] == EOS) // a one-line note leaves room for the hint
++                StringAppend(s, sText_ChangeNote);
++        }
++        break;
++    }
++    Eeg_PrintBody(gStringVar4);
 +    CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
 +}
 +
@@ -253,15 +317,15 @@ index 00000000..590c76ca
 +    {
 +        sEeg->shownId = gCodeRedEeg.requestId;
 +        gCodeRedEeg.state = 0;
++        sEeg->haveMind = TRUE;
 +        Eeg_PrintMind();
 +    }
 +    else if (gCodeRedEeg.state == 1 && ++sEeg->waited == EEG_WAIT_FRAMES)
 +    {
 +        sEeg->shownId = gCodeRedEeg.requestId;
 +        gCodeRedEeg.state = 0;
-+        FillWindowPixelBuffer(WIN_MIND, 0);
-+        Eeg_Print(WIN_MIND, FONT_NORMAL, sText_NoHost, 2, 3, MIND_COLOR);
-+        CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
++        sEeg->haveMind = FALSE;
++        Eeg_PrintMind();
 +    }
 +}
 +
@@ -294,14 +358,16 @@ index 00000000..590c76ca
 +    if (onInit != TRUE)
 +        PlaySE(SE_SELECT);
 +    FillWindowPixelBuffer(WIN_MIND, 0);
++    sEeg->haveMind = FALSE;
 +    if (index == LIST_CANCEL)
 +    {
 +        gCodeRedEeg.personality = 0;
-+        Eeg_Print(WIN_MIND, FONT_NORMAL, sText_ExitDesc, 2, 3, MIND_COLOR);
++        Eeg_PrintBody(sText_ExitDesc);
 +    }
 +    else
 +    {
-+        Eeg_Print(WIN_MIND, FONT_NORMAL, sText_Asking, 2, 3, MIND_COLOR);
++        Eeg_PrintTabs();
++        Eeg_PrintBody(sText_Asking);
 +        Eeg_Ask(1, &sEeg->entries[index]);
 +    }
 +    CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
@@ -352,7 +418,6 @@ index 00000000..590c76ca
 +    memset(sEeg, 0, sizeof(*sEeg));
 +    sEeg->savedCallback = callback;
 +    sEeg->arrows = 0xFF;
-+    sEeg->subWindow = 0xFF;
 +    sEeg->shownId = 0xFFFFFFFF;
 +    SetMainCallback2(Eeg_RunSetup);
 +}
@@ -488,7 +553,7 @@ index 00000000..590c76ca
 +        gMain.state++;
 +        break;
 +    case 7:
-+        SetHelpContext(HELPCONTEXT_PLAYERS_PC_ITEMS);
++        HelpSystem_Disable(); // L/R switch tabs here
 +        BlendPalettes(PALETTES_ALL, 16, RGB_BLACK);
 +        BeginNormalPaletteFade(PALETTES_ALL, 0, 16, 0, RGB_BLACK);
 +        gMain.state++;
@@ -526,6 +591,13 @@ index 00000000..590c76ca
 +    Eeg_PollMind();
 +    if (gPaletteFade.active)
 +        return;
++    if (JOY_NEW(DPAD_LEFT | DPAD_RIGHT | L_BUTTON | R_BUTTON) && gCodeRedEeg.personality != 0)
++    {
++        PlaySE(SE_SELECT);
++        sEeg->tab = (sEeg->tab + (JOY_NEW(DPAD_RIGHT | R_BUTTON) ? 1 : TAB_COUNT - 1)) % TAB_COUNT;
++        Eeg_PrintMind();
++        return;
++    }
 +    input = ListMenu_ProcessInput(data[0]);
 +    ListMenuGetScrollAndRow(data[0], &sEeg->scroll, &sEeg->row);
 +    switch (input)
@@ -537,48 +609,18 @@ index 00000000..590c76ca
 +        BeginNormalPaletteFade(PALETTES_ALL, 0, 0, 16, RGB_BLACK);
 +        gTasks[taskId].func = Task_EegTurnOff;
 +        break;
-+    default:
++    default: // A: go to the NOTE tab; A again (or A on it) writes the note on the page
 +        PlaySE(SE_SELECT);
 +        data[1] = input;
-+        sEeg->subWindow = AddWindow(&sSubmenuTemplate);
-+        DrawStdFrameWithCustomTileAndPalette(sEeg->subWindow, FALSE, 0x3C0, 14);
-+        PrintTextArray(sEeg->subWindow, FONT_NORMAL, 8, 2, GetFontAttribute(FONT_NORMAL, FONTATTR_MAX_LETTER_HEIGHT) + 2, 2, sSubmenuOptions);
-+        Menu_InitCursor(sEeg->subWindow, FONT_NORMAL, 0, 2, GetFontAttribute(FONT_NORMAL, FONTATTR_MAX_LETTER_HEIGHT) + 2, 2, 0);
-+        ScheduleBgCopyTilemapToVram(0);
-+        gTasks[taskId].func = Task_EegSubmenu;
-+        break;
-+    }
-+}
-+
-+static void Eeg_CloseSubmenu(void)
-+{
-+    ClearStdWindowAndFrameToTransparent(sEeg->subWindow, FALSE);
-+    ClearWindowTilemap(sEeg->subWindow);
-+    RemoveWindow(sEeg->subWindow);
-+    sEeg->subWindow = 0xFF;
-+    ScheduleBgCopyTilemapToVram(0);
-+}
-+
-+static void Task_EegSubmenu(u8 taskId)
-+{
-+    s16 *data = gTasks[taskId].data;
-+    s8 input = Menu_ProcessInputNoWrapAround();
-+    Eeg_PollMind();
-+    switch (input)
-+    {
-+    case MENU_NOTHING_CHOSEN:
-+        break;
-+    case MENU_B_PRESSED:
-+    case 1:
-+        PlaySE(SE_SELECT);
-+        Eeg_CloseSubmenu();
-+        gTasks[taskId].func = Task_EegMain;
-+        break;
-+    case 0:
-+        PlaySE(SE_SELECT);
-+        Eeg_CloseSubmenu();
++        if (sEeg->tab != TAB_NOTE)
++        {
++            sEeg->tab = TAB_NOTE;
++            Eeg_PrintMind();
++            break;
++        }
 +        FillWindowPixelBuffer(WIN_MIND, 0);
-+        Eeg_Print(WIN_MIND, FONT_NORMAL, sText_EditHot, 2, 3, MIND_COLOR);
++        Eeg_PrintTabs();
++        Eeg_PrintBody(sText_EditHot);
 +        CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
 +        Eeg_Ask(2, &sEeg->entries[data[1]]);
 +        gTasks[taskId].func = Task_EegEditHot;
@@ -604,7 +646,8 @@ index 00000000..590c76ca
 +    // Show the mind again, with whatever note the page kept.
 +    sEeg->shownId = 0xFFFFFFFF;
 +    FillWindowPixelBuffer(WIN_MIND, 0);
-+    Eeg_Print(WIN_MIND, FONT_NORMAL, sText_Asking, 2, 3, MIND_COLOR);
++    Eeg_PrintTabs();
++    Eeg_PrintBody(sText_Asking);
 +    CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
 +    Eeg_Ask(1, &sEeg->entries[data[1]]);
 +    gTasks[taskId].func = Task_EegMain;
@@ -618,6 +661,7 @@ index 00000000..590c76ca
 +        DestroyListMenuTask(data[0], &sEeg->scroll, &sEeg->row);
 +        if (sEeg->arrows != 0xFF)
 +            RemoveScrollIndicatorArrowPair(sEeg->arrows);
++        HelpSystem_Enable();
 +        SetMainCallback2(sEeg->savedCallback);
 +        Eeg_Free();
 +        DestroyTask(taskId);
