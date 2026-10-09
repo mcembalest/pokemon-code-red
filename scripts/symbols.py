@@ -27,6 +27,7 @@ WANTED = {
     'gBattleOutcome': 1,
     'gCodeRedMove': 48,
     'gCodeRedEeg': 260,
+    'gCodeRedPayload': 540,
     'gTasks': 16 * 40,
     'gPokemonStoragePtr': 4,  # PC boxes (PokÉEG: every owned Pokémon)
     # code / ROM data (bytes = 0: not RAM)

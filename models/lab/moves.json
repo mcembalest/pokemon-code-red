@@ -1,5 +1,5 @@
 {
-  "note": "Payload moves (owner 2026-10-09: bytes are the universal medium): ERROR makes a sound, FLASH a picture. Can the model write a loop that passes the shape check, first time and with a reader? 6 samples; levels 5/10/15.",
+  "note": "Payload moves v2: shorter specs, \"one short loop, no comments\" nudge, buzz example. 6 samples; levels 5/10/15.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": [
     "ERROR",

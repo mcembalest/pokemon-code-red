@@ -21,8 +21,8 @@ const isBytes = (v, n) => Array.isArray(v) && v.length === n && v.every(x => Num
 const crossings = v => { let n = 0, last = 0; for (const x of v) { const s = Math.sign(x - 128); if (s && last && s !== last) n++; if (s) last = s } return n }
 export const PAYLOAD = {
   sound: { kind: 'sound', n: 400,
-    check: (v, b) => !isBytes(v, 400) ? 'not 400 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : Math.max(...v) < 200 ? 'too quiet (never above 200)' : crossings(v) < 3 ? 'not buzzing (crosses 128 fewer than 3 times)' : null,
-    ref: b => [b.length, ...Array.from({ length: 399 }, (_, i) => 128 + Math.round(100 * Math.sin(i / 3)))] },
+    check: (v, b) => !isBytes(v, 400) ? 'not 400 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : Math.max(...v) < 200 ? 'never loud (above 200)' : Math.min(...v.slice(1)) > 56 ? 'never quiet (below 56)' : crossings(v) < 3 ? 'switches fewer than 3 times' : null,
+    ref: b => [b.length, ...Array.from({ length: 399 }, (_, i) => (i % 20 < 10 ? 230 : 30))] },
   image: { kind: 'image', n: 1024,
     check: (v, b) => !isBytes(v, 1024) ? 'not 1024 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : v.filter(x => x > 200).length < 400 ? 'not mostly white (fewer than 400 numbers above 200)' : v.filter(x => x < 50).length < 100 ? 'no dark shape (fewer than 100 numbers below 50)' : null,
     ref: b => [b.length, ...Array.from({ length: 1023 }, (_, k) => { const i = k + 1, x = i % 32, y = i >> 5; return x >= 10 && x < 22 && y >= 10 && y < 22 ? 0 : 255 })] },
@@ -68,8 +68,8 @@ const TABLE = [
   ['Harden', 'HARDEN', "each number written as a string, like 42 → '42' (a list of strings)", b => b.map(String)],
   ['Bind', 'BIND', 'the first and last number, as a list of two', b => [b[0], b.at(-1)]],
   ['Wrap', 'WRAP', 'the numbers wrapped in another list', b => [[...b]]],
-  ['Growl', 'ERROR', 'an error sound: a list of 400 numbers from 0 to 255 (a sound wave; 128 is silence), loud and buzzing: it goes above 200 and crosses 128 at least 3 times; its first number is how many numbers the foe had', PAYLOAD.sound],
-  ['Flash', 'FLASH', 'a flash: a 32 by 32 picture as a list of 1024 numbers from 0 to 255 (brightness, row by row), mostly white (at least 400 numbers above 200) with a dark shape (at least 100 numbers below 50); its first number is how many numbers the foe had', PAYLOAD.image],
+  ['Growl', 'ERROR', 'a buzz: a list of 400 numbers from 0 to 255. The first is how many numbers the foe had; the other 399 are a sound wave that swings between loud (above 200) and quiet (below 56), switching at least 3 times', PAYLOAD.sound],
+  ['Flash', 'FLASH', 'a flash: a list of 1024 numbers from 0 to 255 (a 32 by 32 picture, row by row). The first is how many numbers the foe had; of the rest, at least 400 are above 200 (white) and at least 100 are below 50 (a dark shape)', PAYLOAD.image],
   ['Camouflage', 'SPOOF', 'the list with the first and last numbers swapped', b => [b.at(-1), ...b.slice(1, -1), b[0]]],
   ['Supersonic', 'FEEDBACK', 'the sum of the first two numbers', b => b[0] + b[1]],
   ['Defense Curl', 'LOCKDOWN', 'a list holding only the first number', b => [b[0]]],

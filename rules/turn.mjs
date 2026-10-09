@@ -82,7 +82,7 @@ export function turnPrompt({ self, target, move, type, know = null, budget, tuto
       know ? `- ${knowLine(know)}` : `- First line of the function: const ${words.v} = <read data into a list of numbers>`]
   const user = [`Foe: ${target.name} Lv${target.level} (${target.types.join('/')}). ${call}`, `Write the function: function ${move.fn}(data)`, ...formatLines,
     move.payload
-      ? `- ${move.fn} returns ${move.spec} (a list of ${move.payload.n} numbers). Make it with a loop, not by writing the numbers out. On the numbers ${JSON.stringify(WORKED)} one good answer starts ${JSON.stringify(move.ref(WORKED).slice(0, 8)).replace(/\]$/, ', …]')}.`
+      ? `- ${move.fn} returns ${move.spec}. Build the list with one short loop (a few lines, no comments): don't write the numbers out. On the numbers ${JSON.stringify(WORKED)} one good answer starts ${JSON.stringify(move.ref(WORKED).slice(0, 8)).replace(/\]$/, ', …]')}.`
       : `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(WORKED)} it returns ${JSON.stringify(move.ref(WORKED))}.`,
     ...(hot ? [`- Your notes: ${hot}`] : []),
     `- Byte budget: your whole code block must be at most ${codeBudget(budget, { know, hot })} characters, comments included${contextCost({ know, hot }) ? ` (${budget} minus the ${contextCost({ know, hot })} your memory takes)` : ''}.`].join('\n')
