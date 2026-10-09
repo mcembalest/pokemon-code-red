@@ -88,25 +88,87 @@ test('invite → join → me; invites are single-use', async () => {
   assert.equal(codes.length, 2);
   assert.match(codes[0], /^RED-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
 
-  assert.equal((await call('/v1/join', { body: { invite: 'RED-NOPE-NOPE', name: 'Ash' } })).status, 403);
-  assert.equal((await call('/v1/join', { body: { invite: codes[0], name: '' } })).status, 400);
+  const acct = { username: 'Ash_K', password: 'pikachu-123' };
+  assert.equal((await call('/v1/join', { body: { invite: 'RED-NOPE-NOPE', name: 'Ash', ...acct } })).status, 403);
+  assert.equal((await call('/v1/join', { body: { invite: codes[0], name: '', ...acct } })).status, 400);
+  assert.equal((await call('/v1/join', { body: { invite: codes[0], name: 'Ash', username: 'a b', password: acct.password } })).status, 400);
+  assert.equal((await call('/v1/join', { body: { invite: codes[0], name: 'Ash', username: 'ash', password: 'short' } })).status, 400);
+  assert.equal((await call('/v1/join', { body: { invite: codes[0], name: 'Ash' } })).status, 400); // no account
 
-  const j = await call('/v1/join', { body: { invite: ' ' + codes[0].toLowerCase() + ' ', name: '  Ash  K ' } });
+  const j = await call('/v1/join', { body: { invite: ' ' + codes[0].toLowerCase() + ' ', name: '  Ash  K ', ...acct } });
   assert.equal(j.status, 201);
   const joined = await j.json();
   assert.deepEqual(joined.features, { agents: true });
   assert.equal(joined.player.name, 'Ash K');
+  assert.equal(joined.player.username, 'ash_k'); // lowercased
+  assert.equal(joined.active, true);
   token = joined.token; playerId = joined.player.id;
 
-  assert.equal((await call('/v1/join', { body: { invite: codes[0], name: 'Gary' } })).status, 403); // used up
+  assert.equal((await call('/v1/join', { body: { invite: codes[0], name: 'Gary', username: 'gary', password: 'eevee-12345' } })).status, 403); // used up
+  assert.equal((await call('/v1/join', { body: { invite: codes[1], name: 'Gary', username: 'ASH_K', password: 'eevee-12345' } })).status, 409); // name taken (before the invite is spent)
   const me = await (await call('/v1/me', { token })).json();
   assert.deepEqual(me.features, { agents: true });
   assert.equal(me.player.id, playerId);
+  assert.equal(me.player.username, 'ash_k');
+  assert.equal(me.player.password_hash, undefined);
+  assert.equal(me.active, true);
   assert.equal((await call('/v1/me', { token: 'bogus' })).status, 401);
   assert.equal((await call('/v1/me')).status, 401);
 
   await call('/admin/api/invites/revoke', { token: ADMIN, body: { code: codes[1] } });
-  assert.equal((await call('/v1/join', { body: { invite: codes[1], name: 'Gary' } })).status, 403); // revoked
+  assert.equal((await call('/v1/join', { body: { invite: codes[1], name: 'Gary', username: 'gary', password: 'eevee-12345' } })).status, 403); // revoked
+});
+
+let oldToken; // the first device, after a second one logs in
+
+test('login takes over as the active device; saves are versioned and active-only', async () => {
+  assert.equal((await call('/v1/login', { body: { username: 'ash_k', password: 'wrong-password' } })).status, 401);
+  assert.equal((await call('/v1/login', { body: { username: 'nobody', password: 'pikachu-123' } })).status, 401);
+  assert.equal((await call('/v1/login', { body: { username: 'a b' } })).status, 400);
+
+  // no save yet
+  assert.deepEqual(await (await call('/v1/save', { token })).json(), { version: 0 });
+
+  const sram1 = Buffer.alloc(64, 1).toString('base64');
+  assert.equal((await call('/v1/save', { token, method: 'PUT', body: { sram: 'not base64!' } })).status, 400);
+  assert.equal((await call('/v1/save', { method: 'PUT', body: { sram: sram1 } })).status, 401);
+  const s1 = await call('/v1/save', { token, method: 'PUT', body: { sram: sram1, minds: { readers: { 42: ['ROCK'] }, hot: { 42: 'be brave' } }, rom: 'abc123', note: 'Pallet' } });
+  assert.equal(s1.status, 200);
+  const v1 = await s1.json();
+  assert.equal(v1.version, 1);
+  assert.equal(v1.same_sram, false);
+  const again = await (await call('/v1/save', { token, method: 'PUT', body: { sram: sram1, minds: {} } })).json();
+  assert.deepEqual([again.version, again.same_sram], [2, true]);
+
+  // second device logs in (case-insensitive username) → takes over
+  const l = await call('/v1/login', { body: { username: ' ASH_K ', password: 'pikachu-123' } });
+  assert.equal(l.status, 200);
+  const logged = await l.json();
+  assert.equal(logged.player.id, playerId);
+  assert.equal(logged.active, true);
+  assert.notEqual(logged.token, token);
+  oldToken = token; token = logged.token;
+
+  // the old device still authenticates but is no longer active: it can read, not save
+  const oldMe = await (await call('/v1/me', { token: oldToken })).json();
+  assert.equal(oldMe.active, false);
+  assert.equal((await call('/v1/save', { token: oldToken, method: 'PUT', body: { sram: sram1 } })).status, 409);
+  assert.equal((await call('/v1/save', { token: oldToken })).status, 200);
+
+  // the new device saves version 3; GET returns the latest with minds parsed
+  const sram2 = Buffer.alloc(64, 2).toString('base64');
+  const v3 = await (await call('/v1/save', { token, method: 'PUT', body: { sram: sram2, minds: { hot: { 42: 'cerulean' } }, rom: 'abc123' } })).json();
+  assert.deepEqual([v3.version, v3.same_sram], [3, false]);
+  const latest = await (await call('/v1/save', { token })).json();
+  assert.equal(latest.version, 3);
+  assert.equal(latest.sram, sram2);
+  assert.equal(latest.rom, 'abc123');
+  assert.deepEqual(latest.minds, { hot: { 42: 'cerulean' } });
+  assert.equal(typeof latest.at, 'number');
+
+  // login attempts are rate limited: 10 failures in 15 minutes
+  for (let i = 0; i < 9; i++) await call('/v1/login', { body: { username: 'ash_k', password: 'nope-nope-nope' } });
+  assert.equal((await call('/v1/login', { body: { username: 'ash_k', password: 'pikachu-123' } })).status, 429);
 });
 
 test('events: stored, validated, visible to admin', async () => {
@@ -130,9 +192,9 @@ test('events: stored, validated, visible to admin', async () => {
   assert.equal(p.play_s, 3700);
   assert.equal(p.place, 'Route 1');
   assert.deepEqual(JSON.parse(p.party), [12, 7]);
-  assert.equal(p.events, 4); // joined + 3
+  assert.equal(p.events, 5); // joined + login + 3
   const { events } = await (await call(`/admin/api/events?player=${playerId}`, { token: ADMIN })).json();
-  assert.deepEqual(events.map((e) => e.kind).sort(), ['badge', 'joined', 'map', 'snapshot']);
+  assert.deepEqual(events.map((e) => e.kind).sort(), ['badge', 'joined', 'login', 'map', 'snapshot']);
   assert.equal(events.find((e) => e.kind === 'snapshot').place, 'Pallet Town');
 });
 

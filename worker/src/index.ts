@@ -1,8 +1,11 @@
 // Code Red backend (Cloudflare Worker + D1).
 //
 //   GET  /health                      liveness + version
-//   POST /v1/join      {invite,name}  → {player, token}       (invite-gated sign-up)
-//   GET  /v1/me                       → {player}               (Bearer token)
+//   POST /v1/join      {invite,name,username,password} → {player, token}   (invite-gated sign-up; this device becomes the active one)
+//   POST /v1/login     {username,password}             → {player, token}   (takes over as the active device)
+//   GET  /v1/me                       → {player, active}       (Bearer token; active = this device may play and save)
+//   PUT  /v1/save      {sram,minds,rom,note}  → {version}     (active device only; every version kept)
+//   GET  /v1/save                     → {version, at, sram, minds} (latest)
 //   POST /v1/events    {events:[…]}   → {stored}               (progress tracking)
 //   POST /v1/llm       {messages,…}   → Anthropic response     (interim agent backend; recorded)
 //   POST /v1/ai/chat/completions       OpenAI-compatible Workers AI route for Pokémon models
@@ -31,7 +34,11 @@ export interface Env {
   AI_UPSTREAM_URL?: string;  // tests only: OpenAI-compatible base URL used instead of the binding
 }
 
-type Player = { id: string; name: string; created_at: number; last_seen: number };
+type Player = { id: string; name: string; username?: string | null; created_at: number; last_seen: number; active_session?: string | null };
+const publicPlayer = (p: Player) => ({ id: p.id, name: p.name, username: p.username ?? null, created_at: p.created_at, last_seen: p.last_seen });
+const USERNAME = /^[a-z0-9_]{3,20}$/;
+const MAX_SRAM_B64 = 200 * 1024;   // 128 KB battery save, base64
+const MAX_MINDS = 2 * 1024 * 1024; // JSON of the party's minds
 
 const DAY = 24 * 60 * 60 * 1000;
 const MAX_EVENTS = 200;
@@ -69,7 +76,10 @@ async function route(req: Request, env: Env, ctx?: Ctx): Promise<Response> {
 
   if (p === '/health' && m === 'GET') return json({ ok: true, version: env.VERSION || 'dev', llm: !!env.ANTHROPIC_API_KEY, ai: !!(env.AI?.fetch || env.AI_UPSTREAM_URL), admin: !!env.ADMIN_TOKEN });
   if (p === '/v1/join' && m === 'POST') return join(req, env);
-  if (p === '/v1/me' && m === 'GET') return json({ player: await auth(req, env), features: features(env) });
+  if (p === '/v1/login' && m === 'POST') return login(req, env);
+  if (p === '/v1/me' && m === 'GET') { const player = await auth(req, env); return json({ player: publicPlayer(player), active: await isActive(req, env, player), features: features(env) }); }
+  if (p === '/v1/save' && m === 'PUT') return putSave(req, env, await auth(req, env));
+  if (p === '/v1/save' && m === 'GET') return getSave(env, await auth(req, env));
   if (p === '/v1/events' && m === 'POST') return events(req, env);
   if (p === '/v1/llm' && m === 'POST') return llm(req, env, await auth(req, env));
   if (p === '/v1/ai/chat/completions' && m === 'POST') return ai(req, env, await auth(req, env), ctx);
@@ -96,11 +106,17 @@ async function route(req: Request, env: Env, ctx?: Ctx): Promise<Response> {
 // ---------------------------------------------------------------- players
 
 async function join(req: Request, env: Env): Promise<Response> {
-  const { invite, name } = await body<{ invite?: string; name?: string }>(req);
+  const { invite, name, username, password } = await body<{ invite?: string; name?: string; username?: string; password?: string }>(req);
   const code = normCode(invite || '');
   const display = (name || '').trim().replace(/\s+/g, ' ');
+  const user = (username || '').trim().toLowerCase();
   if (!code) throw new HttpError(400, 'invite required');
   if (display.length < 1 || display.length > 24) throw new HttpError(400, 'name must be 1-24 characters');
+  if (!USERNAME.test(user)) throw new HttpError(400, 'username must be 3-20 letters, digits or _');
+  if (typeof password !== 'string' || password.length < 8 || password.length > 200) throw new HttpError(400, 'password must be at least 8 characters');
+  if (await env.DB.prepare('SELECT 1 FROM players WHERE username = ?').bind(user).first()) throw new HttpError(409, 'that username is taken');
+  const salt = randomToken();
+  const hash = await pbkdf2(password, salt);
 
   const now = Date.now();
   const claimed = await env.DB.prepare('UPDATE invites SET uses = uses + 1 WHERE code = ? AND revoked = 0 AND uses < max_uses').bind(code).run();
@@ -108,12 +124,83 @@ async function join(req: Request, env: Env): Promise<Response> {
 
   const id = crypto.randomUUID();
   const token = randomToken();
+  const tokenHash = await sha256(token);
   await env.DB.batch([
-    env.DB.prepare('INSERT INTO players (id, name, invite, created_at, last_seen) VALUES (?, ?, ?, ?, ?)').bind(id, display, code, now, now),
-    env.DB.prepare('INSERT INTO sessions (token_hash, player_id, created_at, user_agent) VALUES (?, ?, ?, ?)').bind(await sha256(token), id, now, (req.headers.get('user-agent') || '').slice(0, 200)),
+    env.DB.prepare('INSERT INTO players (id, name, invite, created_at, last_seen, username, password_hash, password_salt, active_session) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, display, code, now, now, user, hash, salt, tokenHash),
+    env.DB.prepare('INSERT INTO sessions (token_hash, player_id, created_at, user_agent) VALUES (?, ?, ?, ?)').bind(tokenHash, id, now, (req.headers.get('user-agent') || '').slice(0, 200)),
     env.DB.prepare('INSERT INTO events (player_id, at, received_at, kind, data) VALUES (?, ?, ?, ?, ?)').bind(id, now, now, 'joined', JSON.stringify({ invite: code })),
   ]);
-  return json({ player: { id, name: display, created_at: now, last_seen: now }, token, features: features(env) }, 201);
+  return json({ player: { id, name: display, username: user, created_at: now, last_seen: now }, token, active: true, features: features(env) }, 201);
+}
+
+/** Log in: a new session that takes over as the active device (the old device sees active: false and stops saving). */
+async function login(req: Request, env: Env): Promise<Response> {
+  const { username, password } = await body<{ username?: string; password?: string }>(req);
+  const user = (username || '').trim().toLowerCase();
+  if (!USERNAME.test(user) || typeof password !== 'string') throw new HttpError(400, 'username and password required');
+  const now = Date.now();
+  const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM logins WHERE username = ? AND ok = 0 AND at > ?').bind(user, now - 15 * 60_000).first<{ n: number }>();
+  if ((recent?.n || 0) >= 10) throw new HttpError(429, 'too many attempts; try again in 15 minutes');
+  const row = await env.DB.prepare('SELECT id, name, username, created_at, last_seen, password_hash, password_salt FROM players WHERE username = ?').bind(user).first<Player & { password_hash: string | null; password_salt: string | null }>();
+  const ok = !!row?.password_hash && !!row.password_salt && timingSafeEqual(await pbkdf2(password, row.password_salt), row.password_hash);
+  await env.DB.prepare('INSERT INTO logins (username, at, ok) VALUES (?, ?, ?)').bind(user, now, ok ? 1 : 0).run();
+  if (!ok || !row) throw new HttpError(401, 'wrong username or password');
+  const token = randomToken();
+  const tokenHash = await sha256(token);
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO sessions (token_hash, player_id, created_at, user_agent) VALUES (?, ?, ?, ?)').bind(tokenHash, row.id, now, (req.headers.get('user-agent') || '').slice(0, 200)),
+    env.DB.prepare('UPDATE players SET active_session = ?, last_seen = ? WHERE id = ?').bind(tokenHash, now, row.id),
+    env.DB.prepare('INSERT INTO events (player_id, at, received_at, kind, data) VALUES (?, ?, ?, ?, ?)').bind(row.id, now, now, 'login', null),
+  ]);
+  return json({ player: publicPlayer(row), token, active: true, features: features(env) });
+}
+
+async function isActive(req: Request, env: Env, player: Player): Promise<boolean> {
+  const token = bearer(req);
+  if (!token) return false;
+  const row = await env.DB.prepare('SELECT active_session FROM players WHERE id = ?').bind(player.id).first<{ active_session: string | null }>();
+  const hash = await sha256(token);
+  if (row && !row.active_session) { // joined before accounts existed: the first device to show up is the active one
+    await env.DB.prepare('UPDATE players SET active_session = ? WHERE id = ? AND active_session IS NULL').bind(hash, player.id).run();
+    return true;
+  }
+  return !!row?.active_session && row.active_session === hash;
+}
+
+// ---------------------------------------------------------------- saves
+
+async function putSave(req: Request, env: Env, player: Player): Promise<Response> {
+  if (!(await isActive(req, env, player))) throw new HttpError(409, 'this device is not the active one; log in here to take over');
+  const { sram, minds, rom, note } = await body<{ sram?: string; minds?: unknown; rom?: string; note?: string }>(req);
+  if (typeof sram !== 'string' || !sram || sram.length > MAX_SRAM_B64 || !/^[A-Za-z0-9+/=]+$/.test(sram)) throw new HttpError(400, 'sram must be base64, at most 128 KB');
+  const mindsJson = JSON.stringify(minds ?? {});
+  if (mindsJson.length > MAX_MINDS) throw new HttpError(413, 'minds too large');
+  const digest = await sha256(sram);
+  const now = Date.now();
+  const last = await env.DB.prepare('SELECT version, sha256 FROM saves WHERE player_id = ? ORDER BY version DESC LIMIT 1').bind(player.id).first<{ version: number; sha256: string }>();
+  const version = (last?.version || 0) + 1;
+  await env.DB.prepare('INSERT INTO saves (player_id, version, at, rom, sram, minds, sha256, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(player.id, version, now, typeof rom === 'string' ? rom.slice(0, 40) : null, sram, mindsJson, digest, typeof note === 'string' ? note.slice(0, 200) : null).run();
+  return json({ version, at: now, same_sram: last?.sha256 === digest });
+}
+
+async function getSave(env: Env, player: Player): Promise<Response> {
+  const row = await env.DB.prepare('SELECT version, at, rom, sram, minds FROM saves WHERE player_id = ? ORDER BY version DESC LIMIT 1').bind(player.id).first<{ version: number; at: number; rom: string | null; sram: string; minds: string }>();
+  if (!row) return json({ version: 0 });
+  return json({ version: row.version, at: row.at, rom: row.rom, sram: row.sram, minds: JSON.parse(row.minds) });
+}
+
+async function pbkdf2(password: string, salt: string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: new TextEncoder().encode(salt), iterations: 100_000 }, key, 256);
+  return [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 async function auth(req: Request, env: Env, fallbackToken?: unknown): Promise<Player> {
@@ -121,7 +208,7 @@ async function auth(req: Request, env: Env, fallbackToken?: unknown): Promise<Pl
   const token = bearer(req) || (typeof fallbackToken === 'string' ? fallbackToken : null);
   if (!token) throw new HttpError(401, 'missing token');
   const row = await env.DB.prepare(
-    'SELECT p.id, p.name, p.created_at, p.last_seen FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token_hash = ?',
+    'SELECT p.id, p.name, p.username, p.created_at, p.last_seen FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token_hash = ?',
   ).bind(await sha256(token)).first<Player>();
   if (!row) throw new HttpError(401, 'invalid token');
   const now = Date.now();
@@ -267,8 +354,9 @@ async function adminAuth(req: Request, env: Env): Promise<void> {
 
 async function adminPlayers(env: Env): Promise<Response> {
   const rows = await env.DB.prepare(`
-    SELECT p.id, p.name, p.invite, p.created_at, p.last_seen,
+    SELECT p.id, p.name, p.username, p.invite, p.created_at, p.last_seen,
       (SELECT COUNT(*) FROM events e WHERE e.player_id = p.id) AS events,
+      (SELECT MAX(version) FROM saves sv WHERE sv.player_id = p.id) AS saves,
       (SELECT MAX(json_extract(e.data, '$.badge_count')) FROM events e WHERE e.player_id = p.id AND e.kind = 'snapshot') AS badges,
       (SELECT MAX(json_extract(e.data, '$.play_s')) FROM events e WHERE e.player_id = p.id AND e.kind IN ('snapshot', 'map', 'badge')) AS play_s,
       (SELECT json_extract(e.data, '$.party') FROM events e WHERE e.player_id = p.id AND e.kind = 'snapshot' ORDER BY e.at DESC, e.id DESC LIMIT 1) AS party,
@@ -396,7 +484,7 @@ function corsHeaders(req: Request, env: Env): Record<string, string> {
   if (!origin || !originAllowed(origin, env.ALLOWED_ORIGINS)) return { vary: 'Origin' };
   return {
     'access-control-allow-origin': origin,
-    'access-control-allow-methods': 'GET, POST, OPTIONS',
+    'access-control-allow-methods': 'GET, POST, PUT, OPTIONS',
     // pi-ai's OpenAI client adds its own headers (x-stainless-*, session affinity): allow what an allowed origin asks for.
     'access-control-allow-headers': sanitizeHeaderList(req.headers.get('access-control-request-headers')) || 'authorization, content-type',
     'access-control-max-age': '86400',

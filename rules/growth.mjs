@@ -1,5 +1,5 @@
 // How a Pokémon's coding grows (tested in the journey simulator, not yet formally approved; calibration sets the numbers).
-//   focus = model temperature (calmer with level) · byte budget = max code size · slots = how many readers it remembers
+//   focus = model temperature (calmer with level) · byte budget = max code size (code + the memory it carries into the prompt)
 //   evolution = a big jump in budget and slots · badges teach (owner, 2026-10-08)
 
 export const GROWTH = {
@@ -30,7 +30,7 @@ export function budgetAt(level, { stage = 0, badges = [], notch = 0 } = {}, p = 
   return Math.round((p.budgetBase + p.budgetPerLevel * level + p.evolutionBudget * stage + bonus) * (1 + NOTCH.budget * notch))
 }
 
-/** How many learned readers a Pokémon keeps. */
+/** (Retired by the one-context-budget rule: readers cost bytes when used instead. Kept for the old journey sim.) */
 export const slotsAt = (level, { stage = 0 } = {}, p = GROWTH) =>
   Math.max(1, p.slotsBase + Math.floor((level - 5) / p.levelsPerSlot) + p.evolutionSlots * stage)
 

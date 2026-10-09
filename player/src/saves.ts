@@ -42,10 +42,7 @@ export async function restoreSave(game: SaveGame, store: SaveStore): Promise<'em
   let backup: ArrayBuffer | undefined
   try { backup = await store.read(SAVE_KEY) } catch { return 'none' }
   if (!backup || !backup.byteLength) return 'none'
-  ensureDir(game.FS, path)
-  game.FS.writeFile(path, new Uint8Array(backup))
-  game.loadSaveFiles()
-  game.restart() // boot again so the title screen sees the restored save
+  installSave(game, new Uint8Array(backup)) // boot again so the title screen sees the restored save
   return 'backup'
 }
 
@@ -55,9 +52,19 @@ function fingerprint(bytes: Uint8Array): string {
   return `${bytes.length}:${hash >>> 0}`
 }
 
-/** Flush SRAM to both copies periodically and whenever the page hides. */
-export function autosave(game: SaveGame, store: SaveStore, everyMs = 10_000) {
-  let last = '', disposed = false, writing: Promise<void> = Promise.resolve()
+/** Write bytes into the emulator's save file (the game must restart to see them). */
+export function installSave(game: SaveGame, bytes: Uint8Array): void {
+  const path = game.getSaveFilePath()
+  ensureDir(game.FS, path)
+  game.FS.writeFile(path, bytes)
+  game.loadSaveFiles()
+  game.restart()
+}
+
+/** Flush SRAM to both copies periodically and whenever the page hides.
+ *  onChange fires once per changed save (an in-game save happened): the cloud copy hangs off it. */
+export function autosave(game: SaveGame, store: SaveStore, everyMs = 10_000, onChange?: (bytes: Uint8Array) => void) {
+  let last = '', announced = '', disposed = false, writing: Promise<void> = Promise.resolve()
   const flush = () => {
     if (disposed) return writing
     let bytes: Uint8Array | null = null
@@ -67,6 +74,7 @@ export function autosave(game: SaveGame, store: SaveStore, everyMs = 10_000) {
     if (print === last) return writing
     const copy = bytes.slice()
     writing = writing.then(() => store.write(SAVE_KEY, copy)).then(() => { last = print }, () => {})
+    if (print !== announced) { announced = print; try { onChange?.(copy) } catch { /* cloud copy is best-effort */ } }
     return writing
   }
   const hidden = () => { if (document.hidden) void flush() }

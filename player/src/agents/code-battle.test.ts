@@ -179,3 +179,27 @@ test('status moves hit the code: Growl on the attacker shakes it (smaller budget
   assert.ok(temps[0]! > temps[1]!, 'shaken writes hotter than steadied')
   const r = g.mailbox.snapshot.bind(g.mailbox); g.request({ stages: -3 }); assert.equal(r()!.attackerStages, -3, 'signed byte read')
 })
+
+test('one context budget: the reader it uses and its hot memory cost bytes; the code must fit in the rest', async () => {
+  const g = game(), { panel, log } = fakePanel(), mem = store()
+  const seen: string[] = []
+  const spy: CodeWriter = { async write(p, onText) { seen.push(p.user); return mockWriter({ missEvery: 99, delay: instant }).write(p, onText) } }
+  mem.setHot(111, 'always use const; never use var')
+  const b = new CodeBattle(g.mailbox, names, spy, sandbox, panel, mem)
+  await b.poll(); g.request({ pid: 111 }); await b.poll()
+  assert.equal(log.begin[0]!.memoryCost, 'always use const; never use var'.length)
+  assert.match(seen[0]!, /- Your notes: always use const; never use var/)
+  assert.match(seen[0]!, new RegExp(`at most ${350 - 31} characters`))
+  // a learned reader now costs on use: next turn the WATER reader is charged too
+  g.request({ pid: 111 }); await b.poll()
+  assert.ok(log.begin[1]!.memoryCost > 31, 'reader + notes')
+  assert.equal(log.begin[1]!.know, 'memory')
+})
+
+test('a long note can push correct code over budget: that is the trade-off', async () => {
+  const g = game(), { panel, log } = fakePanel(), mem = store()
+  mem.setHot(111, 'x'.repeat(330))
+  const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem)
+  await b.poll(); g.request({ pid: 111 }); await b.poll()
+  assert.equal(log.end[0]!.reason, 'over budget')
+})

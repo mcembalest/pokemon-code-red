@@ -48,8 +48,8 @@ function table(el, cols, rows, onclick) {
 }
 async function load() {
   const [{ players }, { events }, { invites }] = await Promise.all([api('players'), api('events?limit=200' + (player ? '&player=' + player : '')), api('invites')]);
-  table($('#players'), [['Name', (r) => r.name], ['Joined', (r) => when(r.created_at)], ['Last seen', (r) => when(r.last_seen)],
-    ['Badges', (r) => r.badges ?? ''], ['Play time', (r) => hms(r.play_s)], ['Where', (r) => r.place ?? ''], ['Party', (r) => party(r.party)], ['Events', (r) => r.events], ['Last event', (r) => r.last_event], ['Agent calls', (r) => r.llm_calls], ['Tokens', (r) => r.llm_tokens], ['Invite', (r) => r.invite]],
+  table($('#players'), [['Name', (r) => r.name], ['User', (r) => r.username ?? ''], ['Joined', (r) => when(r.created_at)], ['Last seen', (r) => when(r.last_seen)],
+    ['Badges', (r) => r.badges ?? ''], ['Play time', (r) => hms(r.play_s)], ['Where', (r) => r.place ?? ''], ['Party', (r) => party(r.party)], ['Events', (r) => r.events], ['Saves', (r) => r.saves ?? 0], ['Last event', (r) => r.last_event], ['Agent calls', (r) => r.llm_calls], ['Tokens', (r) => r.llm_tokens], ['Invite', (r) => r.invite]],
     players, (r) => { player = player === r.id ? null : r.id; $('#evh').textContent = player ? 'Events · ' + r.name : 'Recent events'; load(); });
   table($('#events'), [['When', (r) => when(r.at)], ['Player', (r) => r.name], ['Kind', (r) => r.kind], ['Where', (r) => r.place ?? ''], ['Data', (r) => r.data, 'data']], events);
   table($('#invites'), [['Code', (r) => r.code], ['Link', (r) => r.revoked || r.uses >= r.max_uses ? '' : SITE + r.code], ['Uses', (r) => r.uses + '/' + r.max_uses], ['Note', (r) => r.note], ['Created', (r) => when(r.created_at)], ['Revoked', (r) => r.revoked ? 'yes' : '']], invites);
