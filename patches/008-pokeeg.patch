@@ -7,10 +7,10 @@ Menu entries live in patch 003 (PC menu, bedroom PC); this patch is the screen i
 No host → the mind lines say so; the list still works.
 diff --git a/src/code_red_eeg.c b/src/code_red_eeg.c
 new file mode 100644
-index 00000000..e9c94b37
+index 00000000..76250313
 --- /dev/null
 +++ b/src/code_red_eeg.c
-@@ -0,0 +1,674 @@
+@@ -0,0 +1,687 @@
 +// Code Red: the PokÉEG, in the game (owner, 2026-10-09). From the PC: every Pokémon the player
 +// owns (party, then the boxes), and for the one under the cursor a look inside its mind.
 +// The game knows the Pokémon; the page knows the mind (readers, hot memory, code history live in the
@@ -65,8 +65,10 @@ index 00000000..e9c94b37
 +    /*0x40*/ u8 hot[100];      // game text, EOS-terminated: hot memory (may hold one newline: two lines)
 +    /*0xA4*/ u8 readersText[48]; // game text: the formats it learned to read ("Water, Rock"), or empty
 +    /*0xD4*/ u8 dexText[48];     // game text: the Pokédex's formats, or empty
++    /*0x104*/ u8 trust;          // 0-100: how far it goes along with your picks (badges); the rest is doubt
++    /*0x105*/ u8 pad2[3];
 +};
-+STATIC_ASSERT(sizeof(struct CodeRedEeg) == 260, CodeRedEegSize);
++STATIC_ASSERT(sizeof(struct CodeRedEeg) == 264, CodeRedEegSize);
 +EWRAM_DATA volatile struct CodeRedEeg gCodeRedEeg = {0};
 +static EWRAM_DATA u32 sEegRequestId = 0;
 +
@@ -92,7 +94,7 @@ index 00000000..e9c94b37
 +    u8 tab;       // 0 SYSTEM, 1 READERS, 2 CODE, 3 NOTE
 +    bool8 haveMind; // the page answered for the Pokémon under the cursor
 +};
-+enum { TAB_SYSTEM, TAB_READERS, TAB_CODE, TAB_NOTE, TAB_COUNT };
++enum { TAB_SYSTEM, TAB_READERS, TAB_CODE, TAB_NOTE, TAB_INSTINCT, TAB_COUNT };
 +static EWRAM_DATA struct EegState *sEeg = NULL;
 +static EWRAM_DATA u8 *sEegBg1Tilemap = NULL;
 +
@@ -127,7 +129,11 @@ index 00000000..e9c94b37
 +static const u8 sText_TabReaders[] = _("READERS");
 +static const u8 sText_TabCode[] = _("CODE");
 +static const u8 sText_TabNote[] = _("NOTE");
-+static const u8 *const sTabNames[TAB_COUNT] = { sText_TabSystem, sText_TabReaders, sText_TabCode, sText_TabNote };
++static const u8 sText_TabInstinct[] = _("INSTINCT");
++static const u8 *const sTabNames[TAB_COUNT] = { sText_TabSystem, sText_TabReaders, sText_TabCode, sText_TabNote, sText_TabInstinct };
++static const u8 sText_Instinct[] = _("Instinct: whatever hits hardest.");
++static const u8 sText_Trusts[] = _("Trusts your picks: ");
++static const u8 sText_Percent[] = _("% (badges)");
 +static const u8 sText_LR[] = _("{LEFT_ARROW}{RIGHT_ARROW}");
 +static const u8 sText_System[] = _(" system");
 +static const u8 sText_Arrives[] = _("Data arrives as: ");
@@ -200,7 +206,7 @@ index 00000000..e9c94b37
 +{
 +    gCodeRedEeg.state = 0;
 +    gCodeRedEeg.magic = EEG_MAGIC;
-+    gCodeRedEeg.version = 2;
++    gCodeRedEeg.version = 3;
 +    gCodeRedEeg.op = op;
 +    gCodeRedEeg.requestId = ++sEegRequestId;
 +    gCodeRedEeg.personality = e->personality;
@@ -217,7 +223,7 @@ index 00000000..e9c94b37
 +    for (i = 0; i < TAB_COUNT; i++)
 +    {
 +        Eeg_Print(WIN_MIND, FONT_SMALL, sTabNames[i], x, 0, i == sEeg->tab ? MIND_COLOR : 2);
-+        x += GetStringWidth(FONT_SMALL, sTabNames[i], 0) + 10;
++        x += GetStringWidth(FONT_SMALL, sTabNames[i], 0) + 7;
 +    }
 +    Eeg_Print(WIN_MIND, FONT_SMALL, sText_LR, 200 - GetStringWidth(FONT_SMALL, sText_LR, 0) - 2, 0, 2);
 +}
@@ -291,6 +297,13 @@ index 00000000..e9c94b37
 +            s = ConvertIntToDecimalStringN(s, gCodeRedEeg.nHistory - hits, STR_CONV_MODE_LEFT_ALIGN, 2);
 +            StringAppend(s, sText_MissN);
 +        }
++        break;
++    case TAB_INSTINCT: // System 1: only wild Pokémon pick their own moves; yours goes with your pick as far as it trusts you
++        s = StringCopy(gStringVar4, sText_Instinct);
++        *s++ = CHAR_NEWLINE;
++        s = StringCopy(s, sText_Trusts);
++        s = ConvertIntToDecimalStringN(s, gCodeRedEeg.trust > 100 ? 100 : gCodeRedEeg.trust, STR_CONV_MODE_LEFT_ALIGN, 3);
++        StringCopy(s, sText_Percent);
 +        break;
 +    default: // the note itself (the page wraps it onto two lines), or how to write one
 +        if (gCodeRedEeg.hot[0] == EOS)

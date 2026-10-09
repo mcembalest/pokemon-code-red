@@ -6,7 +6,7 @@
 //   memory: each Pokémon keeps its own readers; the Pokédex (types seen in past battles + badge readers) is shared
 //   model or network failure: retry once, then plain FireRed (accuracy roll)
 import {
-  BADGES, FORMATS, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, foeDex, formatOf, judge, knowFor, learnFromHit, missText, notchOf, partyDex,
+  BADGES, FORMATS, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, combinedNotch, contextCost, extractCode, focusAt, foeDex, formatOf, judge, knowFor, learnFromHit, missText, notchOf, partyDex,
   rng, stageOf, targetBytes, tierOf, tokenCapFor, turnData, turnPrompt, turnType,
   type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged,
 } from '../../../rules/index.mjs'
@@ -35,6 +35,8 @@ export interface TurnInfo {
   notch: number
   /** The move makes bytes the game will play or draw instead of answering. */
   makes?: PayloadKind
+  /** Your Pokémon doubts your pick: how shaken (−1/−2) and the move its instinct wanted. */
+  doubt?: { notch: number; wanted: string | null }
 }
 export interface TurnResult { verdict: Verdict; reason?: MissReason; text: string; detail?: string }
 export interface Panel {
@@ -72,6 +74,7 @@ export interface TurnRecord {
   verdict: Verdict; reason?: string; ms: number; tries: number; code?: string
   /** The move made bytes (a sound, a picture) and the game got them. */
   payload?: PayloadKind
+  doubt?: number
 }
 
 export interface CodeBattleOptions {
@@ -80,6 +83,8 @@ export interface CodeBattleOptions {
   onTurn?: (record: TurnRecord) => void
   /** Where a move's bytes (a sound, a picture) go so the game can play or draw them on the hit. */
   payload?: PayloadMailbox
+  /** Doubt (rules/doubt.mjs): your Pokémon's instinct scores the move you called; the page computes it from the battle. */
+  doubt?: (req: MoveRequest) => { notch: number; wanted: string | null }
 }
 
 export class CodeBattle {
@@ -132,12 +137,13 @@ export class CodeBattle {
     const dex = side === 0 ? partyDex({ seen: this.memory.seen(), badges }) : foeDex(tierOf(req.trainerClass, wild), req.attackerPersonality, Object.keys(FORMATS))
     const know = tutorial ? null : knowFor(type, { dex, readers })
     const hot = side === 0 ? this.memory.hot(req.attackerPersonality).trim() : ''
-    const notch = notchOf(req.attackerStages)
+    const doubt = side === 0 && !tutorial ? this.options.doubt?.(req) ?? null : null
+    const notch = combinedNotch(notchOf(req.attackerStages), doubt?.notch ?? 0)
     const budget = budgetAt(req.attackerLevel, { stage, badges, notch })
     const memoryCost = contextCost({ know, hot })
     const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, know, budget, tutorial, hot })
 
-    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}) })
+    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}), ...(doubt && doubt.notch ? { doubt } : {}) })
     let text: string | null = null, tries = 0
     while (text === null && tries < 2) {
       tries++
@@ -164,7 +170,7 @@ export class CodeBattle {
     await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s code hit!` : missText(attacker, reason ?? 'crashed'), ...(v.got ? { detail: `returned ${v.got}, needed ${v.want}` } : v.error ? { detail: v.error } : {}) })
     this.mailbox.reply(req, verdict, reason ?? 'crashed')
     if (side === 0) this.memory.remember?.(req.attackerPersonality, { at: Date.now(), move: move.name, type, target, verdict, ...(reason ? { reason } : {}), notch, budget, code: (code ?? '').slice(0, 1200) })
-    this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}), ...(v.hit && made ? { payload: made.kind } : {}) })
+    this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}), ...(v.hit && made ? { payload: made.kind } : {}), ...(doubt?.notch ? { doubt: doubt.notch } : {}) })
   }
 }
 
