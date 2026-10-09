@@ -1,6 +1,8 @@
 // One battle turn's code, streamed: the prompt comes from rules/turn.mjs (turnPrompt), the reply is
 // streamed token by token (for the code panel), and the final text is returned for judging.
 export const BATTLE_MODEL = '@cf/meta/llama-3.2-3b-instruct'
+/** Payload moves (bytes the GBA plays or draws) go to a bigger coder (owner, 2026-10-09): a 3B model can't be creative in 350 bytes. */
+export const PAYLOAD_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct'
 
 /**
  * models: a pi-ai Models with the game provider set (gameApiProvider); model: { provider, modelId }.

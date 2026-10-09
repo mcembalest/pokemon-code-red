@@ -671,18 +671,19 @@ function cloudWriter(assets: string, api: string, token: () => string): CodeWrit
     createModels(): { setProvider(p: unknown): void }
     gameApiProvider(o: { baseUrl: string; token: () => string; modelIds?: string[] }): unknown
     writeCode(o: { models: unknown; model: { provider: string; modelId: string }; system: string; user: string; temperature: number; maxTokens?: number; onText: (d: string) => void }): Promise<{ text: string }>
-    GAME_PROVIDER: string; BATTLE_MODEL: string
+    GAME_PROVIDER: string; BATTLE_MODEL: string; PAYLOAD_MODEL: string
   }
   let loading: Promise<{ k: Kernel; models: unknown }> | null = null
   const load = () => loading ??= (import(/* @vite-ignore */ assets + 'kernel/kernel.js') as Promise<Kernel>).then(k => {
     const models = k.createModels()
-    models.setProvider(k.gameApiProvider({ baseUrl: api.replace(/\/$/, '') + '/v1/ai', token, modelIds: [k.BATTLE_MODEL] }))
+    models.setProvider(k.gameApiProvider({ baseUrl: api.replace(/\/$/, '') + '/v1/ai', token, modelIds: [k.BATTLE_MODEL, k.PAYLOAD_MODEL] }))
     return { k, models }
   }).catch(e => { loading = null; throw e })
   return {
     async write(prompt, onText) {
       const { k, models } = await load()
-      const { text } = await k.writeCode({ models, model: { provider: k.GAME_PROVIDER, modelId: k.BATTLE_MODEL }, system: prompt.system, user: prompt.user, temperature: prompt.temperature, maxTokens: prompt.maxTokens, onText })
+      const modelId = prompt.meta.move.payload ? k.PAYLOAD_MODEL : k.BATTLE_MODEL // payload moves: a bigger coder
+      const { text } = await k.writeCode({ models, model: { provider: k.GAME_PROVIDER, modelId }, system: prompt.system, user: prompt.user, temperature: prompt.temperature, maxTokens: prompt.maxTokens, onText })
       return text
     },
   }
