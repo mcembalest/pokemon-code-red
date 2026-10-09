@@ -5,7 +5,9 @@
 export const DEFAULT_API = 'https://code-red-api.macembalest.workers.dev'
 
 export interface Features { agents: boolean }
-export interface Session { token: string; player: { id: string; name: string; username?: string }; features?: Features; active?: boolean }
+export interface Session { token: string; player: { id: string; name: string; username?: string }; features?: Features; active?: boolean; hasRecovery?: boolean }
+/** A sign-in that also hands over a recovery code (shown once; never stored on the page). */
+export type SignedIn = Session & { recovery?: string }
 /** A cloud save: the game's battery save plus the party's minds (readers, hot memory, Pokédex). */
 export interface CloudSave { version: number; at: number; rom: string | null; sram: Uint8Array; minds: unknown }
 export interface SessionStore { get(): Session | null; set(session: Session | null): void }
@@ -56,30 +58,63 @@ export class Backend {
   get pending(): number { return this.queue.length }
 
   /** Sign up with an invite; the account (username + password) lets the player log in on another device. */
-  join(invite: string, name: string, username: string, password: string): Promise<Session> {
+  join(invite: string, name: string, username: string, password: string): Promise<SignedIn> {
     return this.signIn('/v1/join', { invite: invite.trim(), name: name.trim(), username: username.trim(), password },
       status => status === 403 ? 'That invite code is not valid (or was already used).' : status === 409 ? 'That username is taken.' : 'Could not join. Try again.')
   }
 
   /** Log in on this device; it becomes the active one (the other device is signed out of play). */
-  login(username: string, password: string): Promise<Session> {
+  login(username: string, password: string): Promise<SignedIn> {
     return this.signIn('/v1/login', { username: username.trim(), password },
       status => status === 401 ? 'Wrong username or password.' : status === 429 ? 'Too many attempts. Try again in 15 minutes.' : 'Could not log in. Try again.')
   }
 
-  private async signIn(path: string, payload: Record<string, string>, why: (status: number) => string): Promise<Session> {
+  /** Forgot password: the recovery code from join sets a new password; every other device is signed out; a fresh code comes back. */
+  recover(username: string, recovery: string, password: string): Promise<SignedIn> {
+    return this.signIn('/v1/recover', { username: username.trim(), recovery: recovery.trim(), password },
+      status => status === 401 ? 'Wrong username or recovery code.' : status === 429 ? 'Too many attempts. Try again in an hour.' : 'Could not reset the password. Try again.')
+  }
+
+  /** Change the password (other devices are signed out; this one stays). */
+  async changePassword(current: string, password: string): Promise<void> {
+    await this.authed('/v1/password', { current, password }, status => status === 401 ? 'Wrong current password.' : status === 429 ? 'Too many attempts. Try again in 15 minutes.' : 'Could not change the password.')
+  }
+
+  /** A fresh recovery code (the current password is required). */
+  async newRecovery(current: string): Promise<string> {
+    const body = await this.authed('/v1/recovery', { current }, status => status === 401 ? 'Wrong password.' : status === 429 ? 'Too many attempts. Try again in 15 minutes.' : 'Could not make a recovery code.') as { recovery?: string }
+    if (!body.recovery) throw new BackendError(500, 'Could not make a recovery code.')
+    const session = this.session
+    if (session) this.store.set({ ...session, hasRecovery: true })
+    return body.recovery
+  }
+
+  private async authed(path: string, payload: Record<string, string>, why: (status: number) => string): Promise<unknown> {
+    const session = this.session
+    if (!session) throw new BackendError(401, 'Not signed in.')
+    let response: Response
+    try {
+      response = await this.http(this.api + path, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + session.token }, body: JSON.stringify(payload) })
+    } catch { throw new BackendError(0, 'Could not reach the Code Red server.') }
+    const body = await response.json().catch(() => ({})) as { error?: string }
+    if (response.status === 401 && /token/.test(body.error ?? '')) this.store.set(null) // the session itself was rejected (not the password check)
+    if (!response.ok) throw new BackendError(response.status, response.status === 400 && body.error ? body.error : why(response.status))
+    return body
+  }
+
+  private async signIn(path: string, payload: Record<string, string>, why: (status: number) => string): Promise<SignedIn> {
     let response: Response
     try {
       response = await this.http(this.api + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
     } catch { throw new BackendError(0, 'Could not reach the Code Red server. Check your connection and try again.') }
-    const body = await response.json().catch(() => ({})) as { token?: string; player?: Session['player']; features?: Features; active?: boolean; error?: string }
+    const body = await response.json().catch(() => ({})) as { token?: string; player?: Session['player']; features?: Features; active?: boolean; recovery?: string; error?: string }
     if (!response.ok || !body.token || !body.player) {
       throw new BackendError(response.status, response.status === 400 && body.error ? body.error : why(response.status))
     }
     const player: Session['player'] = { id: body.player.id, name: body.player.name, ...(body.player.username ? { username: body.player.username } : {}) }
-    const session: Session = { token: body.token, player, active: body.active !== false, ...(body.features ? { features: body.features } : {}) }
+    const session: Session = { token: body.token, player, active: body.active !== false, ...(body.recovery ? { hasRecovery: true } : {}), ...(body.features ? { features: body.features } : {}) }
     this.store.set(session)
-    return session
+    return body.recovery ? { ...session, recovery: body.recovery } : session
   }
 
   /** Is this device still the active one? Cached from the last check/sign-in (true until told otherwise). */
@@ -125,9 +160,9 @@ export class Backend {
       const response = await this.http(this.api + '/v1/me', { headers: { authorization: 'Bearer ' + session.token } })
       if (response.status === 401) { this.store.set(null); return 'invalid' }
       if (!response.ok) return 'offline'
-      const body = await response.json().catch(() => ({})) as { features?: Features; active?: boolean; player?: Session['player'] }
+      const body = await response.json().catch(() => ({})) as { features?: Features; active?: boolean; has_recovery?: boolean; player?: Session['player'] }
       const active = body.active !== false
-      this.store.set({ ...session, active, ...(body.features ? { features: body.features } : {}), ...(body.player?.username ? { player: { ...session.player, username: body.player.username } } : {}) })
+      this.store.set({ ...session, active, ...(typeof body.has_recovery === 'boolean' ? { hasRecovery: body.has_recovery } : {}), ...(body.features ? { features: body.features } : {}), ...(body.player?.username ? { player: { ...session.player, username: body.player.username } } : {}) })
       return active ? 'ok' : 'inactive'
     } catch { return 'offline' }
   }

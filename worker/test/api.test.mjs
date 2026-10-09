@@ -79,7 +79,7 @@ test('admin requires token', async () => {
   assert.equal((await call('/admin')).status, 200); // page itself is static
 });
 
-let token, playerId;
+let token, playerId, recovery;
 
 test('invite → join → me; invites are single-use', async () => {
   const r = await call('/admin/api/invites', { token: ADMIN, body: { count: 2, max_uses: 1, note: 'test' } });
@@ -102,6 +102,8 @@ test('invite → join → me; invites are single-use', async () => {
   assert.equal(joined.player.name, 'Ash K');
   assert.equal(joined.player.username, 'ash_k'); // lowercased
   assert.equal(joined.active, true);
+  assert.match(joined.recovery, /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/); // shown once
+  recovery = joined.recovery;
   token = joined.token; playerId = joined.player.id;
 
   assert.equal((await call('/v1/join', { body: { invite: codes[0], name: 'Gary', username: 'gary', password: 'eevee-12345' } })).status, 403); // used up
@@ -120,6 +122,44 @@ test('invite → join → me; invites are single-use', async () => {
 });
 
 let oldToken; // the first device, after a second one logs in
+
+test('forgot password: the recovery code sets a new password, signs every session out, and rotates', async () => {
+  assert.equal((await call('/v1/recover', { body: { username: 'ash_k', recovery: 'XXXX-XXXX-XXXX', password: 'new-password-1' } })).status, 401);
+  assert.equal((await call('/v1/recover', { body: { username: 'ash_k', recovery, password: 'short' } })).status, 400);
+  const r = await call('/v1/recover', { body: { username: 'ASH_K', recovery: recovery.toLowerCase(), password: 'new-password-1' } });
+  assert.equal(r.status, 200);
+  const got = await r.json();
+  assert.equal(got.player.id, playerId); assert.equal(got.active, true);
+  assert.match(got.recovery, /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/); assert.notEqual(got.recovery, recovery);
+  assert.equal((await call('/v1/me', { token })).status, 401); // the old session is gone
+  assert.equal((await call('/v1/login', { body: { username: 'ash_k', password: 'pikachu-123' } })).status, 401); // old password gone
+  assert.equal((await call('/v1/recover', { body: { username: 'ash_k', recovery, password: 'again-again-1' } })).status, 401); // single use
+  token = got.token; recovery = got.recovery;
+  assert.equal((await (await call('/v1/me', { token })).json()).active, true);
+
+  // change password while signed in: needs the current one; the other session is signed out, this one stays
+  const other = await (await call('/v1/login', { body: { username: 'ash_k', password: 'new-password-1' } })).json();
+  assert.equal((await call('/v1/password', { token, body: { current: 'wrong-password', password: 'pikachu-123' } })).status, 401);
+  assert.equal((await call('/v1/password', { token, body: { current: 'new-password-1', password: 'pikachu-123' } })).status, 200);
+  assert.equal((await call('/v1/me', { token: other.token })).status, 401);
+  const me = await (await call('/v1/me', { token })).json();
+  assert.equal(me.active, true); // and this device is the active one again
+
+  // admin fallback: a fresh code for a player who lost everything
+  const a = await call('/admin/api/players/recovery', { token: ADMIN, body: { id: playerId } });
+  assert.equal(a.status, 200);
+  const fresh = (await a.json()).recovery;
+  assert.notEqual(fresh, recovery);
+  assert.equal((await call('/v1/recover', { body: { username: 'ash_k', recovery, password: 'whatever-123' } })).status, 401);
+  recovery = fresh;
+  // and a signed-in player can get a fresh code with their password (accounts from before codes existed)
+  assert.equal((await call('/v1/recovery', { token, body: { current: 'nope-nope-nope' } })).status, 401);
+  const mine = await (await call('/v1/recovery', { token, body: { current: 'pikachu-123' } })).json();
+  assert.match(mine.recovery, /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  assert.equal((await (await call('/v1/me', { token })).json()).has_recovery, true);
+  recovery = mine.recovery;
+  // the next test logs in with pikachu-123 and takes over
+});
 
 test('login takes over as the active device; saves are versioned and active-only', async () => {
   assert.equal((await call('/v1/login', { body: { username: 'ash_k', password: 'wrong-password' } })).status, 401);
@@ -192,9 +232,9 @@ test('events: stored, validated, visible to admin', async () => {
   assert.equal(p.play_s, 3700);
   assert.equal(p.place, 'Route 1');
   assert.deepEqual(JSON.parse(p.party), [12, 7]);
-  assert.equal(p.events, 5); // joined + login + 3
+  assert.ok(p.events >= 5, String(p.events)); // joined, logins, recovered, password_changed, recovery_reset + 3
   const { events } = await (await call(`/admin/api/events?player=${playerId}`, { token: ADMIN })).json();
-  assert.deepEqual(events.map((e) => e.kind).sort(), ['badge', 'joined', 'login', 'map', 'snapshot']);
+  for (const k of ['badge', 'joined', 'login', 'map', 'snapshot', 'recovered', 'password_changed', 'recovery_reset']) assert.ok(events.some((e) => e.kind === k), k);
   assert.equal(events.find((e) => e.kind === 'snapshot').place, 'Pallet Town');
 });
 

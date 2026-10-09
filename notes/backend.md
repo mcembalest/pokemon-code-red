@@ -16,7 +16,10 @@ Code: `worker/` · deploy: `.github/workflows/worker.yml` · schema: `worker/mig
 - `GET /health` → `{ok, version, llm, admin}` (llm/admin = whether those secrets are set)
 - `POST /v1/join {invite, name, username, password}` → `{player, token, active}`; token = bearer, stored only as sha256; username `[a-z0-9_]{3,20}` (lowercased, unique), password ≥ 8 chars (PBKDF2-SHA256 100k, per-player salt); this device becomes the active one
 - `POST /v1/login {username, password}` → `{player, token, active}` — new session that takes over as the active device; 10 failures / 15 min per username → 429
-- `GET /v1/me` → `{player, active, features}`; `active` = this token is the one device allowed to play and save
+- `POST /v1/recover {username, recovery, password}` → `{player, token, active, recovery}` — forgot password: the recovery code from join (PBKDF2-hashed like the password, single use, 5 failures/hour → 429); every session is deleted, this device signs in, a fresh code comes back
+- `POST /v1/password {current, password}` (Bearer) → `{ok}`; other sessions deleted, this one stays active
+- `POST /v1/recovery {current}` (Bearer) → `{recovery}` — a fresh code (accounts from before codes existed get one here)
+- `GET /v1/me` → `{player, active, has_recovery, features}`; `active` = this token is the one device allowed to play and save
 - `PUT /v1/save {sram (base64 ≤ 200 KB), minds (JSON ≤ 2 MB), rom?, note?}` → `{version, at, same_sram}` — active device only (409 otherwise); every version kept in `saves`
 - `GET /v1/save` → latest `{version, at, rom, sram, minds}` or `{version: 0}`
 - `POST /v1/events {events:[{kind, at?, data?}]}` — ≤200/request, kind `[a-z0-9_.:-]{1,48}`, data ≤4 KB JSON
@@ -28,7 +31,7 @@ Code: `worker/` · deploy: `.github/workflows/worker.yml` · schema: `worker/mig
 - no framework, one file (`src/index.ts`) + static admin page
 - CORS: maxcembalest.com, www, `*.vercel.app`, localhost
 - invite codes `RED-XXXX-XXXX` (no I/L/O/0/1), case/space-insensitive, `max_uses`, revocable
-- accounts (2026-10-08, migration 0002): username + password on `players`; one active device (`active_session` = token hash of the last login); the in-game save is the only commit point: a save = SRAM + the party's minds, every version kept. No password reset yet (admin can't either) — ask the owner
+- accounts (2026-10-08, migration 0002): username + password on `players`; one active device (`active_session` = token hash of the last login); the in-game save is the only commit point: a save = SRAM + the party's minds, every version kept. Recovery (migration 0003, 2026-10-09): a 12-character recovery code shown once at join (never stored in clear, never on the page), "Forgot password?" on the login form, Account panel (change password, new code), admin fallback `POST /admin/api/players/recovery {id}` for a friend who lost both (shown once on `/admin`). Codes come from rejection-sampled randomness; comparisons are constant-time; failed attempts throttled per username
 - LLM proxy is interim; target = local models in the browser (design.md → Local models). `llm_calls` doubles as the replay log format
 
 ## Tests

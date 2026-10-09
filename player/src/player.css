@@ -109,3 +109,18 @@
 .code-red-hot-editor textarea { width: 100%; box-sizing: border-box; font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: .4rem .5rem; border-radius: 6px; border: 1px solid #2a3542; background: #0a0d10; color: inherit; resize: vertical; }
 .code-red-hot-editor small { color: #9aa7b3; }
 .code-red-button-quiet { background: transparent; border: 1px solid var(--muted, #777); color: inherit; }
+
+/* account: recovery code card, change password */
+.code-red-recovery { display: grid; gap: .6rem; max-width: 420px; margin-block: 1rem; padding: .8rem 1rem; border: 2px solid #c8323c; border-radius: 8px; }
+.code-red-recovery[hidden] { display: none; }
+.code-red-recovery p { margin: 0; }
+.code-red-recovery-code { font: 700 22px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .08em; user-select: all; }
+.code-red-recovery .code-red-button { justify-self: start; }
+.code-red-account { display: grid; gap: .8rem; max-width: 420px; margin-block: 1rem; padding: .8rem 1rem; border: 1px solid var(--muted, #777); border-radius: 8px; }
+.code-red-account[hidden] { display: none; }
+.code-red-account form { display: grid; gap: .4rem; }
+.code-red-account p { margin: 0; }
+.code-red-account label { display: grid; gap: .25rem; font-size: .9rem; }
+.code-red-account input { font-size: 16px; padding: .5rem; border-radius: 6px; border: 1px solid var(--muted, #777); background: transparent; color: inherit; }
+.code-red-account .code-red-button { justify-self: start; }
+.code-red-account a, .code-red-help a { color: inherit; }

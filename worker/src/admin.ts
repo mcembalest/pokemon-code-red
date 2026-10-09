@@ -19,6 +19,7 @@ code{font:12px ui-monospace,monospace}.mut{color:var(--mut)}#err{color:var(--acc
 <form id="login"><input id="tok" type="password" placeholder="ADMIN_TOKEN" autocomplete="off" size="30"><button>Unlock</button><span id="err"></span></form>
 <div id="app" hidden>
 <h2>Players</h2><section><table id="players"></table></section>
+<p class="mut" id="sel" hidden>Selected: <b id="selname"></b> · <button id="recov" type="button">New recovery code</button> <span id="recovout"></span> <small>(for a player who lost both password and recovery code; send it to them privately — it shows once)</small></p>
 <h2 id="evh">Recent events</h2><section><table id="events"></table></section>
 <h2>Invites</h2><section>
 <form id="mk"><input id="n" type="number" min="1" max="50" value="1" style="width:5em"> codes ×
@@ -26,6 +27,7 @@ code{font:12px ui-monospace,monospace}.mut{color:var(--mut)}#err{color:var(--acc
 <p id="new" class="mut"></p><table id="invites"></table></section>
 </div></main>
 <script>
+document.addEventListener('DOMContentLoaded', () => { $('#recov').onclick = async () => { if (!player || !confirm('Issue a new recovery code for this player? The old one stops working.')) return; const { recovery } = await api('players/recovery', { method: 'POST', body: JSON.stringify({ id: player }) }); $('#recovout').textContent = recovery; }; });
 let token = ''; try { token = sessionStorage.getItem('cr-admin') || ''; } catch {}
 let player = null;
 const $ = (s) => document.querySelector(s);
@@ -50,7 +52,7 @@ async function load() {
   const [{ players }, { events }, { invites }] = await Promise.all([api('players'), api('events?limit=200' + (player ? '&player=' + player : '')), api('invites')]);
   table($('#players'), [['Name', (r) => r.name], ['User', (r) => r.username ?? ''], ['Joined', (r) => when(r.created_at)], ['Last seen', (r) => when(r.last_seen)],
     ['Badges', (r) => r.badges ?? ''], ['Play time', (r) => hms(r.play_s)], ['Where', (r) => r.place ?? ''], ['Party', (r) => party(r.party)], ['Events', (r) => r.events], ['Saves', (r) => r.saves ?? 0], ['Last event', (r) => r.last_event], ['Agent calls', (r) => r.llm_calls], ['Tokens', (r) => r.llm_tokens], ['Invite', (r) => r.invite]],
-    players, (r) => { player = player === r.id ? null : r.id; $('#evh').textContent = player ? 'Events · ' + r.name : 'Recent events'; load(); });
+    players, (r) => { player = player === r.id ? null : r.id; $('#evh').textContent = player ? 'Events · ' + r.name : 'Recent events'; $('#sel').hidden = !player; $('#selname').textContent = r.name + (r.username ? ' (' + r.username + ')' : ''); $('#recovout').textContent = ''; load(); });
   table($('#events'), [['When', (r) => when(r.at)], ['Player', (r) => r.name], ['Kind', (r) => r.kind], ['Where', (r) => r.place ?? ''], ['Data', (r) => r.data, 'data']], events);
   table($('#invites'), [['Code', (r) => r.code], ['Link', (r) => r.revoked || r.uses >= r.max_uses ? '' : SITE + r.code], ['Uses', (r) => r.uses + '/' + r.max_uses], ['Note', (r) => r.note], ['Created', (r) => when(r.created_at)], ['Revoked', (r) => r.revoked ? 'yes' : '']], invites);
 }

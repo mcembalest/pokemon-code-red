@@ -3,6 +3,9 @@
 //   GET  /health                      liveness + version
 //   POST /v1/join      {invite,name,username,password} → {player, token}   (invite-gated sign-up; this device becomes the active one)
 //   POST /v1/login     {username,password}             → {player, token}   (takes over as the active device)
+//   POST /v1/recover   {username,recovery,password}     → {player, token, recovery}  (forgot password: the recovery code from join; every other session is signed out; a new code comes back)
+//   POST /v1/password  {current,password}               → {ok}             (Bearer; other sessions are signed out)
+//   POST /v1/recovery  {current}                         → {recovery}       (Bearer; a fresh recovery code, e.g. for accounts from before codes existed)
 //   GET  /v1/me                       → {player, active}       (Bearer token; active = this device may play and save)
 //   PUT  /v1/save      {sram,minds,rom,note}  → {version}     (active device only; every version kept)
 //   GET  /v1/save                     → {version, at, sram, minds} (latest)
@@ -77,7 +80,14 @@ async function route(req: Request, env: Env, ctx?: Ctx): Promise<Response> {
   if (p === '/health' && m === 'GET') return json({ ok: true, version: env.VERSION || 'dev', llm: !!env.ANTHROPIC_API_KEY, ai: !!(env.AI?.fetch || env.AI_UPSTREAM_URL), admin: !!env.ADMIN_TOKEN });
   if (p === '/v1/join' && m === 'POST') return join(req, env);
   if (p === '/v1/login' && m === 'POST') return login(req, env);
-  if (p === '/v1/me' && m === 'GET') { const player = await auth(req, env); return json({ player: publicPlayer(player), active: await isActive(req, env, player), features: features(env) }); }
+  if (p === '/v1/recover' && m === 'POST') return recover(req, env);
+  if (p === '/v1/password' && m === 'POST') return changePassword(req, env, await auth(req, env));
+  if (p === '/v1/recovery' && m === 'POST') return newRecovery(req, env, await auth(req, env));
+  if (p === '/v1/me' && m === 'GET') {
+    const player = await auth(req, env);
+    const acct = await env.DB.prepare('SELECT recovery_hash IS NOT NULL AS has_recovery FROM players WHERE id = ?').bind(player.id).first<{ has_recovery: number }>();
+    return json({ player: publicPlayer(player), active: await isActive(req, env, player), has_recovery: !!acct?.has_recovery, features: features(env) });
+  }
   if (p === '/v1/save' && m === 'PUT') return putSave(req, env, await auth(req, env));
   if (p === '/v1/save' && m === 'GET') return getSave(env, await auth(req, env));
   if (p === '/v1/events' && m === 'POST') return events(req, env);
@@ -94,6 +104,14 @@ async function route(req: Request, env: Env, ctx?: Ctx): Promise<Response> {
     if (sub === 'agent-records' && m === 'GET') return adminAgentRecords(env, url);
     if (sub === 'invites' && m === 'GET') return json({ invites: (await env.DB.prepare('SELECT * FROM invites ORDER BY created_at DESC').all()).results });
     if (sub === 'invites' && m === 'POST') return adminCreateInvites(req, env);
+    if (sub === 'players/recovery' && m === 'POST') { // the owner's fallback for a friend who lost both password and code
+      const { id } = await body<{ id: string }>(req);
+      const player = await env.DB.prepare('SELECT id FROM players WHERE id = ?').bind(id).first<{ id: string }>();
+      if (!player) throw new HttpError(404, 'no such player');
+      const recovery = await setRecovery(env, player.id);
+      await env.DB.prepare('INSERT INTO events (player_id, at, received_at, kind, data) VALUES (?, ?, ?, ?, ?)').bind(player.id, Date.now(), Date.now(), 'recovery_reset', JSON.stringify({ by: 'admin' })).run();
+      return json({ recovery });
+    }
     if (sub === 'invites/revoke' && m === 'POST') {
       const { code } = await body<{ code: string }>(req);
       await env.DB.prepare('UPDATE invites SET revoked = 1 WHERE code = ?').bind(normCode(code)).run();
@@ -117,6 +135,9 @@ async function join(req: Request, env: Env): Promise<Response> {
   if (await env.DB.prepare('SELECT 1 FROM players WHERE username = ?').bind(user).first()) throw new HttpError(409, 'that username is taken');
   const salt = randomToken();
   const hash = await pbkdf2(password, salt);
+  const recovery = recoveryCode();
+  const recoverySalt = randomToken();
+  const recoveryHash = await pbkdf2(normCode(recovery), recoverySalt);
 
   const now = Date.now();
   const claimed = await env.DB.prepare('UPDATE invites SET uses = uses + 1 WHERE code = ? AND revoked = 0 AND uses < max_uses').bind(code).run();
@@ -126,11 +147,94 @@ async function join(req: Request, env: Env): Promise<Response> {
   const token = randomToken();
   const tokenHash = await sha256(token);
   await env.DB.batch([
-    env.DB.prepare('INSERT INTO players (id, name, invite, created_at, last_seen, username, password_hash, password_salt, active_session) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, display, code, now, now, user, hash, salt, tokenHash),
+    env.DB.prepare('INSERT INTO players (id, name, invite, created_at, last_seen, username, password_hash, password_salt, active_session, recovery_hash, recovery_salt, password_changed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, display, code, now, now, user, hash, salt, tokenHash, recoveryHash, recoverySalt, now),
     env.DB.prepare('INSERT INTO sessions (token_hash, player_id, created_at, user_agent) VALUES (?, ?, ?, ?)').bind(tokenHash, id, now, (req.headers.get('user-agent') || '').slice(0, 200)),
     env.DB.prepare('INSERT INTO events (player_id, at, received_at, kind, data) VALUES (?, ?, ?, ?, ?)').bind(id, now, now, 'joined', JSON.stringify({ invite: code })),
   ]);
-  return json({ player: { id, name: display, username: user, created_at: now, last_seen: now }, token, active: true, features: features(env) }, 201);
+  return json({ player: { id, name: display, username: user, created_at: now, last_seen: now }, token, active: true, recovery, features: features(env) }, 201);
+}
+
+/** A new recovery code for a player (stored hashed); returned once to show the person. */
+async function setRecovery(env: Env, playerId: string): Promise<string> {
+  const recovery = recoveryCode();
+  const salt = randomToken();
+  await env.DB.prepare('UPDATE players SET recovery_hash = ?, recovery_salt = ? WHERE id = ?').bind(await pbkdf2(normCode(recovery), salt), salt, playerId).run();
+  return recovery;
+}
+
+/** Too many failed attempts of this kind for this username in the window? */
+async function throttled(env: Env, kind: 'login' | 'recover', user: string, max: number, windowMs: number): Promise<boolean> {
+  const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM logins WHERE username = ? AND kind = ? AND ok = 0 AND at > ?').bind(user, kind, Date.now() - windowMs).first<{ n: number }>();
+  return (recent?.n || 0) >= max;
+}
+
+function validPassword(password: unknown): asserts password is string {
+  if (typeof password !== 'string' || password.length < 8 || password.length > 200) throw new HttpError(400, 'password must be at least 8 characters');
+}
+
+/** Forgot password: username + the recovery code from join → new password, every session signed out, this device signed in, a fresh code. */
+async function recover(req: Request, env: Env): Promise<Response> {
+  const { username, recovery, password } = await body<{ username?: string; recovery?: string; password?: string }>(req);
+  const user = (username || '').trim().toLowerCase();
+  const code = normCode(recovery || '');
+  if (!USERNAME.test(user) || !code) throw new HttpError(400, 'username and recovery code required');
+  validPassword(password);
+  const now = Date.now();
+  if (await throttled(env, 'recover', user, 5, 60 * 60_000)) throw new HttpError(429, 'too many attempts; try again in an hour');
+  const row = await env.DB.prepare('SELECT id, name, username, created_at, last_seen, recovery_hash, recovery_salt FROM players WHERE username = ?').bind(user).first<Player & { recovery_hash: string | null; recovery_salt: string | null }>();
+  const ok = !!row?.recovery_hash && !!row.recovery_salt && timingSafeEqual(await pbkdf2(code, row.recovery_salt), row.recovery_hash);
+  await env.DB.prepare('INSERT INTO logins (username, at, ok, kind) VALUES (?, ?, ?, ?)').bind(user, now, ok ? 1 : 0, 'recover').run();
+  if (!ok || !row) throw new HttpError(401, 'wrong username or recovery code');
+  const salt = randomToken();
+  const token = randomToken();
+  const tokenHash = await sha256(token);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM sessions WHERE player_id = ?').bind(row.id),
+    env.DB.prepare('UPDATE players SET password_hash = ?, password_salt = ?, password_changed_at = ?, active_session = ?, last_seen = ? WHERE id = ?').bind(await pbkdf2(password, salt), salt, now, tokenHash, now, row.id),
+    env.DB.prepare('INSERT INTO sessions (token_hash, player_id, created_at, user_agent) VALUES (?, ?, ?, ?)').bind(tokenHash, row.id, now, (req.headers.get('user-agent') || '').slice(0, 200)),
+    env.DB.prepare('INSERT INTO events (player_id, at, received_at, kind, data) VALUES (?, ?, ?, ?, ?)').bind(row.id, now, now, 'recovered', null),
+  ]);
+  const fresh = await setRecovery(env, row.id); // a code is single-use
+  return json({ player: publicPlayer(row), token, active: true, recovery: fresh, features: features(env) });
+}
+
+/** A fresh recovery code while signed in (the current password is required). */
+async function newRecovery(req: Request, env: Env, player: Player): Promise<Response> {
+  const { current } = await body<{ current?: string }>(req);
+  const row = await env.DB.prepare('SELECT password_hash, password_salt, username FROM players WHERE id = ?').bind(player.id).first<{ password_hash: string | null; password_salt: string | null; username: string | null }>();
+  const user = row?.username || player.id;
+  if (await throttled(env, 'login', user, 10, 15 * 60_000)) throw new HttpError(429, 'too many attempts; try again in 15 minutes');
+  const ok = typeof current === 'string' && !!row?.password_hash && !!row.password_salt && timingSafeEqual(await pbkdf2(current, row.password_salt), row.password_hash);
+  if (!ok) {
+    await env.DB.prepare('INSERT INTO logins (username, at, ok, kind) VALUES (?, ?, ?, ?)').bind(user, Date.now(), 0, 'login').run();
+    throw new HttpError(401, 'wrong current password');
+  }
+  const recovery = await setRecovery(env, player.id);
+  await env.DB.prepare('INSERT INTO events (player_id, at, received_at, kind, data) VALUES (?, ?, ?, ?, ?)').bind(player.id, Date.now(), Date.now(), 'recovery_reset', JSON.stringify({ by: 'player' })).run();
+  return json({ recovery });
+}
+
+/** Change password while signed in: the current password is required; other sessions are signed out, this one stays. */
+async function changePassword(req: Request, env: Env, player: Player): Promise<Response> {
+  const { current, password } = await body<{ current?: string; password?: string }>(req);
+  validPassword(password);
+  const row = await env.DB.prepare('SELECT password_hash, password_salt, username FROM players WHERE id = ?').bind(player.id).first<{ password_hash: string | null; password_salt: string | null; username: string | null }>();
+  const user = row?.username || player.id;
+  if (await throttled(env, 'login', user, 10, 15 * 60_000)) throw new HttpError(429, 'too many attempts; try again in 15 minutes');
+  const ok = typeof current === 'string' && !!row?.password_hash && !!row.password_salt && timingSafeEqual(await pbkdf2(current, row.password_salt), row.password_hash);
+  if (!ok) {
+    await env.DB.prepare('INSERT INTO logins (username, at, ok, kind) VALUES (?, ?, ?, ?)').bind(user, Date.now(), 0, 'login').run();
+    throw new HttpError(401, 'wrong current password');
+  }
+  const salt = randomToken();
+  const now = Date.now();
+  const keep = await sha256(bearer(req) || '');
+  await env.DB.batch([
+    env.DB.prepare('UPDATE players SET password_hash = ?, password_salt = ?, password_changed_at = ?, active_session = ? WHERE id = ?').bind(await pbkdf2(password, salt), salt, now, keep, player.id),
+    env.DB.prepare('DELETE FROM sessions WHERE player_id = ? AND token_hash != ?').bind(player.id, keep),
+    env.DB.prepare('INSERT INTO events (player_id, at, received_at, kind, data) VALUES (?, ?, ?, ?, ?)').bind(player.id, now, now, 'password_changed', null),
+  ]);
+  return json({ ok: true });
 }
 
 /** Log in: a new session that takes over as the active device (the old device sees active: false and stops saving). */
@@ -139,11 +243,10 @@ async function login(req: Request, env: Env): Promise<Response> {
   const user = (username || '').trim().toLowerCase();
   if (!USERNAME.test(user) || typeof password !== 'string') throw new HttpError(400, 'username and password required');
   const now = Date.now();
-  const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM logins WHERE username = ? AND ok = 0 AND at > ?').bind(user, now - 15 * 60_000).first<{ n: number }>();
-  if ((recent?.n || 0) >= 10) throw new HttpError(429, 'too many attempts; try again in 15 minutes');
+  if (await throttled(env, 'login', user, 10, 15 * 60_000)) throw new HttpError(429, 'too many attempts; try again in 15 minutes');
   const row = await env.DB.prepare('SELECT id, name, username, created_at, last_seen, password_hash, password_salt FROM players WHERE username = ?').bind(user).first<Player & { password_hash: string | null; password_salt: string | null }>();
   const ok = !!row?.password_hash && !!row.password_salt && timingSafeEqual(await pbkdf2(password, row.password_salt), row.password_hash);
-  await env.DB.prepare('INSERT INTO logins (username, at, ok) VALUES (?, ?, ?)').bind(user, now, ok ? 1 : 0).run();
+  await env.DB.prepare('INSERT INTO logins (username, at, ok, kind) VALUES (?, ?, ?, ?)').bind(user, now, ok ? 1 : 0, 'login').run();
   if (!ok || !row) throw new HttpError(401, 'wrong username or password');
   const token = randomToken();
   const tokenHash = await sha256(token);
@@ -455,9 +558,26 @@ function randomToken(): string {
 }
 
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no I, L, O, 0, 1
+/** n uniform characters from ALPHABET (rejection sampling: no modulo bias). */
+function randomChars(n: number): string {
+  const limit = 256 - (256 % ALPHABET.length);
+  let out = '';
+  while (out.length < n) {
+    for (const x of crypto.getRandomValues(new Uint8Array(n * 2))) {
+      if (x < limit && out.length < n) out += ALPHABET[x % ALPHABET.length];
+    }
+  }
+  return out;
+}
+
+/** Recovery code: 12 characters (~59 bits), grouped for typing. */
+export function recoveryCode(): string {
+  const s = randomChars(12);
+  return `${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8)}`;
+}
+
 export function inviteCode(): string {
-  const b = crypto.getRandomValues(new Uint8Array(8));
-  const s = [...b].map((x) => ALPHABET[x % ALPHABET.length]).join('');
+  const s = randomChars(8);
   return `RED-${s.slice(0, 4)}-${s.slice(4)}`;
 }
 
