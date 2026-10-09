@@ -1,12 +1,12 @@
 {
-  "note": "Journey 12 (spine): re-specced moves, numbers/nums wording, NORMAL without a reader line, all 17 formats. 12 journeys.",
+  "note": "Journey 13: budget base 300 (owner), spine rules. 12 journeys.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "journeys": 12,
   "defaults": {
     "startTemp": 0.8,
     "tempPerLevel": 0.03,
     "minTemp": 0.3,
-    "budgetBase": 200,
+    "budgetBase": 300,
     "budgetPerLevel": 10,
     "evolutionBudget": 100,
     "slotsBase": 2,

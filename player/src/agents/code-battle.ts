@@ -2,12 +2,12 @@
 // the move's function (model through the backend), the code runs on the target's bytes in the sandbox, and
 // the game hears hit / miss / vanilla. Both sides. The rules are shared with the simulator (rules/).
 //   turn pace (owner, 2026-10-08): your code → your move → foe's code → foe's move (the ROM asks in that order)
-//   foes: wild = focus + budget from level, no readers; trainers read every format (owner, 2026-10-08: the asymmetry is the challenge)
+//   foes: focus + budget from level; knowledge by tier (owner, 2026-10-08): wild none, trainers half the formats, leaders and the rival all
 //   memory: each Pokémon keeps its own readers; the Pokédex (types seen in past battles + badge readers) is shared
 //   model or network failure: retry once, then plain FireRed (accuracy roll)
 import {
-  BADGES, FORMATS, GROWTH, HINTS, budgetAt, byFireRed, byName, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, notchOf, partyDex,
-  rng, slotsAt, stageOf, targetBytes, turnData, turnPrompt, turnType,
+  BADGES, FORMATS, GROWTH, HINTS, budgetAt, byFireRed, byName, extractCode, focusAt, foeDex, formatOf, judge, knowFor, learnFromHit, missText, notchOf, partyDex,
+  rng, slotsAt, stageOf, targetBytes, tierOf, tokenCapFor, turnData, turnPrompt, turnType,
   type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
@@ -15,6 +15,8 @@ import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, ty
 export interface Names { moveName(id: number): string; speciesName(id: number): string; typeName(id: number): string }
 export interface Prompt {
   system: string; user: string; temperature: number
+  /** The model's token cap, derived from the byte budget (a safety stop, not a rule). */
+  maxTokens: number
   /** For mock writers (tests, offline play); a real model only sees system + user. */
   meta: { move: Move; type: TypeName; tutorial: boolean }
 }
@@ -104,7 +106,7 @@ export class CodeBattle {
     const badges = side === 0 ? (this.options.badges?.() ?? []).filter(b => b in BADGES) : []
     const stage = stageOf(attacker)
     const readers = side === 0 ? this.memory.readers(req.attackerPersonality) : {}
-    const dex = side === 0 ? partyDex({ seen: this.memory.seen(), badges }) : wild ? [] : Object.keys(FORMATS)
+    const dex = side === 0 ? partyDex({ seen: this.memory.seen(), badges }) : foeDex(tierOf(req.trainerClass, wild), req.attackerPersonality, Object.keys(FORMATS))
     const know = tutorial ? null : knowFor(type, { dex, readers })
     const notch = notchOf(req.attackerStages)
     const budget = budgetAt(req.attackerLevel, { stage, badges, notch })
@@ -114,7 +116,7 @@ export class CodeBattle {
     let text: string | null = null, tries = 0
     while (text === null && tries < 2) {
       tries++
-      try { text = await this.writer.write({ ...prompt, temperature: focusAt(req.attackerLevel, GROWTH, notch), meta: { move, type, tutorial } }, delta => this.panel.text(side, delta)) }
+      try { text = await this.writer.write({ ...prompt, temperature: focusAt(req.attackerLevel, GROWTH, notch), maxTokens: tokenCapFor(budget), meta: { move, type, tutorial } }, delta => this.panel.text(side, delta)) }
       catch { if (tries < 2) this.panel.text(side, '\n// connection hiccup, writing again…\n') }
     }
     if (text === null) {

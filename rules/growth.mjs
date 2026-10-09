@@ -4,7 +4,7 @@
 
 export const GROWTH = {
   startTemp: 0.8, tempPerLevel: 0.03, minTemp: 0.3,          // focus
-  budgetBase: 200, budgetPerLevel: 10, evolutionBudget: 100,  // byte budget (characters of code, comments included)
+  budgetBase: 300, budgetPerLevel: 10, evolutionBudget: 100,  // byte budget (characters of code, comments included); base 300 (owner, 2026-10-08)
   slotsBase: 2, levelsPerSlot: 3, evolutionSlots: 3,          // memory slots for readers
 }
 
@@ -50,3 +50,19 @@ const STAGE_1 = ['IVYSAUR', 'CHARMELEON', 'WARTORTLE', 'METAPOD', 'KAKUNA', 'PID
 const STAGE_2 = ['VENUSAUR', 'CHARIZARD', 'BLASTOISE', 'BUTTERFREE', 'BEEDRILL', 'PIDGEOT', 'NIDOQUEEN', 'NIDOKING', 'VILEPLUME',
   'POLIWRATH', 'ALAKAZAM', 'MACHAMP', 'VICTREEBEL', 'GOLEM', 'GENGAR', 'DRAGONITE']
 export const stageOf = species => (STAGE_2.includes(species) ? 2 : STAGE_1.includes(species) ? 1 : 0)
+
+/** Knowledge tiers (owner, 2026-10-08): the chance a foe's Pokémon can read any given format. Wild 0, ordinary
+ *  trainers 0.5, gym leaders and the rival 1. Fixed per Pokémon and format for a whole battle (seeded). */
+export const KNOWLEDGE = { wild: 0, trainer: 0.5, boss: 1 }
+/** FireRed trainer classes that count as bosses: Leader 84, Elite Four 87, Champion 90, rival 81/89, Boss (Giovanni) 83. */
+export const BOSS_CLASSES = new Set([81, 83, 84, 87, 89, 90])
+export const tierOf = (trainerClass, wild) => (wild ? 'wild' : BOSS_CLASSES.has(trainerClass) ? 'boss' : 'trainer')
+/** The formats a foe reads this battle: each format independently, with the tier's chance, seeded by the Pokémon. */
+export function foeDex(tier, personality, formats, chance = KNOWLEDGE[tier]) {
+  if (chance >= 1) return [...formats]
+  if (chance <= 0) return []
+  return formats.filter((t, i) => { let h = (personality ^ (i + 1) * 0x9e3779b9) >>> 0; h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0; h ^= h >>> 16; return (h >>> 0) / 4294967296 < chance })
+}
+
+/** The model's token cap is a safety stop derived from the budget, never a rule of its own: ~1 token per 2.5 characters, plus room for the fences. */
+export const tokenCapFor = budget => Math.ceil(budget / 2.5) + 120

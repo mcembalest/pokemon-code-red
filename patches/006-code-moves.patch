@@ -120,10 +120,10 @@ index 67f90a37..7dc3d52f 100644
      }
 diff --git a/src/code_red_battle.c b/src/code_red_battle.c
 new file mode 100644
-index 00000000..9825c6d1
+index 00000000..590a3e51
 --- /dev/null
 +++ b/src/code_red_battle.c
-@@ -0,0 +1,150 @@
+@@ -0,0 +1,152 @@
 +#include "global.h"
 +#include "battle.h"
 +#include "battle_scripts.h"
@@ -164,7 +164,8 @@ index 00000000..9825c6d1
 +    u8 reason;               // host, on a miss: CODE_RED_MISS_*
 +    s8 attackerStages;       // sum of the attacker's stat stage offsets (Growl: -1), for code focus
 +    u16 waited;              // frames waited for this request
-+    u16 unused2;
++    u8 trainerClass;         // gTrainers[].trainerClass (0 = wild): knowledge tier (leaders and the rival read every format)
++    u8 unused2;
 +};
 +STATIC_ASSERT(sizeof(struct CodeRedMove) == 48, CodeRedMoveSize);
 +EWRAM_DATA volatile struct CodeRedMove gCodeRedMove = {0};
@@ -231,6 +232,7 @@ index 00000000..9825c6d1
 +    m->targetType2 = t->type2;
 +    m->battleTypeFlags = gBattleTypeFlags;
 +    m->trainerId = (gBattleTypeFlags & BATTLE_TYPE_TRAINER) ? gTrainerBattleOpponent_A : 0;
++    m->trainerClass = (gBattleTypeFlags & BATTLE_TYPE_TRAINER) ? gTrainers[gTrainerBattleOpponent_A].trainerClass : 0;
 +    m->verdict = CODE_RED_VANILLA;
 +    m->reason = 0;
 +    m->attackerStages = StageSum(a);

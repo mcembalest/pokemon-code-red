@@ -38,6 +38,11 @@ export function focusAt(level: number, p?: Growth, notch?: number): number
 export function budgetAt(level: number, opts?: { stage?: number; badges?: string[]; notch?: number }, p?: Growth): number
 export function slotsAt(level: number, opts?: { stage?: number }, p?: Growth): number
 export function partyDex(opts?: { seen?: string[]; badges?: string[] }): TypeName[]
+export const KNOWLEDGE: { wild: number; trainer: number; boss: number }
+export const BOSS_CLASSES: Set<number>
+export function tierOf(trainerClass: number, wild: boolean): 'wild' | 'trainer' | 'boss'
+export function foeDex(tier: 'wild' | 'trainer' | 'boss', personality: number, formats: string[], chance?: number): string[]
+export function tokenCapFor(budget: number): number
 
 export type Readers = Partial<Record<TypeName, string>>
 export interface Know { from: 'dex' | 'memory'; line: string }

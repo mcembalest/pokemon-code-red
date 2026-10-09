@@ -37,7 +37,7 @@ def one(job):
         rng = random.Random(seed * 7919 + k)
         lv = levels[starter]
         a = [Mon(starter, lv, rng.randint(0, 31), known=set(known))]
-        foe_known = set(FORMATS_ALL) if leader_knows else set()
+        foe_known = set(FORMATS_ALL) if leader_knows else {t for t in FORMATS_ALL if rng.random() < 0.5}  # boss tier vs ordinary trainer tier (0.5)
         b = party(DATA['trainers'][trainer]['party'], known=foe_known)
         bt = Battle(a, b, code, rng, code_effects=mode)
         while not bt.over() and bt.turns < 100:
