@@ -22,7 +22,7 @@ import { createHotEditor, createPokeeg } from './agents/pokeeg.ts'
 import { EegMailbox } from './bridge/eeg.ts'
 import { PayloadMailbox } from './bridge/payload.ts'
 import { EegLink } from './agents/eeg-link.ts'
-import { budgetAt, formatOf, stageOf } from '../../rules/index.mjs'
+import { budgetAt, byFireRed, doubtOf, formatOf, stageOf, typeChart } from '../../rules/index.mjs'
 import type { TypeName } from '../../rules/index.mjs'
 import { ProgressWatcher, readSnapshot } from './progress.ts'
 import { Agent } from './agents/agent.ts'
@@ -32,7 +32,7 @@ import { BattleReader, greedyPolicy, type BattleMon } from './agents/battle.ts'
 import { BattleAutopilot, createThinkingBox, type Pad } from './agents/autopilot.ts'
 import { CodeBattle, localCodeMemory, mockWriter, type CodeWriter, type Sandbox } from './agents/code-battle.ts'
 import { createCodePanel } from './agents/code-panel.ts'
-import { CodeMoveMailbox } from './bridge/code-move.ts'
+import { CodeMoveMailbox, type MoveRequest } from './bridge/code-move.ts'
 import { createStarterCard, offeredStarter } from './agents/starter-card.ts'
 
 /** Written by the build next to the copy patch (scripts/bundle.py). */
@@ -464,8 +464,20 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     const payloadBox = payloadSym ? new PayloadMailbox(memory, payloadSym.address) : null
     // Dev / tests: window.CodeRed.payload('sound'|'image', bytes) hands the game bytes to play on the next code hit.
     ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, payload: (kind: 'sound' | 'image', bytes: number[]) => payloadBox?.deliver(kind, bytes) ?? false, payloadsPlayed: () => payloadBox?.played() ?? 0 }
+    // Doubt (rules/doubt.mjs): your Pokémon's instinct (hits hardest now) scores the move you called; badges = trust.
+    const chartSym = rom.symbols.gTypeEffectiveness
+    const effectivenessFor = chartSym && romBytes ? typeChart(romBytes, chartSym.address - 0x08000000) : null
+    const doubt = effectivenessFor ? (req: MoveRequest) => {
+      try {
+        const me = reader.mon(0)
+        const eff = (typeName: string) => { const m = me.moves.find(x => x.type === typeName); return m ? effectivenessFor(m.typeId, req.targetTypes) : 1 }
+        const d = doubtOf({ chosen: me.moves.find(m => m.id === req.move) ?? null, moves: me.moves, badges: badges(), selfTypes: me.types, effectiveness: eff })
+        return { notch: d.notch, wanted: d.wanted ? (byFireRed(d.wanted.name)?.name ?? d.wanted.name) : null }
+      } catch { return { notch: 0, wanted: null } }
+    } : undefined
     const battle = new CodeBattle(new CodeMoveMailbox(memory, sym.address), reader, writer, runner, panel, minds, {
       badges,
+      ...(doubt ? { doubt } : {}),
       ...(payloadBox ? { payload: payloadBox } : {}),
       onTurn: t => backend?.track('code_move', { ...t, code: t.code?.slice(0, 300) }),
     })
