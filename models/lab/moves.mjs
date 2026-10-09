@@ -11,8 +11,8 @@ const models = gameModels()
 const runSource = source => runBlock(source, [])
 const usage = { input: 0, output: 0, calls: 0 }
 
-async function ask(system, user, temperature) {
-  const m = models.getModel('cloudflare-workers-ai', cfg.model)
+async function ask(system, user, temperature, modelId = cfg.model) {
+  const m = models.getModel('cloudflare-workers-ai', modelId)
   const t0 = Date.now()
   const reply = await models.completeSimple(m, { systemPrompt: system, messages: [{ role: 'user', content: user, timestamp: Date.now() }] }, { temperature, maxTokens: 500 })
   if (reply.stopReason === 'error') throw new Error(reply.errorMessage)
@@ -21,7 +21,9 @@ async function ask(system, user, temperature) {
 }
 
 const jobs = []
-const moves = cfg.moves === 'all' ? MOVES : MOVES.filter(m => cfg.moves.includes(m.name))
+// cfg.specs = { MOVE: 'spec' } tries other wordings; cfg.payloadModel = a bigger model for payload moves (owner, 2026-10-09)
+const moves = (cfg.moves === 'all' ? MOVES : MOVES.filter(m => cfg.moves.includes(m.name))).map(m => (cfg.specs?.[m.name] ? { ...m, spec: cfg.specs[m.name] } : m))
+const modelFor = move => (move.payload && cfg.payloadModel ? cfg.payloadModel : cfg.model)
 const wordings = cfg.words ?? [WORDS]
 for (const move of moves) for (const type of cfg.types) for (const known of cfg.known) for (const words of wordings) for (let i = 0; i < cfg.samples; i++)
   jobs.push({ move, type, known, words, level: cfg.levels[i % cfg.levels.length], seed: 5000 + jobs.length * 7 })
@@ -32,7 +34,7 @@ async function one({ move, type, known, words, level, seed }) {
   const budget = budgetAt(level)
   const { system, user } = turnPrompt({ self: { name: cfg.self ?? 'CHARMANDER', level }, target: { name: cfg.target ?? 'RATTATA', level, types: [type] }, move, type, know, budget, words })
   try {
-    const { text, ms } = await ask(system, user, focusAt(level))
+    const { text, ms } = await ask(system, user, focusAt(level), modelFor(move))
     const { code } = extractCode(text)
     const v = await judge({ move, bytes, data, code, budget, runSource })
     return { move: move.name, type, known, words: `${words.data}/${words.v}`, level, hit: v.hit, reason: v.reason ?? null, got: v.got, want: v.want, error: v.error?.slice(0, 120), ms, text: text.slice(0, 900) }

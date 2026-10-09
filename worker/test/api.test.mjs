@@ -273,7 +273,7 @@ test('workers AI route: OpenAI-compatible, allowlisted, capped, streamed, record
   const M = '@cf/meta/llama-3.2-3b-instruct';
   const msgs = [{ role: 'system', content: 'You are CHARMANDER.' }, { role: 'user', content: 'use SCRATCH!' }];
   assert.equal((await call('/v1/ai/chat/completions', { body: { model: M, messages: msgs } })).status, 401);
-  assert.equal((await call('/v1/ai/chat/completions', { token, body: { model: '@cf/qwen/qwen2.5-coder-32b-instruct', messages: msgs } })).status, 400);
+  assert.equal((await call('/v1/ai/chat/completions', { token, body: { model: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', messages: msgs } })).status, 400);
   assert.equal((await call('/v1/ai/chat/completions', { token, body: { model: M, messages: [] } })).status, 400);
 
   const plain = await call('/v1/ai/chat/completions', { token, body: { model: M, messages: msgs, max_tokens: 99999, evil: 1, temperature: 0.8 } });

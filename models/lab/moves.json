@@ -1,5 +1,5 @@
 {
-  "note": "Payload v3c: ERROR alternates every sample; FLASH one threshold (white then black); white >= 300.",
+  "note": "Payload moves on Qwen2.5-Coder-32B (payloadModel), recipe specs as shipped. 2026-10-09: recipes 98%/83%; free-form specs on the same model 68%/38% (off-by-one lengths, dark shape drawn at 100-200).",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": [
     "ERROR",
@@ -16,11 +16,12 @@
     false,
     true
   ],
-  "samples": 6,
+  "samples": 4,
   "levels": [
     5,
     10,
     15
   ],
-  "concurrency": 16
+  "concurrency": 16,
+  "payloadModel": "@cf/qwen/qwen2.5-coder-32b-instruct"
 }

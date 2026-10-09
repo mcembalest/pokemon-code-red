@@ -11,7 +11,7 @@ AGENTS = "on"                 # "off" = agents off for every player (game still 
 LLM_MODELS = "claude-sonnet-5-5"
 LLM_DAILY_TOKENS = "200000"
 LLM_MAX_TOKENS = "1024"
-AI_MODELS = "@cf/meta/llama-3.2-3b-instruct,@cf/ibm-granite/granite-4.0-h-micro"
+AI_MODELS = "@cf/meta/llama-3.2-3b-instruct,@cf/ibm-granite/granite-4.0-h-micro,@cf/qwen/qwen2.5-coder-32b-instruct"
 AI_MAX_TOKENS = "600"
 AI_DAILY_TOKENS = "1500000"
 AI_GATEWAY = "default"
