@@ -1,12 +1,25 @@
 diff --git a/data/text/new_game_intro.inc b/data/text/new_game_intro.inc
-index e667b68..a6be392 100644
+index e667b68d..979ee596 100644
 --- a/data/text/new_game_intro.inc
 +++ b/data/text/new_game_intro.inc
-@@ -189,6 +189,6 @@ gPikachuIntro_Text_Page3::
+@@ -188,7 +188,6 @@ gPikachuIntro_Text_Page3::
+ 
  gOakSpeech_Text_WelcomeToTheWorld::
      .string "Hello, there!\n"
 -    .string "Glad to meet you!\p"
-+    .string "CODE RED dev build!\p"
      .string "Welcome to the world of POKéMON!\p"
      .string "My name is OAK.\p"
      .string "People affectionately refer to me\n"
+@@ -204,6 +203,12 @@ gOakSpeech_Text_IsInhabitedFarAndWide::
+ gOakSpeech_Text_IStudyPokemon::
+     .string "For some people, POKéMON are pets.\n"
+     .string "Others use them for battling.\p"
++    .string "Here, every POKéMON is a system,\n"
++    .string "and its type says which kind.\p"
++    .string "In battle you call the move, and\n"
++    .string "your POKéMON writes its code.\p"
++    .string "The code runs on the foe's data.\n"
++    .string "Right answer, hit. Wrong, miss.\p"
+     .string "As for myself…\p"
+     .string "I study POKéMON as a profession.\p$"
+ 
