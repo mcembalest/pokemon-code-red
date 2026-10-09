@@ -439,16 +439,17 @@ class World(Game):
                 return True
         return False
 
-    def travel(self, dest: str, battle_policy=None, avoid: tuple = (), via: tuple = (), attempts: int = 6, stop=None) -> bool:
+    def travel(self, dest: str, battle_policy=None, avoid: tuple = (), via: tuple = (), attempts: int = 6, stop=None, at=None) -> bool:
         """Go to another map, planning over walkable regions (warps, map edges, one-way ledges).
-        `avoid`: maps that are story-gated right now. `via`: maps to pass through in order."""
+        `avoid`: maps that are story-gated right now. `via`: maps to pass through in order. `at`: a cell on `dest`
+        whose area we must reach (then walk to it)."""
         for waypoint in via:
             if not self.travel(waypoint, battle_policy, avoid):
                 return False
         for _attempt in range(attempts):
-            if self.map() == dest:
-                return True
-            hops = region_route(self.map(), self.pos(), dest, avoid)
+            if self.map() == dest and (at is None or _region_of(dest, self.pos()) == _region_of(dest, at)):
+                return at is None or self.pos() == tuple(at) or self.walk_to(*at)
+            hops = region_route(self.map(), self.pos(), dest, avoid, at)
             if hops is None:
                 raise ValueError(f'no route {self.map()} {self.pos()} -> {dest}')
             for kind, arg, nxt, _rid in hops:
@@ -483,6 +484,12 @@ class World(Game):
                 self.run_until(self.in_overworld, 300)
                 self.run(30)
                 return True
+            if self.pos() != (x, y):  # stepped off a warp we were already standing on (an arrival tile): step back onto it
+                self.walk_to(x, y)
+                if self.run_until(lambda: self.map() != start, 90):
+                    self.run_until(self.in_overworld, 300)
+                    self.run(30)
+                    return True
             self.load_state(here)
         return False
 
@@ -582,12 +589,15 @@ def _region_hops(name: str, rid: int) -> tuple:
     return tuple(out)
 
 
-def region_route(src: str, src_pos, dest: str, avoid: tuple = ()) -> list | None:
+def region_route(src: str, src_pos, dest: str, avoid: tuple = (), dest_pos=None) -> list | None:
+    """Hops from (src, src_pos) to `dest` — to the region holding `dest_pos` when given (a floor can be several
+    disconnected areas: Mt. Moon B2F's fossil room is not its arrival ladder's area)."""
+    want = _region_of(dest, dest_pos) if dest_pos else None
     start = (src, _region_of(src, src_pos))
     prev, queue = {start: None}, deque([start])
     while queue:
         cur = queue.popleft()
-        if cur[0] == dest:
+        if cur[0] == dest and (want is None or cur[1] == want):
             out = []
             while prev[cur]:
                 cur, hop = prev[cur]

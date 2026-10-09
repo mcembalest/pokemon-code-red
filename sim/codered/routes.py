@@ -184,7 +184,7 @@ def grind(g: World, level: int, area: str, city: str, policy=None, max_rounds: i
     return g.party()[0]['level'] >= level
 
 
-def journey(g: World, dest: str, center_city: str, avoid: tuple = (), low: float = 0.4, tries: int = 6) -> bool:
+def journey(g: World, dest: str, center_city: str, avoid: tuple = (), low: float = 0.4, tries: int = 6, at=None) -> bool:
     """travel() that retreats to `center_city`'s Pokémon Center whenever the lead drops below `low` HP."""
     hurt = lambda: g.party()[0]['hp'] < low * g.party()[0]['max_hp']
     for _ in range(tries):
@@ -195,7 +195,7 @@ def journey(g: World, dest: str, center_city: str, avoid: tuple = (), low: float
             except ValueError:
                 pass  # stranded off the planner's map: the next travel() re-plans from where we are
         try:
-            if g.travel(dest, avoid=avoid, stop=hurt):
+            if g.travel(dest, avoid=avoid, stop=hurt, at=at):
                 return True
         except ValueError:
             continue
@@ -210,7 +210,7 @@ MT_MOON_AVOID = ('MAP_DIGLETTS_CAVE_NORTH_ENTRANCE', 'MAP_DIGLETTS_CAVE_SOUTH_EN
 def mt_moon_fossil(g: World) -> bool:
     """B2F: trigger Super Nerd Miguel (coord event at 14,11), beat him, take the Dome Fossil (13,7);
     he then steps aside and the way to the exit ladder opens. data/maps/MtMoon_B2F/scripts.inc"""
-    if not journey(g, 'MAP_MT_MOON_B2F', 'MAP_ROUTE4', MT_MOON_AVOID):
+    if not journey(g, 'MAP_MT_MOON_B2F', 'MAP_ROUTE4', MT_MOON_AVOID, at=(15, 11)):
         return False
     if not ready_for_boss(g, 'MAP_ROUTE4', 'MAP_MT_MOON_B2F', MT_MOON_AVOID, spot=(15, 11)):
         return False
@@ -256,7 +256,7 @@ def ready_for_boss(g: World, center_city: str, back_to: str, avoid: tuple = (), 
             else:  # stranded mid-route (text timing shifts the RNG, a wild battle moved us): walk out, then try again
                 journey(g, center_city, center_city, avoid)
                 continue
-        journey(g, back_to, center_city, avoid)
+        journey(g, back_to, center_city, avoid, at=spot)
     return False
 
 
