@@ -1,5 +1,5 @@
 {
-  "note": "Payload moves v2: shorter specs, \"one short loop, no comments\" nudge, buzz example. 6 samples; levels 5/10/15.",
+  "note": "Payload v3a: recipe specs (the exact pattern to loop), lenient checks unchanged.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": [
     "ERROR",

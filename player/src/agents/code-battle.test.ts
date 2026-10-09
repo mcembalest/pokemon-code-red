@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { GbaMemory, fakeCore } from '../bridge/memory.ts'
 import { CodeMoveMailbox, MOVE_MAGIC } from '../bridge/code-move.ts'
+import { PayloadMailbox } from '../bridge/payload.ts'
 import { CodeBattle, localCodeMemory, mockWriter, type CodeWriter, type Panel, type Sandbox, type TurnInfo, type TurnRecord, type TurnResult } from './code-battle.ts'
 
 const AT = 0x0203f4d0
@@ -219,4 +220,21 @@ test('a long note can push correct code over budget: that is the trade-off', asy
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem)
   await b.poll(); g.request({ pid: 111 }); await b.poll()
   assert.equal(log.end[0]!.reason, 'over budget')
+})
+
+test('payload move: a hit hands the bytes to the game before the reply; a miss hands nothing', async () => {
+  const g = game(), { panel, log } = fakePanel()
+  const memory = g.memory, AT = 0x02021000
+  const payload = new PayloadMailbox(memory, AT)
+  const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 2, delay: instant }), sandbox, panel, store(), { payload, onTurn: r => turns.push(r) })
+  const turns: TurnRecord[] = []
+  await b.poll(); g.request({ move: 45 }); await b.poll() // GROWL = ERROR: the mock writes the buzz
+  assert.equal(g.reply().verdict, 1)
+  assert.equal(memory.u8(AT + 6), 1); assert.equal(memory.u16(AT + 8), 400)
+  assert.equal(turns[0]!.payload, 'sound')
+  memory.w8(AT + 6, 0) // the game played it
+  g.request({ move: 45 }); await b.poll() // the mock's every-2nd mistake: 399 samples → wrong shape → miss, nothing delivered
+  assert.equal(g.reply().verdict, 2)
+  assert.equal(memory.u8(AT + 6), 0)
+  assert.match(log.end.at(-1)!.detail ?? '', /not 400 numbers|first number should be/)
 })

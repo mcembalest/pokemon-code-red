@@ -11,6 +11,7 @@ import {
   type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
+import type { PayloadMailbox, PayloadKind } from '../bridge/payload.ts'
 
 export interface Names { moveName(id: number): string; speciesName(id: number): string; typeName(id: number): string }
 export interface Prompt {
@@ -67,12 +68,16 @@ export const HISTORY = 20
 export interface TurnRecord {
   side: 0 | 1; attacker: string; target: string; move: string; type: TypeName; tutorial: boolean; know: string | null; notch?: number
   verdict: Verdict; reason?: string; ms: number; tries: number; code?: string
+  /** The move made bytes (a sound, a picture) and the game got them. */
+  payload?: PayloadKind
 }
 
 export interface CodeBattleOptions {
   /** Badge names the player holds (BADGES keys), e.g. from the save's badge flags. */
   badges?: () => string[]
   onTurn?: (record: TurnRecord) => void
+  /** Where a move's bytes (a sound, a picture) go so the game can play or draw them on the hit. */
+  payload?: PayloadMailbox
 }
 
 export class CodeBattle {
@@ -152,10 +157,12 @@ export class CodeBattle {
     }
     const verdict: Verdict = v.hit ? 'hit' : 'miss'
     const reason = v.reason as MissReason | undefined
+    const made = (v as { payload?: { kind: PayloadKind; bytes: number[] } }).payload
+    if (v.hit && made) this.options.payload?.deliver(made.kind, made.bytes) // before the reply: the game plays it as it takes the hit
     await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s code hit!` : missText(attacker, reason ?? 'crashed'), ...(v.got ? { detail: `returned ${v.got}, needed ${v.want}` } : v.error ? { detail: v.error } : {}) })
     this.mailbox.reply(req, verdict, reason ?? 'crashed')
     if (side === 0) this.memory.remember?.(req.attackerPersonality, { at: Date.now(), move: move.name, type, target, verdict, ...(reason ? { reason } : {}), notch, budget, code: (code ?? '').slice(0, 1200) })
-    this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}) })
+    this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}), ...(v.hit && made ? { payload: made.kind } : {}) })
   }
 }
 

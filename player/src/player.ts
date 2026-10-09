@@ -20,6 +20,7 @@ import { CloudSync, localSyncMark } from './cloud.ts'
 import { OwnedReader } from './agents/owned.ts'
 import { createHotEditor, createPokeeg } from './agents/pokeeg.ts'
 import { EegMailbox } from './bridge/eeg.ts'
+import { PayloadMailbox } from './bridge/payload.ts'
 import { EegLink } from './agents/eeg-link.ts'
 import { budgetAt, formatOf, stageOf } from '../../rules/index.mjs'
 import type { TypeName } from '../../rules/index.mjs'
@@ -459,8 +460,10 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
         disposers.push(() => editor.element.remove())
       }
     }
+    const payloadSym = rom.symbols.gCodeRedPayload
     const battle = new CodeBattle(new CodeMoveMailbox(memory, sym.address), reader, writer, runner, panel, minds, {
       badges,
+      ...(payloadSym ? { payload: new PayloadMailbox(memory, payloadSym.address) } : {}),
       onTurn: t => backend?.track('code_move', { ...t, code: t.code?.slice(0, 300) }),
     })
     let inBattle = false
