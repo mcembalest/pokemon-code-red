@@ -30,7 +30,7 @@ const ROUTE = [
   ['Misty', 'STARYU', ['WATER'], 18, 5], ['Misty', 'STARMIE', ['WATER', 'PSYCHIC'], 21, 6],
 ]
 // CHARMANDER's real learnset (Gen 3): Scratch, Growl, Ember 7, Metal Claw 13, Smokescreen 19
-const MOVES_BY_LEVEL = [[1, 'SLICE'], [1, 'ERRORMSG'], [7, 'BURNDISC'], [13, 'HASH'], [19, 'OBFUSCATE']]
+const MOVES_BY_LEVEL = [[1, 'SLICE'], [1, 'ERROR'], [7, 'BURNDISC'], [13, 'HASH'], [19, 'BLUR']]
 
 async function ask(model, system, user, temperature) {
   const m = models.getModel('cloudflare-workers-ai', model)
@@ -50,7 +50,7 @@ async function journey(seed, policy) {
   const turns = []
   for (const [segment, foeName, types, foeLevel, nTurns, caught] of ROUTE) {
     for (let k = 0; k < nTurns; k++) {
-      const known = MOVES_BY_LEVEL.filter(([l]) => l <= level).map(([, n]) => byName[n]).filter(m => m.name !== 'ERRORMSG' || r() < 0.25)
+      const known = MOVES_BY_LEVEL.filter(([l]) => l <= level).map(([, n]) => byName[n]).filter(m => m.name !== 'ERROR' || r() < 0.25)
       const move = known[Math.floor(r() * known.length)]
       const t = turnType(r, types)
       const bytes = targetBytes(r)

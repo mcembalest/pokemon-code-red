@@ -29,10 +29,10 @@ Code: `models/lab/` (run.mjs = designs side by side; variants.mjs; lint.mjs; jou
 | own past functions in memory | .76–.86 (no help) |
 | Qwen 32B, all 103 moves with readers | 1.00 |
 - worked example in each move's text (input → output) fixed most wording misses; names must fit the operation (FLUSH/WIPEDISC swapped)
-- JS keywords can't be move functions (DEBUGGER → BREAKPOINT, THROW → SYSCALL)
+- JS keywords can't be move functions (DEBUGGER → BREAKPOINT, THROW → CALL)
 - focus: temperature .2 → .81, .7 → .75, 1.0 → .63–.74, 1.3 → .34–.40 · budget: 200 → .69, 300 → .92, 450 → .92
 - journey (8 runs, ~110 turns each): learning + Pokédex .92 (L5 .77 → L17+ 1.0); tighter early .89 (L5 .69); learning only .77; fewer slots .76; nothing .66
-- hard moves (3B, plain data): SPINUP, FAILOVER, JAMMER, SHARDS, TROJAN, RM -RF, BREAKPOINT ≤ .5
+- hard moves (3B, plain data): SPINUP, FAILOVER, JAMMER, SHARDS, TROJAN, WIPE, BREAKPOINT ≤ .5
 
 ## Later runs (same session)
 - dual types, one function must read both formats: .45 (BUG/POISON .04–.13, ROCK/GROUND .63–.80, WATER/PSYCHIC .53–.82) → a wall, for gym leaders only

@@ -33,7 +33,7 @@ test('moves: found by the ROM spelling of FireRed names', () => {
   assert.equal(byFireRed('SAND-ATTACK').name, 'SANDBOX')
   assert.equal(byFireRed('DOUBLESLAP').name, 'UNDO')
   assert.equal(byFireRed('THUNDERSHOCK').name, 'SURGE')
-  assert.equal(byFireRed('SELFDESTRUCT').name, 'RM -RF')
+  assert.equal(byFireRed('SELFDESTRUCT').name, 'WIPE')
   assert.equal(byFireRed('HYPER BEAM'), undefined)
 })
 

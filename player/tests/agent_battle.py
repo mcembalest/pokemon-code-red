@@ -98,7 +98,7 @@ def starter_card(p):
     page.locator('[data-game]').screenshot(path=str(OUT / 'starter-card.png'))
     text = page.text_content('[data-starter-card]')
     print('starter card:', text.replace('\n', ' ')[:200], flush=True)
-    assert 'CHARMANDER' in text and 'SLICE' in text and 'ERRORMSG' in text and 'function slice(data)' in text, text
+    assert 'CHARMANDER' in text and 'SLICE' in text and 'ERROR' in text and 'function slice(data)' in text, text
     browser.close()
 
 

@@ -4,7 +4,7 @@ Briefing for the owner: Claude Docs "Code Red: battle strategy briefing" (https:
 Code: `models/strategy/` (engine, policies, planner, tiny net). Real-model move table: `models/lab/moves.mjs` → `models/strategy/move-table.json`.
 
 ## Real model, game prompt, all 103 moves (2,472 tries)
-- first time 0.58, known reader 0.76; easiest ERRORMSG/SURGE/KERNELPANIC (1.0 first), hardest TROJAN/RM -RF (0 first)
+- first time 0.58, known reader 0.76; easiest ERROR/SURGE/MELTDOWN (1.0 first), hardest TROJAN/WIPE (0 first)
 - misses: wrong 389, over budget 218 (mostly right code + comments; 1 of 1,659 hits had no comments), crashed 193 (164 = Node Buffer `readUInt8`), no code 13
 - cheap fixes (owner's call): "numbers" instead of "bytes"; comments outside the budget
 

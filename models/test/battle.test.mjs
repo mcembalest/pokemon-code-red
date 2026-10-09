@@ -24,5 +24,5 @@ test('103 moves: unique names and functions, ≤ 12 chars, every answer computab
   const foe = { name: 'ONIX', level: 12, types: ['ROCK', 'GROUND'], status: 'none', bytes: [9, 255, 30] }
   for (const m of MOVES) for (const b of [[12, 40, 7, 33], [150, 11, 99, 64, 23, 180, 71]]) assert.doesNotThrow(() => JSON.stringify(m.ref(b, foe)), m.name)
   assert.equal(MOVES.find(m => m.name === 'SLICE').ref([1, 2, 3, 4]).join(), '1,2,3')
-  assert.equal(MOVES.find(m => m.name === 'ERRORMSG').ref([1, 2, 3]), 'ERROR 3')
+  assert.equal(MOVES.find(m => m.name === 'ERROR').ref([1, 2, 3]), 'ERROR 3')
 })

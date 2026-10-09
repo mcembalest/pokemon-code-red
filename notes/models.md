@@ -80,9 +80,9 @@ miss rate (lower is better):
 | 2 (fixed; answer shape shown) | .41 | .23 | .93 | .66 |
 | 3 (turn as steps: scan / clean / key / strike) | **.62** | .53 → **.75 with memory** | .96 | .84 |
 
-- run 2: the 32B hits 93% of moves → specs are mostly clear; the misses pointed at wording (POKE "position 1", FORKBOMB "doubled", LOOP, BRUTEFORCE) → reworded
+- run 2: the 32B hits 93% of moves → specs are mostly clear; the misses pointed at wording (POKE "position 1", FLOOD "doubled", LOOP, BRUTEFORCE) → reworded
 - both models mostly **ignored the type cleanup** when it sat in the foe line → run 3 gives the turn as steps: scan / clean / key / strike
 - Workers AI streams: Llama sends the token `null` as `"content": null` (recoverable); Qwen's `null` never arrives → no move's answer is null
 - run 3 (steps prompt): 3B with its own memory (2 warm-up battles per type) hits single types 75–100%, dual types 40–65% (Brock ROCK/GROUND .40, Misty WATER/PSYCHIC .53) → the gyms are natural walls
-- 3B never hit (no memory, vs NORMAL): SPIKE, SHARDS, BROWNOUT, POWERCUT, TROJAN, EXPOSE, WRAP, LOOP, MIRROR, POPUP, DEBUGGER, BROADCAST, GROUNDWIRE, REFLECT, DOUBLEFREE → later moves / stronger Pokémon, or simpler specs
+- 3B never hit (no memory, vs NORMAL): SPIKE, SHARDS, BROWNOUT, POWERCUT, TROJAN, EXPOSE, WRAP, LOOP, MIRROR, POPUP, DEBUGGER, BROADCAST, GROUND, REFLECT, DOUBLE → later moves / stronger Pokémon, or simpler specs
 - 32B misses left were real mistakes on wording → reworded SPAM, POWERCUT, TROJAN, FLYING, BUG (not yet rerun)
