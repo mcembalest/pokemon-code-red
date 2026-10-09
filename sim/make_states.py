@@ -29,7 +29,20 @@ def lab_at_charmander(g: World) -> bool:
     return True
 
 
-FIXTURES = {'rival_choose_action': rival_choose_action, 'lab_at_charmander': lab_at_charmander}
+def bedroom_pc(g: World) -> bool:
+    """CHARMANDER in the party, standing at the bedroom PC facing it (A opens the PC; its menu has PokÉEG)."""
+    if not (routes.intro(g) and routes.to_lab(g) and routes.choose_starter(g, 'CHARMANDER')):
+        return False
+    for dest in ('MAP_PALLET_TOWN', 'MAP_PALLET_TOWN_PLAYERS_HOUSE_1F', 'MAP_PALLET_TOWN_PLAYERS_HOUSE_2F'):
+        if not g.warp_to(dest):
+            return False
+    if not g.walk_to(1, 2):
+        return False
+    g.face('UP')
+    return True
+
+
+FIXTURES = {'rival_choose_action': rival_choose_action, 'lab_at_charmander': lab_at_charmander, 'bedroom_pc': bedroom_pc}
 
 if __name__ == '__main__':
     OUT.mkdir(parents=True, exist_ok=True)

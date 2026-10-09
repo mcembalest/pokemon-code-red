@@ -101,3 +101,11 @@
 .code-red-eeg-turn summary small { color: #9aa7b3; }
 .code-red-eeg .code-red-muted { color: #9aa7b3; }
 @media (max-width: 600px) { .code-red-eeg-body { grid-template-columns: 1fr; } .code-red-eeg-list { border-right: 0; border-bottom: 1px solid #1c232b; max-height: 10rem; } }
+/* the in-game PokÉEG's note editor, over the game */
+.code-red-hot-editor { position: absolute; inset: auto 8% 12%; z-index: 20; padding: .8rem 1rem; border-radius: 10px; background: #101418; color: #d8dee4; font: 14px/1.45 system-ui, sans-serif; box-shadow: 0 8px 30px rgba(0,0,0,.5); display: grid; gap: .4rem; }
+.code-red-hot-editor[hidden] { display: none; }
+.code-red-hot-editor h3 { margin: 0; font-size: 16px; }
+.code-red-hot-editor p { margin: 0; }
+.code-red-hot-editor textarea { width: 100%; box-sizing: border-box; font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: .4rem .5rem; border-radius: 6px; border: 1px solid #2a3542; background: #0a0d10; color: inherit; resize: vertical; }
+.code-red-hot-editor small { color: #9aa7b3; }
+.code-red-button-quiet { background: transparent; border: 1px solid var(--muted, #777); color: inherit; }

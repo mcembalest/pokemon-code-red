@@ -4,7 +4,7 @@ hot memory pinned from the page (costs bytes), and the code it wrote in the last
 
 Starts from the rival-battle checkpoint (CHARMANDER in the party, mock model writes code).
 Needs: make player, local/baserom.gba, scripts/serve_player.py on :8000,
-build/sim/checkpoints/rival_choose_action.raw (python3 sim/make_states.py).
+build/sim/checkpoints/{rival_choose_action,bedroom_pc}.raw (python3 sim/make_states.py).
   python3 player/tests/pokeeg.py
 """
 import base64, os, sys
@@ -14,6 +14,46 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'build/pokeeg'
 STATE = ROOT / 'build/sim/checkpoints/rival_choose_action.raw'
+
+
+BEDROOM = ROOT / 'build/sim/checkpoints/bedroom_pc.raw'
+
+
+def press(page, key, hold=3, after=10):
+    page.evaluate(f'''async () => {{ const gm = EJS_emulator.gameManager; const wait = n => new Promise(r => setTimeout(r, n * 17));
+      gm.simulateInput(0, {key}, 1); await wait({hold}); gm.simulateInput(0, {key}, 0); await wait({after}) }}''')
+
+
+def in_game(page):
+    A, B, DOWN = 8, 0, 5  # libretro joypad ids
+    page.evaluate('gm.functions.toggleFastForward(0)')
+    page.click('[data-eeg]')  # close the panel first: the game should open it
+    page.wait_for_selector('.code-red-eeg', state='hidden')
+    page.evaluate('b64 => EJS_emulator.gameManager.loadState(Uint8Array.from(atob(b64), c => c.charCodeAt(0)))', base64.b64encode(BEDROOM.read_bytes()).decode())
+    page.wait_for_timeout(800)
+    press(page, A, after=120)           # "RED booted up the PC."
+    press(page, A, after=90)            # the top menu
+    press(page, DOWN, after=8); press(page, DOWN, after=8); press(page, A, after=200)  # PokÉEG
+    page.wait_for_selector('.code-red-eeg:not([hidden])', timeout=15000)  # the panel follows the game
+    page.wait_for_timeout(600)
+    page.locator('[data-game]').screenshot(path=str(OUT / 'in-game.png'))
+    sel = page.get_attribute('.code-red-eeg-list [aria-pressed="true"]', 'data-pid')
+    owned = page.evaluate('window.CodeRed.owned()')
+    assert owned and sel == str(owned[0]['personality']), (sel, owned)
+    # A → submenu → Hot memory: the page's editor opens over the game with the current note.
+    press(page, A, after=30); press(page, A, after=30)
+    page.wait_for_selector('.code-red-hot-editor:not([hidden])', timeout=10000)
+    assert page.input_value('[data-hot-text]') == 'return a plain number'
+    page.locator('[data-game]').screenshot(path=str(OUT / 'in-game-editor.png'))
+    page.fill('[data-hot-text]', 'be brave')
+    page.click('[data-hot-pin]')
+    page.wait_for_selector('.code-red-hot-editor', state='hidden')
+    page.wait_for_timeout(1200)  # the game asks for the mind again and redraws
+    page.locator('[data-game]').screenshot(path=str(OUT / 'in-game-edited.png'))
+    assert page.evaluate(f'window.CodeRed.hot({owned[0]["personality"]})') == 'be brave'
+    press(page, B, after=120)
+    page.wait_for_selector('.code-red-eeg', state='hidden', timeout=10000)  # closing the screen closes the panel the game opened
+    print('in-game PokÉEG ok', flush=True)
 
 
 def main():
@@ -61,6 +101,10 @@ def main():
         turn = page.text_content('.code-red-eeg-turn summary')
         print('recent:', ' '.join(turn.split()), flush=True)
         page.screenshot(path=str(OUT / 'pokeeg-after-battle.png'), full_page=True)
+
+        # 4. In the game: the bedroom PC's PokÉEG. The game lists CHARMANDER itself; the page answers with its mind,
+        #    the page's panel follows the in-game cursor, and "Hot memory" opens the page's editor.
+        in_game(page)
         browser.close()
     if errors:
         sys.exit('page errors: ' + '; '.join(errors))

@@ -1,0 +1,643 @@
+Code Red: the PokÉEG in the game (owner, 2026-10-09). A PC screen listing every Pokémon
+the player owns (party, then the boxes) and, for the one under the cursor, a look inside
+its mind: its type's system, readers learned, Pokédex readers, byte budget, focus, the
+last ten turns (hit/miss) and its hot memory. The game asks the page through a mailbox
+(struct CodeRedEeg, 164 B) one Pokémon at a time; hot memory is typed on the page.
+Menu entries live in patch 003 (PC menu, bedroom PC); this patch is the screen itself.
+No host → the mind lines say so; the list still works.
+diff --git a/src/code_red_eeg.c b/src/code_red_eeg.c
+new file mode 100644
+index 00000000..590c76ca
+--- /dev/null
++++ b/src/code_red_eeg.c
+@@ -0,0 +1,630 @@
++// Code Red: the PokÉEG, in the game (owner, 2026-10-09). From the PC: every Pokémon the player
++// owns (party, then the boxes), and for the one under the cursor a look inside its mind.
++// The game knows the Pokémon; the page knows the mind (readers, hot memory, code history live in the
++// cloud save). So this screen asks the page through a mailbox, one Pokémon at a time, and draws what
++// comes back. Hot memory is typed on the page (a note can be 200 characters; the naming screen can't).
++// No host → the mind lines stay blank; the screen still works as a list.
++#include "global.h"
++#include "gflib.h"
++#include "data.h"
++#include "decompress.h"
++#include "graphics.h"
++#include "help_system.h"
++#include "list_menu.h"
++#include "menu.h"
++#include "menu_helpers.h"
++#include "menu_indicators.h"
++#include "new_menu_helpers.h"
++#include "overworld.h"
++#include "pokemon.h"
++#include "pokemon_storage_system.h"
++#include "scanline_effect.h"
++#include "script.h"
++#include "string_util.h"
++#include "strings.h"
++#include "task.h"
++#include "text_window.h"
++#include "battle_main.h"
++#include "field_weather.h"
++#include "constants/field_weather.h"
++#include "constants/songs.h"
++
++// Fixed 164-byte transport. Host writes the reply fields; the game writes the request fields.
++struct CodeRedEeg {
++    /*0x00*/ u32 magic;        // 'CRE1'
++    /*0x04*/ u16 version;      // 1
++    /*0x06*/ u8 state;         // 0 idle, 1 request, 2 reply, 4 cancelled (game)
++    /*0x07*/ u8 op;            // 1 mind summary, 2 edit hot memory
++    /*0x08*/ u32 requestId;
++    /*0x0C*/ u32 epoch;
++    /*0x10*/ u32 personality;
++    /*0x14*/ u16 species;
++    /*0x16*/ u8 level;
++    /*0x17*/ u8 open;          // the screen is open (the page's panel follows the cursor)
++    // reply (host)
++    /*0x18*/ u8 readers;       // readers this Pokémon learned
++    /*0x19*/ u8 dex;           // Pokédex readers (shared)
++    /*0x1A*/ u16 budget;       // byte budget at its level
++    /*0x1C*/ u8 focus;         // ×100
++    /*0x1D*/ u8 nHistory;      // ≤ 10
++    /*0x1E*/ u8 history[10];   // 1 hit, 0 miss, oldest first
++    /*0x28*/ u8 format[24];    // game text, EOS-terminated: how its data arrives ("write log")
++    /*0x40*/ u8 hot[100];      // game text, EOS-terminated: hot memory
++};
++STATIC_ASSERT(sizeof(struct CodeRedEeg) == 164, CodeRedEegSize);
++EWRAM_DATA volatile struct CodeRedEeg gCodeRedEeg = {0};
++static EWRAM_DATA u32 sEegRequestId = 0;
++
++#define EEG_MAGIC 0x31455243
++#define EEG_WAIT_FRAMES 300
++#define EEG_EDIT_FRAMES 18000  // 5 minutes to type on the page
++#define NAME_BYTES 12
++
++struct EegEntry { u32 personality; u16 species; u8 level; u8 box; u8 slot; }; // box 0xFF = party
++
++struct EegState {
++    MainCallback savedCallback;
++    struct EegEntry *entries;
++    struct ListMenuItem *items;
++    u8 *names;
++    u16 count;
++    u16 scroll, row;
++    u16 maxShowed;
++    u8 arrows;
++    u8 gfxStep;
++    u8 subWindow;
++    u16 waited;
++    u32 shownId;
++};
++static EWRAM_DATA struct EegState *sEeg = NULL;
++static EWRAM_DATA u8 *sEegBg1Tilemap = NULL;
++
++static const struct BgTemplate sBgTemplates[2] = {
++    { .bg = 0, .charBaseIndex = 0, .mapBaseIndex = 31, .priority = 0 },
++    { .bg = 1, .charBaseIndex = 3, .mapBaseIndex = 30, .priority = 1 },
++};
++enum { WIN_LIST, WIN_MIND, WIN_TITLE, WIN_MSG, WIN_COUNT };
++static const struct WindowTemplate sWindowTemplates[] = {
++    [WIN_LIST]  = { .bg = 0, .tilemapLeft = 7, .tilemapTop = 1, .width = 19, .height = 12, .paletteNum = 15, .baseBlock = 0x02bf },
++    [WIN_MIND]  = { .bg = 0, .tilemapLeft = 5, .tilemapTop = 14, .width = 25, .height = 6, .paletteNum = 13, .baseBlock = 0x0229 },
++    [WIN_TITLE] = { .bg = 0, .tilemapLeft = 1, .tilemapTop = 1, .width = 5, .height = 4, .paletteNum = 15, .baseBlock = 0x0215 },
++    [WIN_MSG]   = { .bg = 0, .tilemapLeft = 2, .tilemapTop = 15, .width = 26, .height = 4, .paletteNum = 11, .baseBlock = 0x016f },
++    DUMMY_WIN_TEMPLATE
++};
++static const struct WindowTemplate sSubmenuTemplate = { .bg = 0, .tilemapLeft = 20, .tilemapTop = 9, .width = 9, .height = 4, .paletteNum = 15, .baseBlock = 0x0120 };
++static const u8 sTextColors[][3] = {
++    {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_WHITE, TEXT_COLOR_DARK_GRAY},
++    {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_LIGHT_GRAY},
++    {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_LIGHT_GRAY, TEXT_COLOR_DARK_GRAY},
++    {TEXT_COLOR_TRANSPARENT, TEXT_DYNAMIC_COLOR_1, TEXT_COLOR_DARK_GRAY}, // on the blue mind window
++};
++#define MIND_COLOR 3
++
++static const u8 sText_Title[] = _("PokÉEG");
++static const u8 sText_Exit[] = _("EXIT");
++static const u8 sText_Party[] = _("P");
++static const u8 sText_Box[] = _("B");
++static const u8 sText_Asking[] = _("Reading its mind…");
++static const u8 sText_NoHost[] = _("Its mind is on the page: open\nCode Red in the browser.");
++static const u8 sText_ExitDesc[] = _("Back to the PC.");
++static const u8 sText_System[] = _(" system: ");
++static const u8 sText_Readers[] = _("readers ");
++static const u8 sText_Dex[] = _(" · Pokédex ");
++static const u8 sText_Budget[] = _(" · budget ");
++static const u8 sText_Last[] = _("last: ");
++static const u8 sText_None[] = _("nothing written yet");
++static const u8 sText_Note[] = _("note: ");
++static const u8 sText_NoNote[] = _("no hot memory (A to add)");
++static const u8 sText_Hit[] = _("o");
++static const u8 sText_Miss[] = _("x");
++static const u8 sText_EditHot[] = _("Type its note on the page.\nB here cancels.");
++static const u8 sText_HotMemory[] = _("Hot memory");
++static const struct MenuAction sSubmenuOptions[] = {
++    { sText_HotMemory, {.void_u8 = NULL} },
++    { gFameCheckerText_Cancel, {.void_u8 = NULL} },
++};
++
++static void Eeg_RunSetup(void);
++static bool8 Eeg_DoGfxSetup(void);
++static void Task_EegMain(u8 taskId);
++static void Task_EegSubmenu(u8 taskId);
++static void Task_EegEditHot(u8 taskId);
++static void Task_EegTurnOff(u8 taskId);
++static void Eeg_MoveCursor(s32 index, bool8 onInit, struct ListMenu *list);
++static void Eeg_PrintItem(u8 windowId, u32 index, u8 y);
++static void Eeg_Free(void);
++
++static void Eeg_Print(u8 windowId, u8 fontId, const u8 *str, u8 x, u8 y, u8 colorIdx)
++{
++    AddTextPrinterParameterized4(windowId, fontId, x, y, 0, 0, sTextColors[colorIdx], 0, str);
++}
++
++// ---------------------------------------------------------------- the list: party, then boxes
++
++static void Eeg_AddEntry(struct BoxPokemon *mon, u8 box, u8 slot, u8 level)
++{
++    struct EegEntry *e;
++    u8 *name;
++    if (!GetBoxMonData(mon, MON_DATA_SANITY_HAS_SPECIES) || GetBoxMonData(mon, MON_DATA_SANITY_IS_EGG) || GetBoxMonData(mon, MON_DATA_SANITY_IS_BAD_EGG))
++        return;
++    e = &sEeg->entries[sEeg->count];
++    e->personality = GetBoxMonData(mon, MON_DATA_PERSONALITY);
++    e->species = GetBoxMonData(mon, MON_DATA_SPECIES);
++    e->level = level ? level : GetLevelFromBoxMonExp(mon);
++    e->box = box; e->slot = slot;
++    name = &sEeg->names[sEeg->count * NAME_BYTES];
++    GetBoxMonData(mon, MON_DATA_NICKNAME, name);
++    name[POKEMON_NAME_LENGTH] = EOS;
++    sEeg->items[sEeg->count].label = name;
++    sEeg->items[sEeg->count].index = sEeg->count;
++    sEeg->count++;
++}
++
++static void Eeg_BuildList(void)
++{
++    u8 i, b, s;
++    sEeg->count = 0;
++    for (i = 0; i < gPlayerPartyCount && i < PARTY_SIZE; i++)
++        Eeg_AddEntry(&gPlayerParty[i].box, 0xFF, i, GetMonData(&gPlayerParty[i], MON_DATA_LEVEL));
++    for (b = 0; b < TOTAL_BOXES_COUNT; b++)
++        for (s = 0; s < IN_BOX_COUNT; s++)
++            Eeg_AddEntry(GetBoxedMonPtr(b, s), b, s, 0);
++    sEeg->items[sEeg->count].label = sText_Exit;
++    sEeg->items[sEeg->count].index = LIST_CANCEL;
++    sEeg->maxShowed = sEeg->count + 1 < 6 ? sEeg->count + 1 : 6;
++}
++
++// ---------------------------------------------------------------- the mailbox
++
++static void Eeg_Ask(u8 op, const struct EegEntry *e)
++{
++    gCodeRedEeg.state = 0;
++    gCodeRedEeg.magic = EEG_MAGIC;
++    gCodeRedEeg.version = 1;
++    gCodeRedEeg.op = op;
++    gCodeRedEeg.requestId = ++sEegRequestId;
++    gCodeRedEeg.personality = e->personality;
++    gCodeRedEeg.species = e->species;
++    gCodeRedEeg.level = e->level;
++    gCodeRedEeg.open = 1;
++    gCodeRedEeg.state = 1; // publish last
++    sEeg->waited = 0;
++}
++
++static void Eeg_PrintMind(void)
++{
++    u8 *s = gStringVar4;
++    u8 i;
++    const u8 *typeName = gTypeNames[gSpeciesInfo[gCodeRedEeg.species].types[0]];
++    FillWindowPixelBuffer(WIN_MIND, 0);
++    // 1: FIRE system: write log
++    s = StringCopy(gStringVar4, typeName);
++    s = StringAppend(s, sText_System);
++    StringAppendN(s, (const u8 *)gCodeRedEeg.format, 23);
++    gStringVar4[40] = EOS;
++    Eeg_Print(WIN_MIND, FONT_SMALL, gStringVar4, 2, 1, MIND_COLOR);
++    // 2: readers 2 · Pokédex 3 · budget 350 · focus 0.80
++    s = StringCopy(gStringVar4, sText_Readers);
++    s = ConvertIntToDecimalStringN(s, gCodeRedEeg.readers, STR_CONV_MODE_LEFT_ALIGN, 2);
++    s = StringAppend(s, sText_Dex);
++    s = ConvertIntToDecimalStringN(s, gCodeRedEeg.dex, STR_CONV_MODE_LEFT_ALIGN, 2);
++    s = StringAppend(s, sText_Budget);
++    ConvertIntToDecimalStringN(s, gCodeRedEeg.budget, STR_CONV_MODE_LEFT_ALIGN, 4);
++    Eeg_Print(WIN_MIND, FONT_SMALL, gStringVar4, 2, 12, MIND_COLOR);
++    // 3: last: ooxoo
++    s = StringCopy(gStringVar4, sText_Last);
++    if (gCodeRedEeg.nHistory == 0)
++        StringAppend(s, sText_None);
++    else
++        for (i = 0; i < gCodeRedEeg.nHistory && i < 10; i++)
++            s = StringAppend(s, gCodeRedEeg.history[i] ? sText_Hit : sText_Miss);
++    Eeg_Print(WIN_MIND, FONT_SMALL, gStringVar4, 2, 23, MIND_COLOR);
++    // 4: note: …
++    if (gCodeRedEeg.hot[0] == EOS)
++        StringCopy(gStringVar4, sText_NoNote);
++    else
++    {
++        s = StringCopy(gStringVar4, sText_Note);
++        StringAppendN(s, (const u8 *)gCodeRedEeg.hot, 36);
++        gStringVar4[42] = EOS;
++    }
++    Eeg_Print(WIN_MIND, FONT_SMALL, gStringVar4, 2, 34, MIND_COLOR);
++    CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
++}
++
++static void Eeg_PollMind(void)
++{
++    if (sEeg->shownId == gCodeRedEeg.requestId || gCodeRedEeg.op != 1)
++        return;
++    if (gCodeRedEeg.state == 2)
++    {
++        sEeg->shownId = gCodeRedEeg.requestId;
++        gCodeRedEeg.state = 0;
++        Eeg_PrintMind();
++    }
++    else if (gCodeRedEeg.state == 1 && ++sEeg->waited == EEG_WAIT_FRAMES)
++    {
++        sEeg->shownId = gCodeRedEeg.requestId;
++        gCodeRedEeg.state = 0;
++        FillWindowPixelBuffer(WIN_MIND, 0);
++        Eeg_Print(WIN_MIND, FONT_NORMAL, sText_NoHost, 2, 3, MIND_COLOR);
++        CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
++    }
++}
++
++// ---------------------------------------------------------------- the list menu
++
++static void Eeg_BuildTemplate(void)
++{
++    gMultiuseListMenuTemplate.items = sEeg->items;
++    gMultiuseListMenuTemplate.totalItems = sEeg->count + 1;
++    gMultiuseListMenuTemplate.windowId = WIN_LIST;
++    gMultiuseListMenuTemplate.header_X = 0;
++    gMultiuseListMenuTemplate.item_X = 9;
++    gMultiuseListMenuTemplate.cursor_X = 1;
++    gMultiuseListMenuTemplate.lettersSpacing = 1;
++    gMultiuseListMenuTemplate.itemVerticalPadding = 2;
++    gMultiuseListMenuTemplate.upText_Y = 2;
++    gMultiuseListMenuTemplate.maxShowed = sEeg->maxShowed;
++    gMultiuseListMenuTemplate.fontId = FONT_NORMAL;
++    gMultiuseListMenuTemplate.cursorPal = 2;
++    gMultiuseListMenuTemplate.fillValue = 0;
++    gMultiuseListMenuTemplate.cursorShadowPal = 3;
++    gMultiuseListMenuTemplate.moveCursorFunc = Eeg_MoveCursor;
++    gMultiuseListMenuTemplate.itemPrintFunc = Eeg_PrintItem;
++    gMultiuseListMenuTemplate.scrollMultiple = 0;
++    gMultiuseListMenuTemplate.cursorKind = 0;
++}
++
++static void Eeg_MoveCursor(s32 index, bool8 onInit, struct ListMenu *list)
++{
++    if (onInit != TRUE)
++        PlaySE(SE_SELECT);
++    FillWindowPixelBuffer(WIN_MIND, 0);
++    if (index == LIST_CANCEL)
++    {
++        gCodeRedEeg.personality = 0;
++        Eeg_Print(WIN_MIND, FONT_NORMAL, sText_ExitDesc, 2, 3, MIND_COLOR);
++    }
++    else
++    {
++        Eeg_Print(WIN_MIND, FONT_NORMAL, sText_Asking, 2, 3, MIND_COLOR);
++        Eeg_Ask(1, &sEeg->entries[index]);
++    }
++    CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
++}
++
++static void Eeg_PrintItem(u8 windowId, u32 index, u8 y)
++{
++    const struct EegEntry *e;
++    u8 *s;
++    if (index == LIST_CANCEL)
++        return;
++    e = &sEeg->entries[index];
++    s = StringCopy(gStringVar4, gText_Lv);
++    ConvertIntToDecimalStringN(s, e->level, STR_CONV_MODE_LEFT_ALIGN, 3);
++    Eeg_Print(windowId, FONT_SMALL, gStringVar4, 84, y, 2);
++    if (e->box == 0xFF)
++        StringCopy(gStringVar4, sText_Party);
++    else
++    {
++        s = StringCopy(gStringVar4, sText_Box);
++        ConvertIntToDecimalStringN(s, e->box + 1, STR_CONV_MODE_LEFT_ALIGN, 2);
++    }
++    Eeg_Print(windowId, FONT_SMALL, gStringVar4, 122, y, 2);
++}
++
++// ---------------------------------------------------------------- screen setup / teardown
++
++static void Eeg_MainCB(void)
++{
++    RunTasks();
++    AnimateSprites();
++    BuildOamBuffer();
++    DoScheduledBgTilemapCopiesToVram();
++    UpdatePaletteFade();
++}
++
++static void Eeg_VBlankCB(void)
++{
++    LoadOam();
++    ProcessSpriteCopyRequests();
++    TransferPlttBuffer();
++}
++
++static void Eeg_Init(MainCallback callback)
++{
++    sEeg = Alloc(sizeof(struct EegState));
++    if (sEeg == NULL) { SetMainCallback2(callback); return; }
++    memset(sEeg, 0, sizeof(*sEeg));
++    sEeg->savedCallback = callback;
++    sEeg->arrows = 0xFF;
++    sEeg->subWindow = 0xFF;
++    sEeg->shownId = 0xFFFFFFFF;
++    SetMainCallback2(Eeg_RunSetup);
++}
++
++static void Eeg_RunSetup(void)
++{
++    while (1)
++    {
++        if (Eeg_DoGfxSetup() == TRUE)
++            break;
++        if (MenuHelpers_IsLinkActive() == TRUE)
++            break;
++    }
++}
++
++static bool8 Eeg_InitBgs(void)
++{
++    ResetAllBgsCoordinatesAndBgCntRegs();
++    sEegBg1Tilemap = Alloc(0x800);
++    if (sEegBg1Tilemap == NULL)
++        return FALSE;
++    memset(sEegBg1Tilemap, 0, 0x800);
++    ResetBgsAndClearDma3BusyFlags(0);
++    InitBgsFromTemplates(0, sBgTemplates, NELEMS(sBgTemplates));
++    SetBgTilemapBuffer(1, sEegBg1Tilemap);
++    ScheduleBgCopyTilemapToVram(1);
++    SetGpuReg(REG_OFFSET_DISPCNT, DISPCNT_OBJ_1D_MAP | DISPCNT_OBJ_ON);
++    SetGpuReg(REG_OFFSET_BLDCNT, 0);
++    ShowBg(0);
++    ShowBg(1);
++    return TRUE;
++}
++
++static bool8 Eeg_LoadGraphics(void)
++{
++    switch (sEeg->gfxStep)
++    {
++    case 0:
++        ResetTempTileDataBuffers();
++        DecompressAndCopyTileDataToVram(1, gItemPcTiles, 0, 0, 0);
++        sEeg->gfxStep++;
++        break;
++    case 1:
++        if (FreeTempTileDataBuffersIfPossible() != TRUE)
++        {
++            LZDecompressWram(gItemPcTilemap, sEegBg1Tilemap);
++            sEeg->gfxStep++;
++        }
++        break;
++    default:
++        LoadCompressedPalette(gItemPcBgPals, BG_PLTT_ID(0), 3 * PLTT_SIZE_4BPP);
++        sEeg->gfxStep = 0;
++        return TRUE;
++    }
++    return FALSE;
++}
++
++static void Eeg_InitWindows(void)
++{
++    u8 i;
++    InitWindows(sWindowTemplates);
++    DeactivateAllTextPrinters();
++    LoadUserWindowGfx(0, 0x3C0, BG_PLTT_ID(14));
++    LoadStdWindowGfx(0, 0x3A3, BG_PLTT_ID(12));
++    LoadMenuMessageWindowGfx(0, 0x3AC, BG_PLTT_ID(11));
++    LoadPalette(GetTextWindowPalette(2), BG_PLTT_ID(13), PLTT_SIZE_4BPP);
++    LoadPalette(gStandardMenuPalette, BG_PLTT_ID(15), PLTT_SIZE_4BPP);
++    for (i = 0; i < 3; i++)
++    {
++        FillWindowPixelBuffer(i, 0x00);
++        PutWindowTilemap(i);
++    }
++    ScheduleBgCopyTilemapToVram(0);
++}
++
++static bool8 Eeg_DoGfxSetup(void)
++{
++    u8 taskId;
++    u16 n = PARTY_SIZE + TOTAL_BOXES_COUNT * IN_BOX_COUNT + 1;
++    switch (gMain.state)
++    {
++    case 0:
++        SetVBlankHBlankCallbacksToNull();
++        ClearScheduledBgCopiesToVram();
++        gMain.state++;
++        break;
++    case 1:
++        ScanlineEffect_Stop();
++        FreeAllSpritePalettes();
++        ResetPaletteFade();
++        ResetSpriteData();
++        ResetTasks();
++        gMain.state++;
++        break;
++    case 2:
++        if (Eeg_InitBgs())
++            gMain.state++;
++        else
++        {
++            Eeg_Free();
++            SetMainCallback2(sEeg->savedCallback);
++            return TRUE;
++        }
++        break;
++    case 3:
++        if (Eeg_LoadGraphics() == TRUE)
++            gMain.state++;
++        break;
++    case 4:
++        Eeg_InitWindows();
++        gMain.state++;
++        break;
++    case 5:
++        sEeg->entries = Alloc(sizeof(struct EegEntry) * n);
++        sEeg->items = Alloc(sizeof(struct ListMenuItem) * n);
++        sEeg->names = Alloc(NAME_BYTES * n);
++        if (sEeg->entries == NULL || sEeg->items == NULL || sEeg->names == NULL)
++        {
++            Eeg_Free();
++            SetMainCallback2(sEeg->savedCallback);
++            return TRUE;
++        }
++        Eeg_BuildList();
++        Eeg_BuildTemplate();
++        gMain.state++;
++        break;
++    case 6:
++        Eeg_Print(WIN_TITLE, FONT_SMALL, sText_Title, 0, 1, 0);
++        taskId = CreateTask(Task_EegMain, 0);
++        gTasks[taskId].data[0] = ListMenuInit(&gMultiuseListMenuTemplate, 0, 0);
++        if (sEeg->count + 1 > sEeg->maxShowed)
++            sEeg->arrows = AddScrollIndicatorArrowPairParameterized(2, 128, 8, 104, sEeg->count + 1 - sEeg->maxShowed, 110, 110, &sEeg->scroll);
++        gMain.state++;
++        break;
++    case 7:
++        SetHelpContext(HELPCONTEXT_PLAYERS_PC_ITEMS);
++        BlendPalettes(PALETTES_ALL, 16, RGB_BLACK);
++        BeginNormalPaletteFade(PALETTES_ALL, 0, 16, 0, RGB_BLACK);
++        gMain.state++;
++        break;
++    default:
++        SetVBlankCallback(Eeg_VBlankCB);
++        SetMainCallback2(Eeg_MainCB);
++        return TRUE;
++    }
++    return FALSE;
++}
++
++static void Eeg_Free(void)
++{
++    gCodeRedEeg.open = 0;
++    gCodeRedEeg.state = 0;
++    if (sEeg != NULL)
++    {
++        if (sEeg->entries) Free(sEeg->entries);
++        if (sEeg->items) Free(sEeg->items);
++        if (sEeg->names) Free(sEeg->names);
++        Free(sEeg);
++        sEeg = NULL;
++    }
++    if (sEegBg1Tilemap) { Free(sEegBg1Tilemap); sEegBg1Tilemap = NULL; }
++    FreeAllWindowBuffers();
++}
++
++// ---------------------------------------------------------------- tasks
++
++static void Task_EegMain(u8 taskId)
++{
++    s16 *data = gTasks[taskId].data;
++    s32 input;
++    Eeg_PollMind();
++    if (gPaletteFade.active)
++        return;
++    input = ListMenu_ProcessInput(data[0]);
++    ListMenuGetScrollAndRow(data[0], &sEeg->scroll, &sEeg->row);
++    switch (input)
++    {
++    case LIST_NOTHING_CHOSEN:
++        break;
++    case LIST_CANCEL:
++        PlaySE(SE_SELECT);
++        BeginNormalPaletteFade(PALETTES_ALL, 0, 0, 16, RGB_BLACK);
++        gTasks[taskId].func = Task_EegTurnOff;
++        break;
++    default:
++        PlaySE(SE_SELECT);
++        data[1] = input;
++        sEeg->subWindow = AddWindow(&sSubmenuTemplate);
++        DrawStdFrameWithCustomTileAndPalette(sEeg->subWindow, FALSE, 0x3C0, 14);
++        PrintTextArray(sEeg->subWindow, FONT_NORMAL, 8, 2, GetFontAttribute(FONT_NORMAL, FONTATTR_MAX_LETTER_HEIGHT) + 2, 2, sSubmenuOptions);
++        Menu_InitCursor(sEeg->subWindow, FONT_NORMAL, 0, 2, GetFontAttribute(FONT_NORMAL, FONTATTR_MAX_LETTER_HEIGHT) + 2, 2, 0);
++        ScheduleBgCopyTilemapToVram(0);
++        gTasks[taskId].func = Task_EegSubmenu;
++        break;
++    }
++}
++
++static void Eeg_CloseSubmenu(void)
++{
++    ClearStdWindowAndFrameToTransparent(sEeg->subWindow, FALSE);
++    ClearWindowTilemap(sEeg->subWindow);
++    RemoveWindow(sEeg->subWindow);
++    sEeg->subWindow = 0xFF;
++    ScheduleBgCopyTilemapToVram(0);
++}
++
++static void Task_EegSubmenu(u8 taskId)
++{
++    s16 *data = gTasks[taskId].data;
++    s8 input = Menu_ProcessInputNoWrapAround();
++    Eeg_PollMind();
++    switch (input)
++    {
++    case MENU_NOTHING_CHOSEN:
++        break;
++    case MENU_B_PRESSED:
++    case 1:
++        PlaySE(SE_SELECT);
++        Eeg_CloseSubmenu();
++        gTasks[taskId].func = Task_EegMain;
++        break;
++    case 0:
++        PlaySE(SE_SELECT);
++        Eeg_CloseSubmenu();
++        FillWindowPixelBuffer(WIN_MIND, 0);
++        Eeg_Print(WIN_MIND, FONT_NORMAL, sText_EditHot, 2, 3, MIND_COLOR);
++        CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
++        Eeg_Ask(2, &sEeg->entries[data[1]]);
++        gTasks[taskId].func = Task_EegEditHot;
++        break;
++    }
++}
++
++static void Task_EegEditHot(u8 taskId)
++{
++    s16 *data = gTasks[taskId].data;
++    bool8 done = FALSE;
++    if (JOY_NEW(B_BUTTON))
++    {
++        gCodeRedEeg.state = 4;
++        done = TRUE;
++    }
++    else if (gCodeRedEeg.state == 2 || gCodeRedEeg.state == 4 || ++sEeg->waited >= EEG_EDIT_FRAMES)
++        done = TRUE;
++    if (!done)
++        return;
++    gCodeRedEeg.state = 0;
++    PlaySE(SE_SELECT);
++    // Show the mind again, with whatever note the page kept.
++    sEeg->shownId = 0xFFFFFFFF;
++    FillWindowPixelBuffer(WIN_MIND, 0);
++    Eeg_Print(WIN_MIND, FONT_NORMAL, sText_Asking, 2, 3, MIND_COLOR);
++    CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
++    Eeg_Ask(1, &sEeg->entries[data[1]]);
++    gTasks[taskId].func = Task_EegMain;
++}
++
++static void Task_EegTurnOff(u8 taskId)
++{
++    s16 *data = gTasks[taskId].data;
++    if (!gPaletteFade.active)
++    {
++        DestroyListMenuTask(data[0], &sEeg->scroll, &sEeg->row);
++        if (sEeg->arrows != 0xFF)
++            RemoveScrollIndicatorArrowPair(sEeg->arrows);
++        SetMainCallback2(sEeg->savedCallback);
++        Eeg_Free();
++        DestroyTask(taskId);
++    }
++}
++
++// ---------------------------------------------------------------- from the PC script: special CodeRedPokeeg / waitstate
++
++static void Task_EegLaunch(u8 taskId)
++{
++    if (!gPaletteFade.active)
++    {
++        CleanupOverworldWindowsAndTilemaps();
++        Eeg_Init(CB2_ReturnToFieldContinueScript);
++        DestroyTask(taskId);
++    }
++}
++
++void CodeRedPokeeg(void)
++{
++    FadeScreen(FADE_TO_BLACK, 0);
++    CreateTask(Task_EegLaunch, 0);
++}

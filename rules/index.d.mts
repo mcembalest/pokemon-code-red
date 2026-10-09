@@ -16,7 +16,7 @@ export const STARTER_MOVES: Set<string>
 export const FIRERED: Record<string, [string, string, string, string]>
 export const FAMILIES: Record<string, string>
 
-export interface Format { note: string; encode(bytes: number[]): unknown; decode(data: unknown): number[] }
+export interface Format { short: string; note: string; encode(bytes: number[]): unknown; decode(data: unknown): number[] }
 export const FORMATS: Record<TypeName, Format>
 export const HINTS: Record<TypeName, string>
 export const EXAMPLE_BYTES: number[]

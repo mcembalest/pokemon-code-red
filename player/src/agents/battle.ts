@@ -19,7 +19,7 @@ export interface BattleMon {
 }
 
 // FireRed charmap (pokefirered charmap.txt), enough for names.
-const CHARS: Record<number, string> = { 0x00: ' ', 0x1B: 'é', 0xAB: '!', 0xAC: '?', 0xAD: '.', 0xAE: '-', 0xB4: '’', 0xB5: '♂', 0xB6: '♀', 0xB8: ',', 0xBA: '/' }
+const CHARS: Record<number, string> = { 0x00: ' ', 0x06: 'É', 0x1B: 'é', 0x5C: '(', 0x5D: ')', 0xAB: '!', 0xAC: '?', 0xAD: '.', 0xAE: '-', 0xAF: '·', 0xB0: '…', 0xB1: '“', 0xB2: '”', 0xB4: '’', 0xB5: '♂', 0xB6: '♀', 0xB8: ',', 0xB9: '×', 0xBA: '/', 0xF0: ':' }
 export function decodeText(bytes: Uint8Array): string {
   let out = ''
   for (const b of bytes) {

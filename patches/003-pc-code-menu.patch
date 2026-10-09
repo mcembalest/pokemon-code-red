@@ -1,8 +1,9 @@
+
 diff --git a/data/maps/PalletTown_PlayersHouse_2F/scripts.inc b/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
-index edc6ac3..ebb9176 100644
+index edc6ac37..f96699fd 100644
 --- a/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
 +++ b/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
-@@ -24,6 +24,14 @@ PalletTown_PlayersHouse_2F_EventScript_NES::
+@@ -24,6 +24,23 @@ PalletTown_PlayersHouse_2F_EventScript_NES::
  	msgbox PalletTown_PlayersHouse_2F_Text_PlayedWithNES, MSGBOX_SIGN
  	end
  
@@ -14,11 +15,20 @@ index edc6ac3..ebb9176 100644
 +	releaseall
 +	end
 +
++CodeRed_EventScript_BedroomEeg::
++	special CodeRedPokeeg
++	waitstate
++	special BedroomPC
++	waitstate
++	special SetHelpContextForMap
++	releaseall
++	end
++
  PalletTown_PlayersHouse_2F_EventScript_Sign::
  	msgbox PalletTown_PlayersHouse_2F_Text_PressLRForHelp, MSGBOX_SIGN
  	end
 diff --git a/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc b/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc
-index 12f8ada..2d0af2d 100644
+index 12f8ada3..2d0af2df 100644
 --- a/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc
 +++ b/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc
 @@ -39,7 +39,11 @@ SaffronCity_CopycatsHouse_2F_EventScript_MimicPlayerFemale::
@@ -35,7 +45,7 @@ index 12f8ada..2d0af2d 100644
  
  SaffronCity_CopycatsHouse_2F_EventScript_Game::
 diff --git a/data/scripts/flavor_text.inc b/data/scripts/flavor_text.inc
-index ec0f622..a6579d6 100644
+index ec0f6224..a6579d64 100644
 --- a/data/scripts/flavor_text.inc
 +++ b/data/scripts/flavor_text.inc
 @@ -17,7 +17,11 @@ EventScript_VideoGame::
@@ -52,7 +62,7 @@ index ec0f622..a6579d6 100644
  
  EventScript_ImpressiveMachine::
 diff --git a/data/scripts/pc.inc b/data/scripts/pc.inc
-index 77cf55e..6c346d5 100644
+index 77cf55e6..b24544e7 100644
 --- a/data/scripts/pc.inc
 +++ b/data/scripts/pc.inc
 @@ -14,6 +14,7 @@ EventScript_PC::
@@ -71,21 +81,30 @@ index 77cf55e..6c346d5 100644
  	goto EventScript_ChoosePCMenu
  	end
  
-@@ -32,6 +34,7 @@ EventScript_ChoosePCMenu::
+@@ -32,6 +34,8 @@ EventScript_ChoosePCMenu::
  	case 2, EventScript_AccessProfOaksPC
  	case 3, EventScript_AccessHallOfFame
  	case 4, EventScript_TurnOffPC
 +	case 5, CodeRed_EventScript_ServicePC
++	case 6, CodeRed_EventScript_EegPC
  	case SCR_MENU_CANCEL, EventScript_TurnOffPC
  	end
  
-@@ -99,3 +102,27 @@ EventScript_ExitOaksPC::
+@@ -99,3 +103,35 @@ EventScript_ExitOaksPC::
  	msgbox Text_ClosedLinkToProfOaksPC
  	goto EventScript_PCMainMenu
  	end
 +
 +CodeRed_EventScript_ServicePC::
 +	call CodeRed_EventScript_Calculate
++	goto EventScript_PCMainMenu
++	end
++
++CodeRed_EventScript_EegPC::
++	special CodeRedPokeeg
++	waitstate
++	setvar VAR_0x8004, HELPCONTEXT_PC
++	special Script_SetHelpContext
 +	goto EventScript_PCMainMenu
 +	end
 +
@@ -108,7 +127,7 @@ index 77cf55e..6c346d5 100644
 +CodeRed_Text_Result:
 +	.string "JS result: {STR_VAR_1}$"
 diff --git a/include/constants/menu.h b/include/constants/menu.h
-index 7c36f36..78c317c 100644
+index 7c36f360..78c317c7 100644
 --- a/include/constants/menu.h
 +++ b/include/constants/menu.h
 @@ -70,6 +70,8 @@
@@ -121,43 +140,77 @@ index 7c36f36..78c317c 100644
  
  #define LISTMENU_BADGES                    0
 diff --git a/src/player_pc.c b/src/player_pc.c
-index d482820..683141b 100644
+index d4828203..36b5ae76 100644
 --- a/src/player_pc.c
 +++ b/src/player_pc.c
-@@ -44,6 +44,9 @@ static void Task_TopMenuHandleInput(u8 taskId);
+@@ -44,6 +44,12 @@ static void Task_TopMenuHandleInput(u8 taskId);
  static void Task_PlayerPcItemStorage(u8 taskId);
  static void Task_PlayerPcMailbox(u8 taskId);
  static void Task_PlayerPcTurnOff(u8 taskId);
 +static void Task_CodeRedBedroomPC(u8 taskId);
++static void Task_CodeRedBedroomEeg(u8 taskId);
 +extern const u8 CodeRed_EventScript_BedroomPC[];
++extern const u8 CodeRed_EventScript_BedroomEeg[];
 +static const u8 sText_CodeRedCode[] = _("Code");
++static const u8 sText_CodeRedEeg[] = _("PokÉEG");
  static void Task_CreateItemStorageSubmenu(u8 taskId, u8 cursorPos);
  static void PrintStringOnWindow0WithDialogueFrame(const u8 *str);
  static void Task_TopMenu_ItemStorageSubmenu_HandleInput(u8 taskId);
-@@ -85,10 +88,11 @@ static const u8 *const sItemStorageActionDescriptionPtrs[] = {
+@@ -85,10 +91,12 @@ static const u8 *const sItemStorageActionDescriptionPtrs[] = {
  static const struct MenuAction sMenuActions_TopMenu[] = {
      {gText_ItemStorage, Task_PlayerPcItemStorage},
      {gText_Mailbox, Task_PlayerPcMailbox},
 -    {gText_TurnOff, Task_PlayerPcTurnOff}
 +    {gText_TurnOff, Task_PlayerPcTurnOff},
-+    {sText_CodeRedCode, Task_CodeRedBedroomPC}
++    {sText_CodeRedCode, Task_CodeRedBedroomPC},
++    {sText_CodeRedEeg, Task_CodeRedBedroomEeg}
  };
  
 -static const u8 sItemOrder_BedroomPC[] = { 0, 1, 2 };
-+static const u8 sItemOrder_BedroomPC[] = { 0, 1, 3, 2 };
++static const u8 sItemOrder_BedroomPC[] = { 0, 1, 4, 3, 2 };
  static const u8 sItemOrder_PlayerPC[] = { 0, 1, 2 };
  
  static const struct MenuAction sMenuActions_ItemPc[] = {
-@@ -155,7 +159,7 @@ void BedroomPC(void)
+@@ -129,6 +137,17 @@ static const struct WindowTemplate sWindowTemplate_TopMenu_4Items = {
+     .baseBlock = 0x008
+ };
+ 
++// Code Red: the bedroom PC has five entries (ITEM STORAGE, MAILBOX, PokÉEG, Code, TURN OFF).
++static const struct WindowTemplate sWindowTemplate_TopMenu_5Items = {
++    .bg = 0,
++    .tilemapLeft = 1,
++    .tilemapTop = 1,
++    .width = 13,
++    .height = 10,
++    .paletteNum = 15,
++    .baseBlock = 0x008
++};
++
+ static const struct WindowTemplate sWindowTemplate_ItemStorageSubmenu = {
+     .bg = 0,
+     .tilemapLeft = 1,
+@@ -155,7 +174,7 @@ void BedroomPC(void)
      gPlayerPcMenuManager.notInRoom = FALSE;
      BackupHelpContext();
      sItemOrder = sItemOrder_BedroomPC;
 -    sTopMenuItemCount = 3;
-+    sTopMenuItemCount = 4;
++    sTopMenuItemCount = 5;
      taskId = CreateTask(TaskDummy, 0);
      DisplayItemMessageOnField(taskId, FONT_NORMAL, gText_WhatWouldYouLikeToDo, Task_DrawPlayerPcTopMenu);
  }
-@@ -254,6 +258,13 @@ static void Task_PlayerPcMailbox(u8 taskId)
+@@ -177,8 +196,10 @@ static void Task_DrawPlayerPcTopMenu(u8 taskId)
+     s16 *data = gTasks[taskId].data;
+     if (sTopMenuItemCount == 3)
+         tWindowId = AddWindow(&sWindowTemplate_TopMenu_3Items);
+-    else
++    else if (sTopMenuItemCount == 4)
+         tWindowId = AddWindow(&sWindowTemplate_TopMenu_4Items);
++    else
++        tWindowId = AddWindow(&sWindowTemplate_TopMenu_5Items);
+     SetStdWindowBorderStyle(tWindowId, 0);
+     AddItemMenuActionTextPrinters(tWindowId, FONT_NORMAL, GetMenuCursorDimensionByFont(FONT_NORMAL, 0), 2, GetFontAttribute(FONT_NORMAL, FONTATTR_LETTER_SPACING), 16, sTopMenuItemCount, sMenuActions_TopMenu, sItemOrder);
+     Menu_InitCursor(tWindowId, FONT_NORMAL, 0, 2, 16, sTopMenuItemCount, 0);
+@@ -254,6 +275,20 @@ static void Task_PlayerPcMailbox(u8 taskId)
      }
  }
  
@@ -168,18 +221,26 @@ index d482820..683141b 100644
 +    DestroyTask(taskId);
 +}
 +
++static void Task_CodeRedBedroomEeg(u8 taskId)
++{
++    RestoreHelpContext();
++    ScriptContext_SetupScript(CodeRed_EventScript_BedroomEeg);
++    DestroyTask(taskId);
++}
++
  static void Task_PlayerPcTurnOff(u8 taskId)
  {
      if (gPlayerPcMenuManager.notInRoom == FALSE)
 diff --git a/src/script_menu.c b/src/script_menu.c
-index 41eebd8..9d8708d 100644
+index 41eebd86..be6c654c 100644
 --- a/src/script_menu.c
 +++ b/src/script_menu.c
-@@ -502,7 +502,14 @@ static const struct MenuAction sMultichoiceList_Exit[] = {
+@@ -502,7 +502,15 @@ static const struct MenuAction sMultichoiceList_Exit[] = {
      { gOtherText_Exit }
  };
  
 +static const u8 sText_CodeRedCode[] = _("Code");
++static const u8 sText_CodeRedEeg[] = _("PokÉEG");
 +static const struct MenuAction sMultichoiceList_CodeRed[] = {
 +    { sText_CodeRedCode },
 +    { gOtherText_Exit }
@@ -190,33 +251,35 @@ index 41eebd8..9d8708d 100644
      [MULTICHOICE_YES_NO]                                     = MULTICHOICE(sMultichoiceList_YesNo),
      [MULTICHOICE_EEVEELUTIONS]                               = MULTICHOICE(sMultichoiceList_Eeveelutions),
      [MULTICHOICE_TRAINER_CARD_ICON_TINT]                     = MULTICHOICE(sMultichoiceList_TrainerCardIconTint),
-@@ -1005,25 +1012,26 @@ static void CreatePCMenuWindow(void)
+@@ -1005,25 +1013,28 @@ static void CreatePCMenuWindow(void)
      }
      if (FlagGet(FLAG_SYS_GAME_CLEAR))
      {
 -        numItems = 5;
 -        windowId = CreateWindowFromRect(0, 0, windowWidth, 10);
-+        numItems = 6;
-+        windowId = CreateWindowFromRect(0, 0, windowWidth, 12);
++        numItems = 7;
++        windowId = CreateWindowFromRect(0, 0, windowWidth, 14);
          SetStdWindowBorderStyle(windowId, FALSE);
          AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_ProfOakSPc, cursorWidth, 34, TEXT_SKIP_DRAW, NULL);
          AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_HallOfFame_2, cursorWidth, 50, TEXT_SKIP_DRAW, NULL);
 -        AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_LogOff, cursorWidth, 66, TEXT_SKIP_DRAW, NULL);
-+        AddTextPrinterParameterized(windowId, FONT_NORMAL, sText_CodeRedCode, cursorWidth, 66, TEXT_SKIP_DRAW, NULL);
++        AddTextPrinterParameterized(windowId, FONT_NORMAL, sText_CodeRedEeg, cursorWidth, 66, TEXT_SKIP_DRAW, NULL);
++        AddTextPrinterParameterized(windowId, FONT_NORMAL, sText_CodeRedCode, cursorWidth, 82, TEXT_SKIP_DRAW, NULL);
      }
      else
      {
          if (FlagGet(FLAG_SYS_POKEDEX_GET))
 -            numItems = 4;
-+            numItems = 5;
++            numItems = 6;
          else
 -            numItems = 3;
-+            numItems = 4;
++            numItems = 5;
          windowId = CreateWindowFromRect(0, 0, windowWidth, numItems * 2);
          SetStdWindowBorderStyle(windowId, FALSE);
          if (FlagGet(FLAG_SYS_POKEDEX_GET))
              AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_ProfOakSPc, cursorWidth, 34, TEXT_SKIP_DRAW, NULL);
 -        AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_LogOff, cursorWidth, 2 + 16 * (numItems - 1), TEXT_SKIP_DRAW, NULL);
++        AddTextPrinterParameterized(windowId, FONT_NORMAL, sText_CodeRedEeg, cursorWidth, 2 + 16 * (numItems - 3), TEXT_SKIP_DRAW, NULL);
 +        AddTextPrinterParameterized(windowId, FONT_NORMAL, sText_CodeRedCode, cursorWidth, 2 + 16 * (numItems - 2), TEXT_SKIP_DRAW, NULL);
      }
 +    AddTextPrinterParameterized(windowId, FONT_NORMAL, gText_LogOff, cursorWidth, 2 + 16 * (numItems - 1), TEXT_SKIP_DRAW, NULL);

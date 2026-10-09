@@ -20,8 +20,46 @@ export interface Pokeeg {
   element: HTMLElement
   setVisible(on: boolean): void
   readonly visible: boolean
+  /** Put the cursor on this Pokémon (the in-game PokÉEG's cursor moved). */
+  select(personality: number): void
   refresh(): void
   dispose(): void
+}
+
+/** The note editor the in-game PokÉEG opens ("Hot memory"): a card over the game. Resolves null on cancel. */
+export function createHotEditor(host: HTMLElement, o: { pause: () => void; resume: () => void; budget?: (personality: number) => number | null }) {
+  const card = document.createElement('div')
+  card.className = 'code-red-hot-editor'
+  card.hidden = true
+  card.setAttribute('role', 'dialog')
+  host.append(card)
+  return {
+    element: card,
+    edit(personality: number, name: string, current: string, signal: AbortSignal): Promise<string | null> {
+      const budget = o.budget?.(personality)
+      card.innerHTML = `
+        <h3>${esc(name)}'s hot memory</h3>
+        <p class="code-red-muted">A note it sees in every prompt. Every character costs a byte of its budget${budget ? ` (${budget})` : ''}.</p>
+        <textarea data-hot-text rows="3" maxlength="100" placeholder="e.g. always return a plain number">${esc(current)}</textarea>
+        <p><small data-hot-cost></small></p>
+        <p><button class="code-red-button" type="button" data-hot-pin>Pin</button> <button class="code-red-button code-red-button-quiet" type="button" data-hot-cancel>Cancel</button></p>`
+      const area = card.querySelector<HTMLTextAreaElement>('[data-hot-text]')!
+      const cost = card.querySelector<HTMLElement>('[data-hot-cost]')!
+      const tick = () => { cost.textContent = `${area.value.trim().length} chars = ${contextCost({ hot: area.value.trim() })} bytes` }
+      area.oninput = tick; tick()
+      card.hidden = false
+      o.pause()
+      area.focus({ preventScroll: true })
+      return new Promise(resolve => {
+        const finish = (value: string | null) => { card.hidden = true; card.innerHTML = ''; signal.removeEventListener('abort', onAbort); o.resume(); resolve(value) }
+        const onAbort = () => finish(null)
+        signal.addEventListener('abort', onAbort)
+        card.querySelector<HTMLButtonElement>('[data-hot-pin]')!.onclick = () => finish(area.value.trim())
+        card.querySelector<HTMLButtonElement>('[data-hot-cancel]')!.onclick = () => finish(null)
+        area.onkeydown = event => { if (event.key === 'Escape') finish(null); if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) finish(area.value.trim()) }
+      })
+    },
+  }
 }
 
 const family = (type: string) => FAMILIES[(type[0] + type.slice(1).toLowerCase()) as keyof typeof FAMILIES] ?? ''
@@ -119,6 +157,7 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
     element,
     get visible() { return visible },
     setVisible(on) { visible = on; element.hidden = !on; lastKey = ''; refresh() },
+    select(personality) { if (selected !== personality) { selected = personality; hotDraft = null; lastKey = ''; refresh() } },
     refresh: () => { lastKey = ''; refresh() },
     dispose() { clearInterval(timer); element.remove() },
   }
