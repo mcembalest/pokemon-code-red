@@ -16,6 +16,7 @@ import { CalcMailbox } from './bridge/calc.ts'
 import { CalcController } from './bridge/calc-controller.ts'
 import { NamingMailbox } from './bridge/naming.ts'
 import { Backend, DEFAULT_API, localSessionStore } from './backend.ts'
+import { CloudSync, localSyncMark } from './cloud.ts'
 import { ProgressWatcher, readSnapshot } from './progress.ts'
 import { Agent } from './agents/agent.ts'
 import { CloudBrain, MockBrain, ReplayBrain } from './agents/brains.ts'
@@ -57,8 +58,22 @@ const TEMPLATE = `
     <p>Code Red is invite-only for now.</p>
     <label>Invite code <input data-invite required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="RED-XXXX-XXXX" /></label>
     <label>Your name <input data-name required maxlength="24" autocomplete="nickname" /></label>
+    <label>Username <input data-username required minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" autocomplete="username" autocapitalize="off" spellcheck="false" /></label>
+    <label>Password <input data-password type="password" required minlength="8" autocomplete="new-password" /></label>
     <button class="code-red-button" type="submit">Join</button>
+    <p class="code-red-muted">Already playing? <a href="#" data-to-login>Log in</a> — your save follows your account.</p>
   </form>
+  <form class="code-red-join" data-login hidden>
+    <p>Log in to pick up your game here.</p>
+    <label>Username <input data-login-username required autocomplete="username" autocapitalize="off" spellcheck="false" /></label>
+    <label>Password <input data-login-password type="password" required autocomplete="current-password" /></label>
+    <button class="code-red-button" type="submit">Log in</button>
+    <p class="code-red-muted">New here? <a href="#" data-to-join>Join with an invite</a>.</p>
+  </form>
+  <div class="code-red-signedout" data-signedout hidden>
+    <p>You logged in on another device, so this one is paused. Your save is in the cloud.</p>
+    <button class="code-red-button" data-play-here type="button">Play here instead</button>
+  </div>
   <div data-open hidden>
     <p class="code-red-muted">Open your Pokémon FireRed (USA, v1.0) .gba file once. It stays on this device.</p>
     <button class="code-red-button" data-choose type="button">Open FireRed file</button>
@@ -66,7 +81,7 @@ const TEMPLATE = `
   </div>
   <p class="code-red-status" data-status role="status" aria-live="polite">Loading…</p>
   <p class="code-red-error" data-error role="alert" hidden></p>
-  <p class="code-red-muted code-red-help"><span data-who hidden></span>PC → Code opens a JavaScript scratchpad. Type names on naming screens. Tap 10× to speed up (or hold Space on a keyboard). Your in-game save is kept in this browser and survives updates.</p>
+  <p class="code-red-muted code-red-help"><span data-who hidden></span>PC → Code opens a JavaScript scratchpad. Type names on naming screens. Tap 10× to speed up (or hold Space on a keyboard). Saving in the game saves to your account: log in on another device to pick up where you left off.</p>
   <div class="code-red-stage" data-stage>
     <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>
   </div>
@@ -93,6 +108,8 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   const stage = root.querySelector<HTMLElement>('[data-stage]')!
   let fastForward = false
   const joinForm = root.querySelector<HTMLFormElement>('[data-join]')!
+  const loginForm = root.querySelector<HTMLFormElement>('[data-login]')!
+  const signedOut = root.querySelector<HTMLElement>('[data-signedout]')!
   const who = root.querySelector<HTMLElement>('[data-who]')!
   const api = options.api === false ? null : options.api || DEFAULT_API
   const backend = api ? new Backend(api, localSessionStore()) : null
@@ -144,43 +161,77 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     if (!backend) return Promise.resolve()
     if (backend.session) {
       showWho()
-      // Token revoked? Offer the form again without interrupting play.
-      void backend.check().then(state => { if (state === 'invalid') void join() })
+      // Token revoked? Offer the form again without interrupting play. Another device active? Pause here.
+      void backend.check().then(state => { if (state === 'invalid') void signIn('join'); else if (state === 'inactive') setActive(false) })
       return Promise.resolve()
     }
-    return join()
+    return signIn('join')
   }
 
-  function join(): Promise<void> {
+  /** The minds of every owned Pokémon (readers, hot memory, Pokédex); part of the cloud save bundle. */
+  const minds = localCodeMemory(safeStorage())
+  let sync: CloudSync | null = null
+
+  /** This device lost (or regained) the right to play: another device logged in. */
+  function setActive(active: boolean) {
+    signedOut.hidden = active
+    const ejs = emulator.EJS_emulator
+    if (!ejs) return
+    if (active) { if (!consoleActive) ejs.play(true) } else ejs.pause(true)
+  }
+  signedOut.querySelector<HTMLButtonElement>('[data-play-here]')!.onclick = () => {
+    signedOut.hidden = true
+    void signIn('login').then(async () => {
+      sync?.resumed()
+      setActive(true)
+      // The other device may have saved since: a newer cloud version restarts the game on it.
+      if (sync && await sync.restore() === 'cloud') say('Restored your cloud save.')
+    })
+  }
+
+  /** Join (invite + new account) or log in; the two forms link to each other. Resolves once signed in. */
+  function signIn(which: 'join' | 'login'): Promise<void> {
     const invite = joinForm.querySelector<HTMLInputElement>('[data-invite]')!
     const name = joinForm.querySelector<HTMLInputElement>('[data-name]')!
     const fromLink = new URLSearchParams(location.search).get('invite')
     if (fromLink && !invite.value) invite.value = fromLink
-    joinForm.hidden = false
     who.hidden = true
     say('')
-    ;(invite.value ? name : invite).focus({ preventScroll: true })
+    const show = (form: 'join' | 'login') => {
+      joinForm.hidden = form !== 'join'
+      loginForm.hidden = form !== 'login'
+      error.hidden = true
+      const first = form === 'join' ? (invite.value ? name : invite) : loginForm.querySelector<HTMLInputElement>('[data-login-username]')!
+      first.focus({ preventScroll: true })
+    }
+    show(which)
+    joinForm.querySelector<HTMLAnchorElement>('[data-to-login]')!.onclick = event => { event.preventDefault(); show('login') }
+    loginForm.querySelector<HTMLAnchorElement>('[data-to-join]')!.onclick = event => { event.preventDefault(); show('join') }
     return new Promise(resolve => {
-      joinForm.onsubmit = async event => {
+      const done = () => {
+        joinForm.hidden = loginForm.hidden = true
+        joinForm.onsubmit = loginForm.onsubmit = null
+        if (fromLink) {
+          const url = new URL(location.href); url.searchParams.delete('invite')
+          history.replaceState(history.state, '', url)
+        }
+        showWho()
+        say('Loading…')
+        resolve()
+      }
+      const submit = (form: HTMLFormElement, action: () => Promise<unknown>, fallback: string) => async (event: Event) => {
         event.preventDefault()
-        const button = joinForm.querySelector<HTMLButtonElement>('button')!
+        const button = form.querySelector<HTMLButtonElement>('button')!
         button.disabled = true
         error.hidden = true
-        try {
-          await backend!.join(invite.value, name.value)
-          joinForm.hidden = true
-          joinForm.onsubmit = null
-          if (fromLink) {
-            const url = new URL(location.href); url.searchParams.delete('invite')
-            history.replaceState(history.state, '', url)
-          }
-          showWho()
-          say('Loading…')
-          resolve()
-        } catch (problem) {
-          fail(problem instanceof Error ? problem.message : 'Could not join.')
-        } finally { button.disabled = false }
+        try { await action(); done() }
+        catch (problem) { fail(problem instanceof Error ? problem.message : fallback) }
+        finally { button.disabled = false }
       }
+      joinForm.onsubmit = submit(joinForm, () => backend!.join(invite.value, name.value,
+        joinForm.querySelector<HTMLInputElement>('[data-username]')!.value, joinForm.querySelector<HTMLInputElement>('[data-password]')!.value), 'Could not join.')
+      loginForm.onsubmit = submit(loginForm, () => backend!.login(
+        loginForm.querySelector<HTMLInputElement>('[data-login-username]')!.value, loginForm.querySelector<HTMLInputElement>('[data-login-password]')!.value), 'Could not log in.')
     })
   }
 
@@ -285,7 +336,6 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
         ? readSnapshot(memory, { saveBlock1Ptr: s.gSaveBlock1Ptr.address, saveBlock2Ptr: s.gSaveBlock2Ptr.address, partyCount: s.gPlayerPartyCount.address, party: s.gPlayerParty.address }) : null
       return snap ? badgeNames.filter((_, i) => snap.badges >> i & 1) : []
     }
-    const minds = localCodeMemory(safeStorage())
     // Until the PokÉEG exists: window.CodeRed.setHot(personality, text) pins hot memory for a Pokémon (dev / testing).
     ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, setHot: (pid: number, text: string) => minds.setHot(pid, text), hot: (pid: number) => minds.hot(pid), readers: (pid: number) => minds.readers(pid) }
     const battle = new CodeBattle(new CodeMoveMailbox(memory, sym.address), reader, writer, runner, panel, minds, {
@@ -376,13 +426,18 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       fail(problem instanceof Error ? problem.message : 'The code bridge could not start.')
     }
     const store = { read: readLocal, write: writeLocal }
-    const restored = await restoreSave(gm, store).catch(() => 'none' as const)
-    const saver = autosave(gm, store)
+    // Saves: the cloud copy first (no local save, or another device saved since), then the local backup.
+    sync = backend ? new CloudSync({ game: gm, backend, minds, mark: localSyncMark(safeStorage()), rom: rom.rom_sha1.slice(0, 12), onActive: setActive, log: text => console.info('[code-red] ' + text) }) : null
+    const fromCloud = sync ? await sync.restore().catch(() => 'offline' as const) : 'none'
+    const restored: 'cloud' | 'emulator' | 'backup' | 'none' = fromCloud === 'cloud' ? 'cloud' : await restoreSave(gm, store).catch(() => 'none' as const)
+    const saver = autosave(gm, store, 10_000, bytes => { void sync?.changed(bytes) })
     disposers.push(() => saver.dispose())
+    if (sync) { const stop = sync.watchActive(); disposers.push(stop) }
+    if (backend && !backend.active) setActive(false)
     const persisted = await requestPersistence()
-    backend?.track('session_start', { rom: rom.rom_sha1.slice(0, 12), save: restored, touch: navigator.maxTouchPoints > 0, storage: persisted })
+    backend?.track('session_start', { rom: rom.rom_sha1.slice(0, 12), save: restored, cloud: fromCloud, touch: navigator.maxTouchPoints > 0, storage: persisted })
     void backend?.flush()
-    say(restored === 'backup' ? 'Restored your save.' : remembered ? '' : 'Playing. Browser storage is unavailable; reopen the file next time.')
+    say(restored === 'cloud' ? 'Restored your cloud save.' : restored === 'backup' ? 'Restored your save.' : remembered ? '' : 'Playing. Browser storage is unavailable; reopen the file next time.')
     game.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 

@@ -5,7 +5,9 @@ Needs: make player, local/baserom.gba, scripts/serve_player.py on :8000.
   python3 player/tests/account.py
 Checks: invite form gates the game; bad code shows an error; ?invite= prefills
 and is removed after joining; session persists across reload; session_start is
-sent; progress snapshots (from RAM) reach the backend via the page-hide beacon.
+sent; progress snapshots (from RAM) reach the backend via the page-hide beacon;
+the cloud save is asked for on start; another device logging in pauses this one
+until the player logs in here again (takeover).
 """
 import json, os, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -15,7 +17,8 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'build/account'
 GOOD = 'RED-TEST-CODE'
-received = {'joins': [], 'events': [], 'auth': []}
+received = {'joins': [], 'events': [], 'auth': [], 'saves_get': 0, 'logins': []}
+state = {'active': True, 'tokens': {'tok-1'}}
 
 
 class Api(BaseHTTPRequestHandler):
@@ -23,7 +26,7 @@ class Api(BaseHTTPRequestHandler):
     def cors(self):
         self.send_header('access-control-allow-origin', self.headers.get('origin') or '*')
         self.send_header('access-control-allow-headers', 'authorization, content-type')
-        self.send_header('access-control-allow-methods', 'GET, POST, OPTIONS')
+        self.send_header('access-control-allow-methods', 'GET, POST, PUT, OPTIONS')
     def reply(self, status, body):
         data = json.dumps(body).encode()
         self.send_response(status); self.cors()
@@ -32,9 +35,14 @@ class Api(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204); self.cors(); self.end_headers()
     def do_GET(self):
+        tok = (self.headers.get('authorization') or '').removeprefix('Bearer ')
+        ok = tok in state['tokens']
         if self.path == '/v1/me':
-            ok = self.headers.get('authorization') == 'Bearer tok-1'
-            return self.reply(200 if ok else 401, {'player': {'id': 'p1', 'name': 'Misty'}} if ok else {'error': 'invalid token'})
+            active = ok and (state['active'] or tok == 'tok-2')
+            return self.reply(200 if ok else 401, {'player': {'id': 'p1', 'name': 'Misty', 'username': 'misty'}, 'active': active, 'features': {'agents': True}} if ok else {'error': 'invalid token'})
+        if self.path == '/v1/save':
+            received['saves_get'] += 1
+            return self.reply(200 if ok else 401, {'version': 0} if ok else {'error': 'invalid token'})
         self.reply(404, {})
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers.get('content-length') or 0)) or b'{}')
@@ -42,7 +50,15 @@ class Api(BaseHTTPRequestHandler):
             received['joins'].append(body)
             if body.get('invite', '').strip().upper() != GOOD:
                 return self.reply(403, {'error': 'invite not valid'})
-            return self.reply(201, {'token': 'tok-1', 'player': {'id': 'p1', 'name': body['name']}, 'features': {'agents': True}})
+            if not body.get('username') or len(body.get('password', '')) < 8:
+                return self.reply(400, {'error': 'username and password required'})
+            return self.reply(201, {'token': 'tok-1', 'player': {'id': 'p1', 'name': body['name'], 'username': body['username'].lower()}, 'active': True, 'features': {'agents': True}})
+        if self.path == '/v1/login':
+            received['logins'].append(body)
+            if body.get('password') != 'starmie-123':
+                return self.reply(401, {'error': 'wrong username or password'})
+            state['tokens'].add('tok-2')
+            return self.reply(200, {'token': 'tok-2', 'player': {'id': 'p1', 'name': 'Misty', 'username': 'misty'}, 'active': True, 'features': {'agents': True}})
         if self.path == '/v1/events':
             auth = self.headers.get('authorization') or ('body:' + body.get('token', ''))
             received['auth'].append(auth)
@@ -79,7 +95,8 @@ def main():
         assert page.locator('[data-open]').is_hidden()
         assert page.locator('[data-invite]').input_value() == GOOD.lower()
         page.screenshot(path=str(OUT / 'invite.png'))
-        page.fill('[data-invite]', 'RED-NOPE-NOPE'); page.fill('[data-name]', 'Misty'); page.click('[data-join] button')
+        page.fill('[data-invite]', 'RED-NOPE-NOPE'); page.fill('[data-name]', 'Misty')
+        page.fill('[data-username]', 'misty'); page.fill('[data-password]', 'starmie-123'); page.click('[data-join] button')
         page.wait_for_selector('[data-error]:not([hidden])', timeout=10000)
         assert 'not valid' in page.text_content('[data-error]')
         page.fill('[data-invite]', GOOD.lower()); page.click('[data-join] button')
@@ -87,6 +104,7 @@ def main():
         assert page.locator('[data-join]').is_hidden()
         assert 'invite=' not in page.url, page.url
         assert 'Misty' in page.text_content('[data-who]')
+        assert received['joins'][-1]['username'] == 'misty' and received['joins'][-1]['password'] == 'starmie-123'
         print('join ok', flush=True)
 
         # 2. Game starts; session_start is sent right away with the auth header.
@@ -94,7 +112,10 @@ def main():
         page.wait_for_function('window.EJS_emulator?.started', timeout=90000)
         wait(lambda: any(e['kind'] == 'session_start' for e in received['events']), 30, 'session_start')
         assert received['auth'][0] == 'Bearer tok-1', received['auth']
-        print('session_start ok', flush=True)
+        assert received['saves_get'] >= 1, 'the cloud save must be asked for on start'
+        start = next(e for e in received['events'] if e['kind'] == 'session_start')['data']
+        assert start.get('cloud') == 'none', start
+        print('session_start + cloud save check ok', flush=True)
         # Invited player → agents on by default, but the player picks moves: no autopilot button.
         page.wait_for_timeout(1500)
         assert page.locator('[data-agent]').is_hidden(), 'move autopilot must be off by default'
@@ -129,6 +150,25 @@ def main():
         assert len(received['joins']) == 2
         print('reload ok', flush=True)
         page.screenshot(path=str(OUT / 'playing.png'))
+
+        # 5. Takeover: another device logged in → this one is paused until the player logs in here.
+        state['active'] = False
+        page.goto('http://127.0.0.1:8000/?api=' + api_url)
+        page.wait_for_selector('[data-signedout]:not([hidden])', timeout=30000)
+        page.wait_for_function('window.EJS_emulator?.started', timeout=90000)
+        page.wait_for_function('window.EJS_emulator?.paused === true', timeout=15000)
+        page.screenshot(path=str(OUT / 'signed-out.png'))
+        page.click('[data-play-here]')
+        page.wait_for_selector('[data-login]:not([hidden])', timeout=5000)
+        page.fill('[data-login-username]', 'misty'); page.fill('[data-login-password]', 'wrong-password'); page.click('[data-login] button')
+        page.wait_for_selector('[data-error]:not([hidden])', timeout=10000)
+        assert 'Wrong username' in page.text_content('[data-error]')
+        page.fill('[data-login-password]', 'starmie-123'); page.click('[data-login] button')
+        page.wait_for_selector('[data-login]', state='hidden', timeout=10000)
+        assert page.locator('[data-signedout]').is_hidden()
+        page.wait_for_function('window.EJS_emulator?.paused === false', timeout=15000)
+        assert len(received['logins']) == 2
+        print('takeover + login ok', flush=True)
         browser.close()
     api.shutdown()
     if errors:

@@ -51,6 +51,9 @@ export interface CodeMemory {
   /** Types the party has battled (Pokédex readers). */
   seen(): string[]
   addSeen(types: string[]): void
+  /** The whole mind store, for the cloud save bundle (and back). */
+  export?(): unknown
+  import?(state: unknown): void
 }
 
 export interface TurnRecord {
@@ -161,6 +164,12 @@ export function localCodeMemory(storage: Pick<Storage, 'getItem' | 'setItem'> | 
     setHot: (pid, text) => { state.hot[String(pid)] = text; save() },
     seen: () => [...state.seen],
     addSeen: types => add(state.seen, types),
+    export: () => JSON.parse(JSON.stringify(state)) as unknown,
+    import: incoming => {
+      const next = (incoming && typeof incoming === 'object' ? incoming : {}) as Partial<State>
+      state = { mons: next.mons ?? {}, hot: next.hot ?? {}, seen: Array.isArray(next.seen) ? next.seen : [] }
+      save()
+    },
   }
 }
 
