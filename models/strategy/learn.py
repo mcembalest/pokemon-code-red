@@ -33,7 +33,7 @@ def features(b, s):
     """[4, F] move tokens + mask. Battle context is broadcast into every token."""
     att, dfn = b.mon(s), b.mon(1 - s)
     ctx = [att.hp / att.stats['hp'], dfn.hp / dfn.stats['hp'], float(att.eff('spe') > dfn.eff('spe')),
-           att.code_stage / 6, dfn.code_stage / 6, sum(att.stages.values()) / 12, sum(dfn.stages.values()) / 12,
+           att.notch / 2, dfn.notch / 2, sum(att.stages.values()) / 12, sum(dfn.stages.values()) / 12,
            float(att.status is not None), float(dfn.status is not None),
            sum(1 for m in b.side[1 - s] if not m.fainted()) / 3]
     # the foe's threat: its best expected hit on me, with its coding odds (what code-focus moves change)
@@ -41,7 +41,7 @@ def features(b, s):
     threat, foe_code = 0.0, 0.0
     for j, k in enumerate(dfn.moves):
         if dfn.pp[j] <= 0: continue
-        pc = sum(code_odds(b.code.p(k, dfn, att, f), dfn.code_stage) for f in mine) / len(mine)
+        pc = sum(code_odds(b.code.p(k, dfn, att, f), dfn.notch) for f in mine) / len(mine)
         t = pc * accuracy(dfn, att, k) * expected_damage(dfn, att, k) / max(1, att.hp)
         if t > threat: threat, foe_code = t, pc
     ctx += [min(threat, 2.0), foe_code, float(threat >= 1.0)]
@@ -51,7 +51,7 @@ def features(b, s):
         if att.pp[i] <= 0: continue
         mask[i] = True
         mv = MOVES[k]
-        p = sum(code_odds(b.code.p(k, att, dfn, f), att.code_stage) for f in fmts) / len(fmts)
+        p = sum(code_odds(b.code.p(k, att, dfn, f), att.notch) for f in fmts) / len(fmts)
         acc = accuracy(att, dfn, k)
         d = expected_damage(att, dfn, k) / max(1, dfn.hp)
         cat = move_cat(mv['effect'])

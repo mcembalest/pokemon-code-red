@@ -484,7 +484,7 @@ function cloudWriter(assets: string, api: string, token: () => string): CodeWrit
   type Kernel = {
     createModels(): { setProvider(p: unknown): void }
     gameApiProvider(o: { baseUrl: string; token: () => string; modelIds?: string[] }): unknown
-    writeCode(o: { models: unknown; model: { provider: string; modelId: string }; system: string; user: string; temperature: number; onText: (d: string) => void }): Promise<{ text: string }>
+    writeCode(o: { models: unknown; model: { provider: string; modelId: string }; system: string; user: string; temperature: number; maxTokens?: number; onText: (d: string) => void }): Promise<{ text: string }>
     GAME_PROVIDER: string; BATTLE_MODEL: string
   }
   let loading: Promise<{ k: Kernel; models: unknown }> | null = null
@@ -496,7 +496,7 @@ function cloudWriter(assets: string, api: string, token: () => string): CodeWrit
   return {
     async write(prompt, onText) {
       const { k, models } = await load()
-      const { text } = await k.writeCode({ models, model: { provider: k.GAME_PROVIDER, modelId: k.BATTLE_MODEL }, system: prompt.system, user: prompt.user, temperature: prompt.temperature, onText })
+      const { text } = await k.writeCode({ models, model: { provider: k.GAME_PROVIDER, modelId: k.BATTLE_MODEL }, system: prompt.system, user: prompt.user, temperature: prompt.temperature, maxTokens: prompt.maxTokens, onText })
       return text
     },
   }

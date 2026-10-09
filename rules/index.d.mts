@@ -1,6 +1,6 @@
 // Types for the shared battle rules (rules/index.mjs), for the TypeScript player.
 
-export type TypeName = 'NORMAL' | 'FLYING' | 'WATER' | 'GRASS' | 'ROCK' | 'ELECTRIC' | 'GROUND' | 'FIRE' | 'POISON' | 'BUG' | 'PSYCHIC' | 'FIGHTING' | 'STEEL'
+export type TypeName = 'NORMAL' | 'FLYING' | 'WATER' | 'GRASS' | 'ROCK' | 'ELECTRIC' | 'GROUND' | 'FIRE' | 'POISON' | 'BUG' | 'PSYCHIC' | 'FIGHTING' | 'STEEL' | 'ICE' | 'GHOST' | 'DRAGON' | 'DARK'
 export type Answer = number | string | unknown[] | undefined
 
 export interface Move {
@@ -14,6 +14,7 @@ export function byFireRed(romName: string): Move | undefined
 export function fnName(name: string): string
 export const STARTER_MOVES: Set<string>
 export const FIRERED: Record<string, [string, string, string, string]>
+export const FAMILIES: Record<string, string>
 
 export interface Format { note: string; encode(bytes: number[]): unknown; decode(data: unknown): number[] }
 export const FORMATS: Record<TypeName, Format>
@@ -30,10 +31,18 @@ export interface Growth {
 export type Badge = 'BOULDER' | 'CASCADE'
 export const GROWTH: Growth
 export const BADGES: Record<Badge, { readers?: TypeName[]; budget?: number }>
-export function focusAt(level: number, p?: Growth): number
-export function budgetAt(level: number, opts?: { stage?: number; badges?: string[] }, p?: Growth): number
+export const WORDS: { data: string; v: string }
+export const NOTCH: { cap: number; temp: number; budget: number }
+export function notchOf(stageSum: number): number
+export function focusAt(level: number, p?: Growth, notch?: number): number
+export function budgetAt(level: number, opts?: { stage?: number; badges?: string[]; notch?: number }, p?: Growth): number
 export function slotsAt(level: number, opts?: { stage?: number }, p?: Growth): number
 export function partyDex(opts?: { seen?: string[]; badges?: string[] }): TypeName[]
+export const KNOWLEDGE: { wild: number; trainer: number; boss: number }
+export const BOSS_CLASSES: Set<number>
+export function tierOf(trainerClass: number, wild: boolean): 'wild' | 'trainer' | 'boss'
+export function foeDex(tier: 'wild' | 'trainer' | 'boss', personality: number, formats: string[], chance?: number): string[]
+export function tokenCapFor(budget: number): number
 
 export type Readers = Partial<Record<TypeName, string>>
 export interface Know { from: 'dex' | 'memory'; line: string }

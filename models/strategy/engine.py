@@ -71,7 +71,6 @@ class Mon:
     flinch: bool = False
     crit_up: bool = False
     known: set = field(default_factory=set)  # formats this mon can read (memory + Pokédex)
-    code_stage: int = 0  # Code Red idea under test: status moves that hit the foe's code (focus), -6..6
 
     def __post_init__(self):
         b = SPECIES[self.species]['base']
@@ -82,6 +81,11 @@ class Mon:
         self.pp = [MOVES[m]['pp'] for m in self.moves]
         self.types = SPECIES[self.species]['types']
         self.ability = SPECIES[self.species]['abilities'][0]
+
+    @property
+    def notch(self):
+        """The game's rule: the sum of stat stage offsets, capped at ±2 (status moves hit the code)."""
+        return max(-2, min(2, sum(self.stages.values())))
 
     def eff(self, s):
         key = 'def_' if s == 'def' else s
@@ -118,9 +122,11 @@ class CodeModel:
 
 
 def code_odds(p, stage):
-    """Shift P(code right) by focus stages: each stage moves the log-odds by 0.4."""
-    if stage == 0 or p <= 0 or p >= 1: return p if stage == 0 or p <= 0 else (p if stage > 0 else 1 / (1 + math.exp(-(4.6 + 0.4 * stage))))
-    z = math.log(p / (1 - p)) + 0.4 * stage
+    """Shift P(code right) by the code-brain notch (the game's rule: a notch = +0.1 temperature and -10% budget,
+    capped at ±2; here one notch moves the log-odds by 0.25, about 6 points near 50%, calibrated to be modest)."""
+    stage = max(-2, min(2, stage))
+    if stage == 0 or p <= 0 or p >= 1: return p
+    z = math.log(p / (1 - p)) + 0.25 * stage
     return 1 / (1 + math.exp(-z))
 
 
@@ -236,7 +242,7 @@ class Battle:
         self.stats['moves'][s] += 1
         if self.code_on:
             fmt = rng.choice(dfn.formats())
-            if rng.random() >= code_odds(self.code.p(key, att, dfn, fmt), att.code_stage):
+            if rng.random() >= code_odds(self.code.p(key, att, dfn, fmt), att.notch if self.code_effects != 'off' else 0):
                 self.stats['code_miss'][s] += 1
                 return self.say(s, key, "code missed")
         eff = mv['effect']
@@ -244,7 +250,6 @@ class Battle:
         if eff in STAT_EFFECTS:
             who, st, d = STAT_EFFECTS[eff]
             m = att if who == 'self' else dfn
-            if self.code_effects != 'off': m.code_stage = max(-6, min(6, m.code_stage + d))
             if self.code_effects != 'replace': m.stage(st, d)
             return self.say(s, key, who, st, d)
         if eff in ('SLEEP', 'POISON', 'TOXIC', 'PARALYZE'):

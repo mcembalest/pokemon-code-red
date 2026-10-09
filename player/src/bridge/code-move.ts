@@ -3,7 +3,7 @@
 //   8 u32 requestId  12 u32 epoch (host stamps)  16 u16 move  18 u8 attackerSide  19 u8 attackerLevel
 //  20 u16 attackerSpecies  22 u16 targetSpecies  24 u32 attackerPersonality  28 u32 targetPersonality
 //  32 u8 targetLevel  33 u8 targetType1  34 u8 targetType2  35 u8 verdict (host: 0 vanilla, 1 hit, 2 miss)
-//  36 u32 battleTypeFlags  40 u16 trainerId (0 = wild)  42 u8 reason (host)  44 u16 waited
+//  36 u32 battleTypeFlags  40 u16 trainerId (0 = wild)  42 u8 reason (host)  43 s8 attackerStages (sum of stat stage offsets)  44 u16 waited  46 u8 trainerClass (0 = wild)
 // When a Pokémon gets to use a move the game waits (≤1800 frames) for a verdict; no host / no reply → plain FireRed.
 import type { GbaMemory } from './memory.ts'
 
@@ -21,6 +21,10 @@ export interface MoveRequest {
   id: number; epoch: number; move: number; attackerSide: 0 | 1; attackerLevel: number
   attackerSpecies: number; targetSpecies: number; attackerPersonality: number; targetPersonality: number
   targetLevel: number; targetTypes: [number, number]; battleTypeFlags: number; trainerId: number
+  /** Sum of the attacker's stat stage offsets: Growl on it -1, its own Withdraw +1 (status moves hit the code). */
+  attackerStages: number
+  /** FireRed trainer class (0 for a wild battle): the knowledge tier. */
+  trainerClass: number
 }
 
 type Memory = Pick<GbaMemory, 'ready' | 'epoch' | 'u8' | 'u16' | 'u32' | 'w8' | 'w16' | 'w32'>
@@ -49,6 +53,7 @@ export class CodeMoveMailbox {
       id: m.u32(a + 8), epoch, move: m.u16(a + 16), attackerSide: (m.u8(a + 18) & 1) as 0 | 1, attackerLevel: m.u8(a + 19),
       attackerSpecies: m.u16(a + 20), targetSpecies: m.u16(a + 22), attackerPersonality: m.u32(a + 24), targetPersonality: m.u32(a + 28),
       targetLevel: m.u8(a + 32), targetTypes: [m.u8(a + 33), m.u8(a + 34)], battleTypeFlags: m.u32(a + 36), trainerId: m.u16(a + 40),
+      attackerStages: (m.u8(a + 43) << 24) >> 24, trainerClass: m.u8(a + 46),
     }
   }
 

@@ -61,7 +61,7 @@ def code_policy(b, s, rng):
     fmts = dfn.formats()
     def value(i):
         k = att.moves[i]
-        p = sum(code_odds(b.code.p(k, att, dfn, f), att.code_stage) for f in fmts) / len(fmts) if b.code_on else 1.0
+        p = sum(code_odds(b.code.p(k, att, dfn, f), att.notch if b.code_effects != 'off' else 0) for f in fmts) / len(fmts) if b.code_on else 1.0
         return p * accuracy(att, dfn, k) * expected_damage(att, dfn, k)
     vals = {i: value(i) for i in legal}
     if max(vals.values()) <= 0:  # nothing hurts: a useful status move

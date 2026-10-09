@@ -1,10 +1,48 @@
 {
-  "note": "Move table 1: all 103 moves with the game's own prompt, 4 formats, first time vs known reader, 3 samples each; levels 5/10/15.",
+  "note": "Format table (spine): all 17 formats, 12 representative moves, first time vs known reader, 4 samples; levels 5/10/15. Which formats are hard?",
   "model": "@cf/meta/llama-3.2-3b-instruct",
-  "moves": "all",
-  "types": ["NORMAL", "WATER", "ROCK", "FIRE"],
-  "known": [false, true],
-  "samples": 3,
-  "levels": [5, 10, 15],
+  "moves": [
+    "PING",
+    "SLICE",
+    "ERRORMSG",
+    "DOWNGRADE",
+    "BURNDISC",
+    "CRAWL",
+    "BUFFER",
+    "HASH",
+    "SURGE",
+    "FILTER",
+    "SCRAMBLE",
+    "BOOTDRIVE"
+  ],
+  "types": [
+    "NORMAL",
+    "FIRE",
+    "WATER",
+    "GRASS",
+    "ELECTRIC",
+    "ICE",
+    "FIGHTING",
+    "POISON",
+    "GROUND",
+    "FLYING",
+    "PSYCHIC",
+    "BUG",
+    "ROCK",
+    "GHOST",
+    "DRAGON",
+    "DARK",
+    "STEEL"
+  ],
+  "known": [
+    false,
+    true
+  ],
+  "samples": 4,
+  "levels": [
+    5,
+    10,
+    15
+  ],
   "concurrency": 16
 }

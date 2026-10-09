@@ -200,3 +200,16 @@ Target: agents run in the browser (local models); Worker = accounts, progress, r
 - types with no format yet (ICE, GHOST, DRAGON, DARK) send a plain list
 - daily model cap raised to 1.5M tokens per player (worker var)
 - journey 11 (real model, shared rules, no aces): 0.90 overall; Brock 0.99–1.0, Misty 0.94–0.95; only dip = Cerulean rival's ABRA (first PSYCHIC) 0.65–0.70; badges change little. Without aces the gyms are not walls: owner decision needed
+
+## The spine (owner, 2026-10-08): every Pokémon is a system
+- design doc: Claude Docs "Code Red design: the whole game" (https://claude.ai/code/artifact/954c6976-4b3f-4057-935a-d81f4bc98b73); Moves tab = all 103
+- a type is a kind of system: defender face = its data format; attacker face = what its programs do (rules/FAMILIES); every move's spec belongs to its type's family
+- Water = streams (not erase): BACKUP → BUFFER, WIPEDISC → DRIP, DROPTABLE → FILTER, HEATSINK → THROTTLE; Bug format = duplicated copy; new formats: Ice snapshots, Ghost invisible string, Dragon kernel hex, Dark signed token
+- 31 specs changed (12 names); hard 0% moves simplified (TROJAN, JAMMER, SHARDS, ACID); starters' moves kept easy
+- status moves hit the code (owner): stat-stage sum → notch, capped ±2; a notch = ±0.1 temperature, ∓10% budget (rules/NOTCH); ROM reports the sum (mailbox byte 43)
+- trainers read every format; wild Pokémon none (owner: the asymmetry is the challenge)
+- comments keep counting toward the byte budget (owner); hot memory = a per-Pokémon note typed in the PokÉEG, costs bytes (to build with the cloud store)
+- prompt wording: "numbers" / `const nums` (lab 3: first-time 0.29 → 0.52, 78 Buffer hallucinations → 0); NORMAL data needs no reader line
+- PokÉEG (owner's name for now): the PC's mind view for every Pokémon owned, System 1 (decision brain) / System 2 (code brain); minds live in the cloud store, the game reaches it through the page
+- journey 12 (spine rules): 0.90 overall; Brock 0.99, Misty 0.97; the 'no code' reason rose (49–63 of 2688) → check the raw replies (move table 4 rerun)
+- 2026-10-08 evening (owner): byte budget base 300; knowledge tiers = chance a foe reads a format (wild 0, trainers 0.5, leaders/Elite Four/Champion/rival/Giovanni 1, fixed per Pokémon per battle; ROM reports the trainer class, mailbox byte 46); the model token cap is derived from the budget, not a knob; a foe = three dials: decision brain (FireRed AI now, Jaxcalibur-style checkpoints later, strength = Elo), code brain (focus/budget), knowledge (tier)

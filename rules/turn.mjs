@@ -9,8 +9,7 @@ export const WORKED = [42, 13, 140, 77]
 
 // ---------- the target's bytes ----------
 
-/** A FireRed type (as the ROM names it) → its data format. Types with no format yet (ICE, GHOST, DRAGON, DARK,
- *  the ??? type) send a plain list for now. */
+/** A FireRed type (as the ROM names it) → its data format. The ??? type (Curse) sends a plain list. */
 export const formatOf = romType => {
   const t = String(romType).trim().toUpperCase()
   return Object.hasOwn(FORMATS, t) ? t : 'NORMAL'
@@ -56,17 +55,21 @@ export function knowFor(type, { dex = [], readers = {} } = {}) {
  *   know   knowFor(...) result or null
  *   budget max characters of code
  *   tutorial  first battle: the target sends a plain list, no format
+ *   words  { data, v } : what the data is called in prose and the reader variable. Default 'numbers' / 'nums':
+ *          lab 3 (2026-10-08) measured 'bytes' / 'bytes' at 0.29 first-time hits vs 0.52, with 78 Node-Buffer hallucinations vs 0.
  */
-export function turnPrompt({ self, target, move, type, know = null, budget, tutorial = false }) {
+export const WORDS = { data: 'numbers', v: 'nums' }
+export function turnPrompt({ self, target, move, type, know = null, budget, tutorial = false, words = WORDS }) {
   const system = [`You are ${self.name}, a level ${self.level} Pokémon. You fight by writing JavaScript.`,
     `When ${self.wild ? 'you pick' : 'your trainer calls'} a move, you write the code for it, then stop.`,
     'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.'].join('\n')
   const call = self.wild ? `You use ${move.name}!` : `Your trainer says: use ${move.name}!`
-  const knowLine = k => (k.from === 'dex' ? `Pokédex: ${type} data reads like this: ${k.line}` : `You remember how you read ${type} data: ${k.line}`)
-  const formatLines = tutorial
-    ? [`- data = the foe's bytes, a list of numbers. Example: [${EXAMPLE_BYTES.join(', ')}].`]
-    : [`- data = the foe's bytes, this turn in ${type} format: ${FORMATS[type].note}. Example: ${show(example(type))} is [${EXAMPLE_BYTES.join(', ')}].`,
-      know ? `- ${knowLine(know)}` : '- First line of the function: const bytes = <read data into a list of numbers>']
+  const line = l => (words.v === 'nums' ? l : l.replace(/\bnums\b/g, words.v))
+  const knowLine = k => (k.from === 'dex' ? `Pokédex: ${type} data reads like this: ${line(k.line)}` : `You remember how you read ${type} data: ${line(k.line)}`)
+  const formatLines = tutorial || type === 'NORMAL'
+    ? [`- data = the foe's ${words.data}, already a plain list of numbers. Example: [${EXAMPLE_BYTES.join(', ')}].`]
+    : [`- data = the foe's ${words.data}, this turn in ${type} format: ${FORMATS[type].note}. Example: ${show(example(type))} is [${EXAMPLE_BYTES.join(', ')}].`,
+      know ? `- ${knowLine(know)}` : `- First line of the function: const ${words.v} = <read data into a list of numbers>`]
   const user = [`Foe: ${target.name} Lv${target.level} (${target.types.join('/')}). ${call}`, `Write the function: function ${move.fn}(data)`, ...formatLines,
     `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(WORKED)} it returns ${JSON.stringify(move.ref(WORKED))}.`,
     `- Byte budget: your whole code block must be at most ${budget} characters, comments included.`].join('\n')
@@ -88,6 +91,7 @@ export function extractCode(reply) {
   const fences = text.match(/```/g)?.length ?? 0
   if (fences === 0) return text ? { code: text, reason: null } : { code: null, reason: 'empty reply' }
   const m = text.match(/^```(?:javascript|js)?[ \t]*\n([\s\S]*?)\n?```$/)
+    ?? (fences === 1 ? text.match(/^```(?:javascript|js)?[ \t]*\n([\s\S]*)$/) : null) // the closing fence never came: the rest is the code
   if (!m) return { code: null, reason: fences > 2 ? 'more than one code block' : 'prose outside the code block' }
   if (m[1].includes('```')) return { code: null, reason: 'more than one code block' }
   return { code: m[1], reason: null }
@@ -135,11 +139,11 @@ export function missText(name, reason) {
 
 // ---------- learning ----------
 
-/** The reader line in the Pokémon's code (`const bytes = ...`), if any. */
-export const readerLine = code => code?.match(/const\s+bytes\s*=\s*[^\n;]+/)?.[0] ?? null
+/** The reader line in the Pokémon's code (`const nums = ...`; `bytes` accepted and normalized), if any. */
+export const readerLine = code => { const m = code?.match(/const\s+(nums|bytes)\s*=\s*[^\n;]+/); return m ? m[0].replace(/^const\s+bytes\b/, 'const nums') : null }
 
 /** Source that runs a reader line on the data and returns what it read. */
-export const readerSource = (line, data) => `const data = ${JSON.stringify(data)}\n${line}\nreturn bytes`
+export const readerSource = (line, data) => `const data = ${JSON.stringify(data)}\n${line.replace(/^const\s+bytes\b/, 'const nums')}\nreturn nums`
 
 /** Does the reader really read this data (run = sandbox result of readerSource)? Only verified readers are learned. */
 export const readsRight = (run, bytes) => run.ok && same(run.value, bytes)

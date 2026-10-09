@@ -37,3 +37,5 @@ jobs:
         run: |
           gh release view lab >/dev/null 2>&1 || gh release create lab --prerelease --title "Battle lab" --notes "Outputs of .github/workflows/lab.yml. Safe to delete."
           for f in models/lab-results.json models/lab-log.txt; do [ -f "$f" ] && gh release upload lab "$f" --clobber; done
+          # keep every run too (the fixed names get overwritten by the next run)
+          [ -f models/lab-results.json ] && cp models/lab-results.json "lab-results-${GITHUB_SHA::7}.json" && gh release upload lab "lab-results-${GITHUB_SHA::7}.json" --clobber || true
