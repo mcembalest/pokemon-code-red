@@ -1,5 +1,5 @@
 {
-  "note": "Payload v3b: sound any length 100-512 (the GBA loops it), FLASH a black band (one comparison), data.length named.",
+  "note": "Payload v3c: ERROR alternates every sample; FLASH one threshold (white then black); white >= 300.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": [
     "ERROR",
