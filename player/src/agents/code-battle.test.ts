@@ -238,3 +238,18 @@ test('payload move: a hit hands the bytes to the game before the reply; a miss h
   assert.equal(memory.u8(AT + 6), 0)
   assert.match(log.end.at(-1)!.detail ?? '', /at least 100|first number should be/)
 })
+
+test('doubt: your pick against its instinct shakes its code (not the move); the panel says what it wanted', async () => {
+  const g = game(), { panel, log } = fakePanel()
+  const temps: number[] = []
+  const spy: CodeWriter = { async write(p, onText) { temps.push(p.temperature); return mockWriter({ missEvery: 99, delay: instant }).write(p, onText) } }
+  const b = new CodeBattle(g.mailbox, names, spy, sandbox, panel, store(), { doubt: req => (req.move === 45 ? { notch: -2, wanted: 'SLICE' } : { notch: 0, wanted: null }) })
+  await b.poll(); g.request({ move: 10 }); await b.poll()   // SLICE: what it wanted
+  g.request({ move: 45 }); await b.poll()                     // ERROR: it doubts you
+  assert.equal(log.begin[0]!.notch, 0); assert.equal(log.begin[0]!.doubt, undefined)
+  assert.equal(log.begin[1]!.notch, -2); assert.deepEqual(log.begin[1]!.doubt, { notch: -2, wanted: 'SLICE' })
+  assert.ok(temps[1]! > temps[0]!, 'hotter writing when doubting')
+  assert.ok(log.begin[1]!.budget < log.begin[0]!.budget, 'smaller budget when doubting')
+  g.request({ move: 45, flags: 0x10 }); await b.poll()        // the tutorial battle never doubts
+  assert.equal(log.begin[2]!.doubt, undefined)
+})

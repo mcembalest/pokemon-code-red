@@ -1,7 +1,7 @@
 // The in-game PokÉEG ↔ the page (bridge/eeg.ts). The game lists the Pokémon; the page answers with each
 // one's mind, opens its note editor when the player picks "Hot memory", and keeps its own PokÉEG panel
 // on the same Pokémon as the in-game cursor while the screen is up.
-import { FORMATS, budgetAt, focusAt, partyDex, stageOf } from '../../../rules/index.mjs'
+import { FORMATS, budgetAt, focusAt, partyDex, stageOf, trust } from '../../../rules/index.mjs'
 import type { TypeName } from '../../../rules/index.mjs'
 import type { EegMailbox, EegRequest, Mind } from '../bridge/eeg.ts'
 import type { CodeMemory } from './code-battle.ts'
@@ -36,6 +36,7 @@ export function mindOf(o: { personality: number; species: number; level: number 
     history: (c.minds.recent?.(o.personality) ?? []).slice(-10).map(t => t.verdict === 'hit'),
     format: FORMATS[type]?.short ?? 'plain list',
     hot: c.minds.hot(o.personality),
+    trust: Math.round(trust(badges) * 100),
   }
 }
 

@@ -17,9 +17,9 @@ test('actionId: valid tool names from move names', () => {
 })
 
 const ME: BattleMon = { species: 4, name: 'CHARMANDER', level: 5, hp: 19, maxHp: 19, types: ['FIRE'], moves: [
-  { slot: 0, id: 10, name: 'SCRATCH', type: 'NORMAL', power: 40, accuracy: 100, pp: 35, maxPp: 35 },
-  { slot: 1, id: 45, name: 'GROWL', type: 'NORMAL', power: 0, accuracy: 100, pp: 40, maxPp: 40 },
-  { slot: 2, id: 52, name: 'EMBER', type: 'FIRE', power: 40, accuracy: 100, pp: 0, maxPp: 25 },
+  { slot: 0, id: 10, name: 'SCRATCH', type: 'NORMAL', typeId: 0, power: 40, accuracy: 100, pp: 35, maxPp: 35 },
+  { slot: 1, id: 45, name: 'GROWL', type: 'NORMAL', typeId: 0, power: 0, accuracy: 100, pp: 40, maxPp: 40 },
+  { slot: 2, id: 52, name: 'EMBER', type: 'FIRE', typeId: 10, power: 40, accuracy: 100, pp: 0, maxPp: 25 },
 ] }
 const FOE: BattleMon = { ...ME, species: 7, name: 'SQUIRTLE', hp: 12, types: ['WATER'], moves: [] }
 

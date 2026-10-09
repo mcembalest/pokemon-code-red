@@ -15,7 +15,7 @@ export type Symbols = Record<string, { address: number }>
 
 export interface BattleMon {
   species: number; name: string; level: number; hp: number; maxHp: number; types: string[]
-  moves: { slot: number; id: number; name: string; type: string; power: number; accuracy: number; pp: number; maxPp: number }[]
+  moves: { slot: number; id: number; name: string; type: string; typeId: number; power: number; accuracy: number; pp: number; maxPp: number }[]
 }
 
 // FireRed charmap (pokefirered charmap.txt), enough for names.
@@ -83,7 +83,7 @@ export class BattleReader {
       const d = this.sym('gBattleMoves') - 0x08000000 + id * MOVE_DATA
       moves.push({
         slot, id, name: this.romText('gMoveNames', id, MOVE_NAME),
-        power: this.rom[d + 1]!, type: this.romText('gTypeNames', this.rom[d + 2]!, TYPE_NAME), accuracy: this.rom[d + 3]!,
+        power: this.rom[d + 1]!, type: this.romText('gTypeNames', this.rom[d + 2]!, TYPE_NAME), typeId: this.rom[d + 2]!, accuracy: this.rom[d + 3]!,
         pp: m.u8(b + PP + slot), maxPp: this.rom[d + 4]!,
       })
     }

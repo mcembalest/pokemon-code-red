@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import {
   BADGES, FORMATS, HINTS, MOVES, budgetAt, byFireRed, byName, focusAt, judge, knowFor, learn, learnFromHit, missText,
-  partyDex, readerLine, rng, same, slotsAt, targetBytes, turnData, turnPrompt, turnType, verdict,
+  partyDex, readerLine, rng, same, slotsAt, targetBytes, turnData, turnPrompt, turnType, verdict, instinct, doubtOf, trust, combinedNotch, typeChart,
 } from '../index.mjs'
 
 // Node-only stand-in for the sandbox (the game uses the QuickJS runner, the lab uses kernel runBlock).
@@ -191,4 +191,30 @@ test('payload moves: the check judges the bytes, a hit carries them, the prompt 
   const { user } = turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: flash, type: 'NORMAL', budget: 300 })
   assert.match(user, /one short loop/)
   assert.ok(user.length < 1200, String(user.length))
+})
+
+test('doubt: disagreement is proportional to how much worse your pick is, and fades with badges', () => {
+  const slice = { id: 10, name: 'SLICE', power: 40, accuracy: 100, type: 'NORMAL' }
+  const ember = { id: 52, name: 'EMBER', power: 40, accuracy: 100, type: 'FIRE' }
+  const error = { id: 45, name: 'ERROR', power: 0, accuracy: 100, type: 'NORMAL' }
+  const moves = [slice, error, ember]
+  const vsGrass = t => (t === 'FIRE' ? 2 : 1)
+  // Charmander vs a Grass foe: Ember (40 × 2 × 1.5 STAB = 120) is its instinct; Slice scores 40.
+  assert.equal(instinct(moves, { selfTypes: ['FIRE'], effectiveness: vsGrass }), ember)
+  const d = doubtOf({ chosen: slice, moves, badges: [], selfTypes: ['FIRE'], effectiveness: vsGrass })
+  assert.ok(Math.abs(d.doubt - 2 / 3) < 1e-9); assert.equal(d.notch, -1); assert.equal(d.wanted, ember)
+  const s = doubtOf({ chosen: error, moves, badges: [], selfTypes: ['FIRE'], effectiveness: vsGrass })
+  assert.equal(s.doubt, 1); assert.equal(s.notch, -2); assert.equal(s.wanted, ember)
+  assert.equal(doubtOf({ chosen: ember, moves, badges: [], selfTypes: ['FIRE'], effectiveness: vsGrass }).notch, 0)
+  // four badges halve it; eight badges end it
+  assert.ok(Math.abs(doubtOf({ chosen: error, moves, badges: ['BOULDER', 'CASCADE', 'THUNDER', 'RAINBOW'], selfTypes: ['FIRE'], effectiveness: vsGrass }).doubt - 0.5) < 1e-9)
+  assert.equal(doubtOf({ chosen: error, moves, badges: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'], selfTypes: ['FIRE'], effectiveness: vsGrass }).notch, 0)
+  assert.equal(trust(['BOULDER', 'CASCADE']), 0.25)
+  // only status moves: nothing to disagree with
+  assert.deepEqual(doubtOf({ chosen: error, moves: [error], badges: [] }), { doubt: 0, notch: 0, wanted: null })
+  assert.equal(combinedNotch(-1, -2), -2); assert.equal(combinedNotch(1, -1), 0)
+  // the type chart reader
+  const rom = new Uint8Array([10, 12, 20, 0xFE, 0xFE, 0, 11, 10, 5, 0xFF])
+  const eff = typeChart(rom, 0)
+  assert.equal(eff(10, [12, 12]), 2); assert.equal(eff(11, [10, 3]), 0.5); assert.equal(eff(0, [1]), 1)
 })

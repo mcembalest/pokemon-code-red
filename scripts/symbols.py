@@ -26,7 +26,7 @@ WANTED = {
     'gMoveSelectionCursor': 4,
     'gBattleOutcome': 1,
     'gCodeRedMove': 48,
-    'gCodeRedEeg': 260,
+    'gCodeRedEeg': 264,
     'gCodeRedPayload': 540,
     'gTasks': 16 * 40,
     'gPokemonStoragePtr': 4,  # PC boxes (PokÉEG: every owned Pokémon)
@@ -36,6 +36,7 @@ WANTED = {
     'gMoveNames': 0,
     'gSpeciesNames': 0,
     'gTypeNames': 0,
+    'gTypeEffectiveness': 0,  # the type chart (doubt: a Pokémon's instinct scores your pick)
     'gSpeciesInfo': 0,       # types, growth rate
     'gExperienceTables': 0,  # level from experience (box Pokémon store no level)
 }
