@@ -1,44 +1,22 @@
 {
-  "note": "Format table (spine): all 17 formats, 12 representative moves, first time vs known reader, 4 samples; levels 5/10/15. Which formats are hard?",
+  "note": "Payload moves (owner 2026-10-09: bytes are the universal medium): ERROR makes a sound, FLASH a picture. Can the model write a loop that passes the shape check, first time and with a reader? 6 samples; levels 5/10/15.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": [
-    "PING",
-    "SLICE",
-    "ERRORMSG",
-    "DOWNGRADE",
-    "BURNDISC",
-    "CRAWL",
-    "BUFFER",
-    "HASH",
-    "SURGE",
-    "FILTER",
-    "SCRAMBLE",
-    "BOOTDRIVE"
+    "ERROR",
+    "FLASH"
   ],
   "types": [
     "NORMAL",
-    "FIRE",
     "WATER",
-    "GRASS",
-    "ELECTRIC",
-    "ICE",
-    "FIGHTING",
-    "POISON",
-    "GROUND",
-    "FLYING",
-    "PSYCHIC",
-    "BUG",
+    "FIRE",
     "ROCK",
-    "GHOST",
-    "DRAGON",
-    "DARK",
-    "STEEL"
+    "PSYCHIC"
   ],
   "known": [
     false,
     true
   ],
-  "samples": 4,
+  "samples": 6,
   "levels": [
     5,
     10,

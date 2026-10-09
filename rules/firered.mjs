@@ -54,6 +54,7 @@ export const FIRERED = {
   "Bind": ["Normal", "15", "75", "trap"],
   "Wrap": ["Normal", "15", "85", "trap"],
   "Growl": ["Normal", "\u2013", "100", "attack down"],
+  "Flash": ["Normal", "\u2013", "70", "accuracy down"],
   "Aurora Beam": ["Ice", "65", "100", "attack down hit"],
   "Metal Claw": ["Steel", "50", "95", "attack up hit"],
   "Ember": ["Fire", "40", "100", "burn hit"],

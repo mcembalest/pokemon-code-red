@@ -81,7 +81,9 @@ export function turnPrompt({ self, target, move, type, know = null, budget, tuto
     : [`- data = the foe's ${words.data}, this turn in ${type} format: ${FORMATS[type].note}. Example: ${show(example(type))} is [${EXAMPLE_BYTES.join(', ')}].`,
       know ? `- ${knowLine(know)}` : `- First line of the function: const ${words.v} = <read data into a list of numbers>`]
   const user = [`Foe: ${target.name} Lv${target.level} (${target.types.join('/')}). ${call}`, `Write the function: function ${move.fn}(data)`, ...formatLines,
-    `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(WORKED)} it returns ${JSON.stringify(move.ref(WORKED))}.`,
+    move.payload
+      ? `- ${move.fn} returns ${move.spec} (a list of ${move.payload.n} numbers). Make it with a loop, not by writing the numbers out. On the numbers ${JSON.stringify(WORKED)} one good answer starts ${JSON.stringify(move.ref(WORKED).slice(0, 8)).replace(/\]$/, ', …]')}.`
+      : `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(WORKED)} it returns ${JSON.stringify(move.ref(WORKED))}.`,
     ...(hot ? [`- Your notes: ${hot}`] : []),
     `- Byte budget: your whole code block must be at most ${codeBudget(budget, { know, hot })} characters, comments included${contextCost({ know, hot }) ? ` (${budget} minus the ${contextCost({ know, hot })} your memory takes)` : ''}.`].join('\n')
   return { system, user }
@@ -131,6 +133,10 @@ export function precheck(code, budget) {
 /** After running: run = { ok, value, error } from the sandbox. */
 export function verdict(move, bytes, run) {
   if (!run.ok) return { hit: false, reason: 'crashed', error: String(run.error ?? '').slice(0, 200) }
+  if (move.payload) { // bytes to play or draw: any value that passes the move's check hits, and rides along
+    const why = move.payload.check(run.value, bytes)
+    return why ? { hit: false, reason: 'wrong answer', got: clip(run.value), want: why } : { hit: true, payload: { kind: move.payload.kind, bytes: run.value } }
+  }
   const want = move.ref(bytes)
   return same(run.value, want) ? { hit: true } : { hit: false, reason: 'wrong answer', got: clip(run.value), want: clip(want) }
 }

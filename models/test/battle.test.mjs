@@ -16,13 +16,15 @@ test('every foe type: cleanup undoes its junk exactly', () => {
   assert.ok(Object.keys(TYPES).length >= 13)
 })
 
-test('103 moves: unique names and functions, ≤ 12 chars, every answer computable', () => {
-  assert.equal(MOVES.length, 103)
-  assert.equal(new Set(MOVES.map(m => m.name)).size, 103)
-  assert.equal(new Set(MOVES.map(m => m.fn)).size, 103)
+test('104 moves: unique names and functions, ≤ 12 chars, every answer computable', () => {
+  assert.equal(MOVES.length, 104)
+  assert.equal(new Set(MOVES.map(m => m.name)).size, 104)
+  assert.equal(new Set(MOVES.map(m => m.fn)).size, 104)
   for (const m of MOVES) assert.ok(m.name.length <= 12, m.name)
   const foe = { name: 'ONIX', level: 12, types: ['ROCK', 'GROUND'], status: 'none', bytes: [9, 255, 30] }
   for (const m of MOVES) for (const b of [[12, 40, 7, 33], [150, 11, 99, 64, 23, 180, 71]]) assert.doesNotThrow(() => JSON.stringify(m.ref(b, foe)), m.name)
   assert.equal(MOVES.find(m => m.name === 'SLICE').ref([1, 2, 3, 4]).join(), '1,2,3')
-  assert.equal(MOVES.find(m => m.name === 'ERROR').ref([1, 2, 3]), 'ERROR 3')
+  const error = MOVES.find(m => m.name === 'ERROR')
+  assert.equal(error.payload.kind, 'sound'); assert.equal(error.ref([1, 2, 3]).length, 400); assert.equal(error.ref([1, 2, 3])[0], 3)
+  assert.equal(error.payload.check(error.ref([1, 2, 3]), [1, 2, 3]), null)
 })
