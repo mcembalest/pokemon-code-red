@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'build/account'
 GOOD = 'RED-TEST-CODE'
 received = {'joins': [], 'events': [], 'auth': [], 'saves_get': 0, 'logins': []}
-state = {'active': True, 'tokens': {'tok-1'}}
+state = {'active': True, 'tokens': {'tok-1'}, 'recovery': 'ABCD-EFGH-JKLM'}
 
 
 class Api(BaseHTTPRequestHandler):
@@ -38,8 +38,8 @@ class Api(BaseHTTPRequestHandler):
         tok = (self.headers.get('authorization') or '').removeprefix('Bearer ')
         ok = tok in state['tokens']
         if self.path == '/v1/me':
-            active = ok and (state['active'] or tok == 'tok-2')
-            return self.reply(200 if ok else 401, {'player': {'id': 'p1', 'name': 'Misty', 'username': 'misty'}, 'active': active, 'features': {'agents': True}} if ok else {'error': 'invalid token'})
+            active = ok and (state['active'] or tok in ('tok-2', 'tok-3'))
+            return self.reply(200 if ok else 401, {'player': {'id': 'p1', 'name': 'Misty', 'username': 'misty'}, 'active': active, 'has_recovery': True, 'features': {'agents': True}} if ok else {'error': 'invalid token'})
         if self.path == '/v1/save':
             received['saves_get'] += 1
             return self.reply(200 if ok else 401, {'version': 0} if ok else {'error': 'invalid token'})
@@ -52,7 +52,13 @@ class Api(BaseHTTPRequestHandler):
                 return self.reply(403, {'error': 'invite not valid'})
             if not body.get('username') or len(body.get('password', '')) < 8:
                 return self.reply(400, {'error': 'username and password required'})
-            return self.reply(201, {'token': 'tok-1', 'player': {'id': 'p1', 'name': body['name'], 'username': body['username'].lower()}, 'active': True, 'features': {'agents': True}})
+            return self.reply(201, {'token': 'tok-1', 'player': {'id': 'p1', 'name': body['name'], 'username': body['username'].lower()}, 'active': True, 'recovery': state['recovery'], 'features': {'agents': True}})
+        if self.path == '/v1/recover':
+            received.setdefault('recovers', []).append(body)
+            if body.get('recovery', '').upper() != state['recovery'] or len(body.get('password', '')) < 8:
+                return self.reply(401, {'error': 'wrong username or recovery code'})
+            state['tokens'] = {'tok-3'}; state['recovery'] = 'NEWC-ODEX-XXXX'
+            return self.reply(200, {'token': 'tok-3', 'player': {'id': 'p1', 'name': 'Misty', 'username': 'misty'}, 'active': True, 'recovery': state['recovery'], 'features': {'agents': True}})
         if self.path == '/v1/login':
             received['logins'].append(body)
             if body.get('password') != 'starmie-123':
@@ -100,7 +106,14 @@ def main():
         page.wait_for_selector('[data-error]:not([hidden])', timeout=10000)
         assert 'not valid' in page.text_content('[data-error]')
         page.fill('[data-invite]', GOOD.lower()); page.click('[data-join] button')
+        # The recovery code is shown once, and the game waits until it is acknowledged.
+        page.wait_for_selector('[data-recovery]:not([hidden])', timeout=15000)
+        assert page.text_content('[data-recovery-code]') == 'ABCD-EFGH-JKLM'
+        assert page.locator('[data-open]').is_hidden()
+        page.screenshot(path=str(OUT / 'recovery.png'))
+        page.click('[data-recovery-ok]')
         page.wait_for_selector('[data-open]:not([hidden])', timeout=15000)
+        assert page.locator('[data-recovery]').is_hidden()
         assert page.locator('[data-join]').is_hidden()
         assert 'invite=' not in page.url, page.url
         assert 'Misty' in page.text_content('[data-who]')
@@ -163,12 +176,24 @@ def main():
         page.fill('[data-login-username]', 'misty'); page.fill('[data-login-password]', 'wrong-password'); page.click('[data-login] button')
         page.wait_for_selector('[data-error]:not([hidden])', timeout=10000)
         assert 'Wrong username' in page.text_content('[data-error]')
-        page.fill('[data-login-password]', 'starmie-123'); page.click('[data-login] button')
-        page.wait_for_selector('[data-login]', state='hidden', timeout=10000)
+        # Forgot the password: the recovery code resets it, signs this device in, and shows a fresh code.
+        page.click('[data-to-recover]')
+        page.wait_for_selector('[data-recover]:not([hidden])', timeout=5000)
+        page.fill('[data-recover-username]', 'misty'); page.fill('[data-recover-code]', 'wrong-code-0000'); page.fill('[data-recover-password]', 'starmie-456'); page.click('[data-recover] button')
+        page.wait_for_selector('[data-error]:not([hidden])', timeout=10000)
+        assert 'recovery code' in page.text_content('[data-error]')
+        page.fill('[data-recover-code]', 'abcd-efgh-jklm'); page.click('[data-recover] button')
+        page.wait_for_selector('[data-recovery]:not([hidden])', timeout=10000)
+        assert page.text_content('[data-recovery-code]') == 'NEWC-ODEX-XXXX'
+        page.click('[data-recovery-ok]')
+        page.wait_for_selector('[data-recover]', state='hidden', timeout=10000)
         assert page.locator('[data-signedout]').is_hidden()
         page.wait_for_function('window.EJS_emulator?.paused === false', timeout=15000)
-        assert len(received['logins']) == 2
-        print('takeover + login ok', flush=True)
+        assert len(received['logins']) == 1 and len(received['recovers']) == 2
+        assert received['recovers'][-1]['password'] == 'starmie-456'
+        assert page.evaluate('JSON.parse(localStorage.getItem("code-red-session")).token') == 'tok-3'
+        assert 'recovery' not in page.evaluate('localStorage.getItem("code-red-session")')  # never stored on the page
+        print('takeover + recovery ok', flush=True)
         browser.close()
     api.shutdown()
     if errors:

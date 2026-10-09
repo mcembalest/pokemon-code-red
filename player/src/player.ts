@@ -74,8 +74,35 @@ const TEMPLATE = `
     <label>Username <input data-login-username required autocomplete="username" autocapitalize="off" spellcheck="false" /></label>
     <label>Password <input data-login-password type="password" required autocomplete="current-password" /></label>
     <button class="code-red-button" type="submit">Log in</button>
-    <p class="code-red-muted">New here? <a href="#" data-to-join>Join with an invite</a>.</p>
+    <p class="code-red-muted">New here? <a href="#" data-to-join>Join with an invite</a>. Forgot your password? <a href="#" data-to-recover>Use your recovery code</a>.</p>
   </form>
+  <form class="code-red-join" data-recover hidden>
+    <p>Reset your password with the recovery code you got when you joined. Every other device is signed out.</p>
+    <label>Username <input data-recover-username required autocomplete="username" autocapitalize="off" spellcheck="false" /></label>
+    <label>Recovery code <input data-recover-code required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX" /></label>
+    <label>New password <input data-recover-password type="password" required minlength="8" autocomplete="new-password" /></label>
+    <button class="code-red-button" type="submit">Reset password</button>
+    <p class="code-red-muted"><a href="#" data-to-login-2>Back to log in</a></p>
+  </form>
+  <div class="code-red-recovery" data-recovery hidden>
+    <p><b>Your recovery code</b> — the only way back in if you forget your password. Write it down somewhere safe; it is shown once.</p>
+    <p class="code-red-recovery-code" data-recovery-code></p>
+    <button class="code-red-button" data-recovery-ok type="button">I wrote it down</button>
+  </div>
+  <div class="code-red-account" data-account hidden>
+    <form data-change-password>
+      <p><b>Change password</b> <span class="code-red-muted">(other devices are signed out)</span></p>
+      <label>Current password <input data-cp-current type="password" required autocomplete="current-password" /></label>
+      <label>New password <input data-cp-new type="password" required minlength="8" autocomplete="new-password" /></label>
+      <button class="code-red-button" type="submit">Change</button>
+    </form>
+    <form data-new-recovery>
+      <p><b>New recovery code</b> <span class="code-red-muted">(replaces the old one)</span></p>
+      <label>Password <input data-nr-current type="password" required autocomplete="current-password" /></label>
+      <button class="code-red-button" type="submit">Show a new code</button>
+    </form>
+    <p class="code-red-muted"><a href="#" data-account-close>Close</a></p>
+  </div>
   <div class="code-red-signedout" data-signedout hidden>
     <p>You logged in on another device, so this one is paused. Your save is in the cloud.</p>
     <button class="code-red-button" data-play-here type="button">Play here instead</button>
@@ -87,7 +114,7 @@ const TEMPLATE = `
   </div>
   <p class="code-red-status" data-status role="status" aria-live="polite">Loading…</p>
   <p class="code-red-error" data-error role="alert" hidden></p>
-  <p class="code-red-muted code-red-help"><span data-who hidden></span>PC → Code opens a JavaScript scratchpad. Type names on naming screens. Tap 10× to speed up (or hold Space on a keyboard). Saving in the game saves to your account: log in on another device to pick up where you left off.</p>
+  <p class="code-red-muted code-red-help"><span data-who hidden><span data-who-name></span> · <a href="#" data-account-open>Account</a> · </span>PC → Code opens a JavaScript scratchpad. Type names on naming screens. Tap 10× to speed up (or hold Space on a keyboard). Saving in the game saves to your account: log in on another device to pick up where you left off.</p>
   <div class="code-red-stage" data-stage>
     <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>
   </div>
@@ -119,6 +146,10 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   let fastForward = false
   const joinForm = root.querySelector<HTMLFormElement>('[data-join]')!
   const loginForm = root.querySelector<HTMLFormElement>('[data-login]')!
+  const recoverForm = root.querySelector<HTMLFormElement>('[data-recover]')!
+  const recoveryCard = root.querySelector<HTMLElement>('[data-recovery]')!
+  const accountPanel = root.querySelector<HTMLElement>('[data-account]')!
+  const accountOpen = root.querySelector<HTMLAnchorElement>('[data-account-open]')!
   const signedOut = root.querySelector<HTMLElement>('[data-signedout]')!
   const who = root.querySelector<HTMLElement>('[data-who]')!
   const api = options.api === false ? null : options.api || DEFAULT_API
@@ -163,8 +194,40 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   const showWho = () => {
     const name = backend?.session?.player.name
     who.hidden = !name
-    who.textContent = name ? `Playing as ${name}. ` : ''
+    who.querySelector<HTMLElement>('[data-who-name]')!.textContent = name ? `Playing as ${name}` : ''
   }
+
+  /** Show a recovery code once; resolves when the person says they wrote it down. */
+  function showRecovery(code: string): Promise<void> {
+    recoveryCard.querySelector<HTMLElement>('[data-recovery-code]')!.textContent = code
+    recoveryCard.hidden = false
+    const button = recoveryCard.querySelector<HTMLButtonElement>('[data-recovery-ok]')!
+    button.focus({ preventScroll: true })
+    return new Promise(resolve => { button.onclick = () => { recoveryCard.hidden = true; recoveryCard.querySelector<HTMLElement>('[data-recovery-code]')!.textContent = ''; button.onclick = null; resolve() } })
+  }
+
+  // Account panel: change password, new recovery code (asks for the password each time).
+  accountOpen.onclick = event => { event.preventDefault(); accountPanel.hidden = !accountPanel.hidden; error.hidden = true }
+  accountPanel.querySelector<HTMLAnchorElement>('[data-account-close]')!.onclick = event => { event.preventDefault(); accountPanel.hidden = true }
+  const accountForm = (form: HTMLFormElement, action: () => Promise<void>) => {
+    form.onsubmit = async event => {
+      event.preventDefault()
+      const button = form.querySelector<HTMLButtonElement>('button')!
+      button.disabled = true; error.hidden = true
+      try { await action(); form.reset() }
+      catch (problem) { fail(problem instanceof Error ? problem.message : 'Something went wrong.') }
+      finally { button.disabled = false }
+    }
+  }
+  accountForm(accountPanel.querySelector<HTMLFormElement>('[data-change-password]')!, async () => {
+    await backend!.changePassword(accountPanel.querySelector<HTMLInputElement>('[data-cp-current]')!.value, accountPanel.querySelector<HTMLInputElement>('[data-cp-new]')!.value)
+    say('Password changed.')
+  })
+  accountForm(accountPanel.querySelector<HTMLFormElement>('[data-new-recovery]')!, async () => {
+    const code = await backend!.newRecovery(accountPanel.querySelector<HTMLInputElement>('[data-nr-current]')!.value)
+    accountPanel.hidden = true
+    await showRecovery(code)
+  })
 
   /** Resolves once there is an account (or no backend). Shows the invite form if needed. */
   function account(): Promise<void> {
@@ -172,7 +235,11 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     if (backend.session) {
       showWho()
       // Token revoked? Offer the form again without interrupting play. Another device active? Pause here.
-      void backend.check().then(state => { if (state === 'invalid') void signIn('join'); else if (state === 'inactive') setActive(false) })
+      void backend.check().then(state => {
+        if (state === 'invalid') void signIn('join')
+        else if (state === 'inactive') setActive(false)
+        else if (state === 'ok' && backend.session?.hasRecovery === false) say('Your account has no recovery code yet: Account → New recovery code.')
+      })
       return Promise.resolve()
     }
     return signIn('join')
@@ -199,28 +266,32 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     })
   }
 
-  /** Join (invite + new account) or log in; the two forms link to each other. Resolves once signed in. */
-  function signIn(which: 'join' | 'login'): Promise<void> {
+  /** Join (invite + new account), log in, or reset with a recovery code; the forms link to each other. Resolves once signed in. */
+  function signIn(which: 'join' | 'login' | 'recover'): Promise<void> {
     const invite = joinForm.querySelector<HTMLInputElement>('[data-invite]')!
     const name = joinForm.querySelector<HTMLInputElement>('[data-name]')!
     const fromLink = new URLSearchParams(location.search).get('invite')
     if (fromLink && !invite.value) invite.value = fromLink
     who.hidden = true
     say('')
-    const show = (form: 'join' | 'login') => {
+    const show = (form: 'join' | 'login' | 'recover') => {
       joinForm.hidden = form !== 'join'
       loginForm.hidden = form !== 'login'
+      recoverForm.hidden = form !== 'recover'
       error.hidden = true
-      const first = form === 'join' ? (invite.value ? name : invite) : loginForm.querySelector<HTMLInputElement>('[data-login-username]')!
+      const first = form === 'join' ? (invite.value ? name : invite) : form === 'login' ? loginForm.querySelector<HTMLInputElement>('[data-login-username]')! : recoverForm.querySelector<HTMLInputElement>('[data-recover-username]')!
       first.focus({ preventScroll: true })
     }
     show(which)
     joinForm.querySelector<HTMLAnchorElement>('[data-to-login]')!.onclick = event => { event.preventDefault(); show('login') }
     loginForm.querySelector<HTMLAnchorElement>('[data-to-join]')!.onclick = event => { event.preventDefault(); show('join') }
+    loginForm.querySelector<HTMLAnchorElement>('[data-to-recover]')!.onclick = event => { event.preventDefault(); show('recover') }
+    recoverForm.querySelector<HTMLAnchorElement>('[data-to-login-2]')!.onclick = event => { event.preventDefault(); show('login') }
     return new Promise(resolve => {
-      const done = () => {
-        joinForm.hidden = loginForm.hidden = true
-        joinForm.onsubmit = loginForm.onsubmit = null
+      const done = async (recovery?: string) => {
+        joinForm.hidden = loginForm.hidden = recoverForm.hidden = true
+        joinForm.onsubmit = loginForm.onsubmit = recoverForm.onsubmit = null
+        if (recovery) await showRecovery(recovery)
         if (fromLink) {
           const url = new URL(location.href); url.searchParams.delete('invite')
           history.replaceState(history.state, '', url)
@@ -229,12 +300,12 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
         say('Loading…')
         resolve()
       }
-      const submit = (form: HTMLFormElement, action: () => Promise<unknown>, fallback: string) => async (event: Event) => {
+      const submit = (form: HTMLFormElement, action: () => Promise<{ recovery?: string }>, fallback: string) => async (event: Event) => {
         event.preventDefault()
         const button = form.querySelector<HTMLButtonElement>('button')!
         button.disabled = true
         error.hidden = true
-        try { await action(); done() }
+        try { const { recovery } = await action(); await done(recovery) }
         catch (problem) { fail(problem instanceof Error ? problem.message : fallback) }
         finally { button.disabled = false }
       }
@@ -242,6 +313,8 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
         joinForm.querySelector<HTMLInputElement>('[data-username]')!.value, joinForm.querySelector<HTMLInputElement>('[data-password]')!.value), 'Could not join.')
       loginForm.onsubmit = submit(loginForm, () => backend!.login(
         loginForm.querySelector<HTMLInputElement>('[data-login-username]')!.value, loginForm.querySelector<HTMLInputElement>('[data-login-password]')!.value), 'Could not log in.')
+      recoverForm.onsubmit = submit(recoverForm, () => backend!.recover(
+        recoverForm.querySelector<HTMLInputElement>('[data-recover-username]')!.value, recoverForm.querySelector<HTMLInputElement>('[data-recover-code]')!.value, recoverForm.querySelector<HTMLInputElement>('[data-recover-password]')!.value), 'Could not reset the password.')
     })
   }
 
