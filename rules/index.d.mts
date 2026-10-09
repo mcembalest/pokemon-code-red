@@ -3,10 +3,15 @@
 export type TypeName = 'NORMAL' | 'FLYING' | 'WATER' | 'GRASS' | 'ROCK' | 'ELECTRIC' | 'GROUND' | 'FIRE' | 'POISON' | 'BUG' | 'PSYCHIC' | 'FIGHTING' | 'STEEL' | 'ICE' | 'GHOST' | 'DRAGON' | 'DARK'
 export type Answer = number | string | unknown[] | undefined
 
+export type PayloadKind = 'sound' | 'image'
+/** A move that makes bytes (a sound, a picture) instead of answering: check() returns null for a hit or why it missed. */
+export interface Payload { kind: PayloadKind; n: number; check(value: unknown, bytes: number[]): string | null; ref(bytes: number[]): number[] }
+export const PAYLOAD: Record<PayloadKind, Payload>
 export interface Move {
   firered: string; name: string; fn: string; spec: string; shape: 'a number' | 'a list' | 'text' | 'no key' | 'null'
   ref(bytes: number[]): Answer
   type: string; power: string; acc: string; effect: string; starter: boolean; kept: boolean
+  payload?: Payload
 }
 export const MOVES: Move[]
 export const byName: Record<string, Move>
@@ -49,7 +54,7 @@ export interface Know { from: 'dex' | 'memory'; line: string }
 export interface RunResult { ok: boolean; value?: unknown; error?: string }
 export type RunSource = (source: string) => Promise<RunResult>
 export type MissReason = 'no code' | 'over budget' | 'crashed' | 'wrong answer'
-export interface Verdict { hit: boolean; reason?: MissReason; error?: string; got?: string; want?: string }
+export interface Verdict { hit: boolean; reason?: MissReason; error?: string; got?: string; want?: string; payload?: { kind: PayloadKind; bytes: number[] } }
 
 export const WORKED: number[]
 export function rng(seed: number): () => number

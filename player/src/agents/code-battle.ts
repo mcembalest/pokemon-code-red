@@ -33,6 +33,8 @@ export interface TurnInfo {
   memoryCost: number
   /** -2..2: how shaken (negative) or steadied the writer's code brain is this turn (status moves hit the code). */
   notch: number
+  /** The move makes bytes the game will play or draw instead of answering. */
+  makes?: PayloadKind
 }
 export interface TurnResult { verdict: Verdict; reason?: MissReason; text: string; detail?: string }
 export interface Panel {
@@ -135,7 +137,7 @@ export class CodeBattle {
     const memoryCost = contextCost({ know, hot })
     const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, know, budget, tutorial, hot })
 
-    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch, memoryCost })
+    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}) })
     let text: string | null = null, tries = 0
     while (text === null && tries < 2) {
       tries++
@@ -157,7 +159,7 @@ export class CodeBattle {
     }
     const verdict: Verdict = v.hit ? 'hit' : 'miss'
     const reason = v.reason as MissReason | undefined
-    const made = (v as { payload?: { kind: PayloadKind; bytes: number[] } }).payload
+    const made = v.payload
     if (v.hit && made) this.options.payload?.deliver(made.kind, made.bytes) // before the reply: the game plays it as it takes the hit
     await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s code hit!` : missText(attacker, reason ?? 'crashed'), ...(v.got ? { detail: `returned ${v.got}, needed ${v.want}` } : v.error ? { detail: v.error } : {}) })
     this.mailbox.reply(req, verdict, reason ?? 'crashed')

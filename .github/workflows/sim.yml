@@ -55,3 +55,6 @@ jobs:
       - name: PokÉEG screen (bedroom PC; no host, mock host, note edit round trip)
         if: matrix.seed == 0
         run: python3 sim/experiments/pokeeg.py
+      - name: Payload moves (ERROR's buzz plays, FLASH's picture draws, the battle goes on)
+        if: matrix.seed == 0
+        run: python3 sim/experiments/payload.py

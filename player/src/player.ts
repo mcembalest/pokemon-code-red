@@ -461,9 +461,12 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       }
     }
     const payloadSym = rom.symbols.gCodeRedPayload
+    const payloadBox = payloadSym ? new PayloadMailbox(memory, payloadSym.address) : null
+    // Dev / tests: window.CodeRed.payload('sound'|'image', bytes) hands the game bytes to play on the next code hit.
+    ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, payload: (kind: 'sound' | 'image', bytes: number[]) => payloadBox?.deliver(kind, bytes) ?? false, payloadsPlayed: () => payloadBox?.played() ?? 0 }
     const battle = new CodeBattle(new CodeMoveMailbox(memory, sym.address), reader, writer, runner, panel, minds, {
       badges,
-      ...(payloadSym ? { payload: new PayloadMailbox(memory, payloadSym.address) } : {}),
+      ...(payloadBox ? { payload: payloadBox } : {}),
       onTurn: t => backend?.track('code_move', { ...t, code: t.code?.slice(0, 300) }),
     })
     let inBattle = false
