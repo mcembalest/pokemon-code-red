@@ -164,3 +164,14 @@ test('knowledge tiers: wild none, trainers about half (fixed per Pokémon), boss
   assert.ok(Math.abs(share - KNOWLEDGE.trainer) < 0.08, `about half: ${share}`)
   assert.equal(tokenCapFor(350), 260)
 })
+
+test('one context budget: the reader and hot memory are charged against the budget', async () => {
+  const { codeBudget, contextCost } = await import('../index.mjs')
+  const know = knowFor('ROCK', { dex: ['ROCK'] })
+  assert.equal(contextCost({ know, hot: 'be brief' }), HINTS.ROCK.length + 8)
+  assert.equal(codeBudget(350, { know, hot: 'be brief' }), 350 - HINTS.ROCK.length - 8)
+  const p = turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['ROCK'] }, move: byName.SLICE, type: 'ROCK', know, budget: 350, hot: 'be brief' })
+  assert.match(p.user, /- Your notes: be brief/)
+  assert.match(p.user, new RegExp(`at most ${350 - HINTS.ROCK.length - 8} characters, comments included \\(350 minus the ${HINTS.ROCK.length + 8} your memory takes\\)`))
+  assert.deepEqual(Object.keys(learn({ A: '1', B: '2', C: '3' }, 'D', '4')), ['A', 'B', 'C', 'D'], 'no slot cap')
+})

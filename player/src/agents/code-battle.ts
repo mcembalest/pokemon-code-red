@@ -6,8 +6,8 @@
 //   memory: each Pokémon keeps its own readers; the Pokédex (types seen in past battles + badge readers) is shared
 //   model or network failure: retry once, then plain FireRed (accuracy roll)
 import {
-  BADGES, FORMATS, GROWTH, HINTS, budgetAt, byFireRed, byName, extractCode, focusAt, foeDex, formatOf, judge, knowFor, learnFromHit, missText, notchOf, partyDex,
-  rng, slotsAt, stageOf, targetBytes, tierOf, tokenCapFor, turnData, turnPrompt, turnType,
+  BADGES, FORMATS, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, foeDex, formatOf, judge, knowFor, learnFromHit, missText, notchOf, partyDex,
+  rng, stageOf, targetBytes, tierOf, tokenCapFor, turnData, turnPrompt, turnType,
   type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
@@ -28,6 +28,8 @@ export interface Sandbox { run(source: string, inputJSON: string): Promise<RunRe
 export interface TurnInfo {
   side: 0 | 1; attacker: string; target: string; move: string; spec: string; fn: string
   type: TypeName; tutorial: boolean; know: Know['from'] | null; budget: number; wild: boolean
+  /** Bytes the memory it carries this turn takes out of the budget (the reader + hot memory). */
+  memoryCost: number
   /** -2..2: how shaken (negative) or steadied the writer's code brain is this turn (status moves hit the code). */
   notch: number
 }
@@ -43,6 +45,9 @@ export interface Panel {
 export interface CodeMemory {
   readers(personality: number): Readers
   setReaders(personality: number, readers: Readers): void
+  /** Hot memory: the note the trainer typed for this Pokémon (goes into every prompt, costs bytes). */
+  hot(personality: number): string
+  setHot(personality: number, text: string): void
   /** Types the party has battled (Pokédex readers). */
   seen(): string[]
   addSeen(types: string[]): void
@@ -108,11 +113,13 @@ export class CodeBattle {
     const readers = side === 0 ? this.memory.readers(req.attackerPersonality) : {}
     const dex = side === 0 ? partyDex({ seen: this.memory.seen(), badges }) : foeDex(tierOf(req.trainerClass, wild), req.attackerPersonality, Object.keys(FORMATS))
     const know = tutorial ? null : knowFor(type, { dex, readers })
+    const hot = side === 0 ? this.memory.hot(req.attackerPersonality).trim() : ''
     const notch = notchOf(req.attackerStages)
     const budget = budgetAt(req.attackerLevel, { stage, badges, notch })
-    const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, know, budget, tutorial })
+    const memoryCost = contextCost({ know, hot })
+    const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, know, budget, tutorial, hot })
 
-    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch })
+    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch, memoryCost })
     let text: string | null = null, tries = 0
     while (text === null && tries < 2) {
       tries++
@@ -127,9 +134,9 @@ export class CodeBattle {
     }
     const { code } = extractCode(text)
     const runSource = (source: string) => this.sandbox.run(source, '{}')
-    const v: Judged = await judge({ move, bytes, data, code, budget, runSource })
+    const v: Judged = await judge({ move, bytes, data, code, budget: codeBudget(budget, { know, hot }), runSource })
     if (v.hit && side === 0 && !tutorial && code) {
-      const next = await learnFromHit({ readers, type, code, data, bytes, slots: slotsAt(req.attackerLevel, { stage }), dex, runSource })
+      const next = await learnFromHit({ readers, type, code, data, bytes, dex, runSource })
       if (next !== readers) this.memory.setReaders(req.attackerPersonality, next)
     }
     const verdict: Verdict = v.hit ? 'hit' : 'miss'
@@ -142,14 +149,16 @@ export class CodeBattle {
 
 /** Code memory in the page's local storage (per browser; moves with cloud saves later). */
 export function localCodeMemory(storage: Pick<Storage, 'getItem' | 'setItem'> | null, key = 'code-red-code-memory-v1'): CodeMemory {
-  type State = { mons: Record<string, Readers>; seen: string[] }
-  let state: State = { mons: {}, seen: [] }
+  type State = { mons: Record<string, Readers>; hot: Record<string, string>; seen: string[] }
+  let state: State = { mons: {}, hot: {}, seen: [] }
   try { const raw = storage?.getItem(key); if (raw) state = { ...state, ...JSON.parse(raw) as Partial<State> } } catch { /* fresh */ }
   const save = () => { try { storage?.setItem(key, JSON.stringify(state)) } catch { /* in memory only */ } }
   const add = (list: string[], more: string[]) => { for (const t of more) if (!list.includes(t)) list.push(t); save() }
   return {
     readers: pid => ({ ...(state.mons[String(pid)] ?? {}) }),
     setReaders: (pid, readers) => { state.mons[String(pid)] = readers; save() },
+    hot: pid => state.hot[String(pid)] ?? '',
+    setHot: (pid, text) => { state.hot[String(pid)] = text; save() },
     seen: () => [...state.seen],
     addSeen: types => add(state.seen, types),
   }

@@ -22,7 +22,8 @@ const describe = (i: TurnInfo) => {
   const data = i.tutorial ? 'a plain list' : `${i.type} data`
   const knows = i.know === 'dex' ? ' · Pokédex reader' : i.know === 'memory' ? ' · remembers this type' : ''
   const mood = i.notch < 0 ? ` · shaken ${i.notch}` : i.notch > 0 ? ` · steady +${i.notch}` : ''
-  return { who, line: `${i.move} → ${data}${knows}${mood} · ≤${i.budget} chars` }
+  const room = i.memoryCost ? `≤${i.budget - i.memoryCost} chars (${i.budget} − ${i.memoryCost} memory)` : `≤${i.budget} chars`
+  return { who, line: `${i.move} → ${data}${knows}${mood} · ${room}` }
 }
 
 export function createCodePanel(host: HTMLElement, options: { fast?: () => boolean; now?: () => number; wait?: (ms: number) => Promise<void> } = {}): CodePanel {

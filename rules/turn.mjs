@@ -59,7 +59,17 @@ export function knowFor(type, { dex = [], readers = {} } = {}) {
  *          lab 3 (2026-10-08) measured 'bytes' / 'bytes' at 0.29 first-time hits vs 0.52, with 78 Node-Buffer hallucinations vs 0.
  */
 export const WORDS = { data: 'numbers', v: 'nums' }
-export function turnPrompt({ self, target, move, type, know = null, budget, tutorial = false, words = WORDS }) {
+/**
+ * One context budget (owner, 2026-10-08): everything a Pokémon carries into the prompt beyond the move costs bytes.
+ * The reader it uses this turn (learned or Pokédex) and its hot memory (notes the trainer typed) are charged
+ * against the byte budget; the code must fit in what's left. Memory slots are gone: a Pokémon may remember any
+ * number of readers, each costs only when used.
+ */
+export const contextCost = ({ know = null, hot = '' } = {}) => (know ? know.line.length : 0) + (hot ? hot.length : 0)
+/** The budget left for the code itself. */
+export const codeBudget = (budget, ctx) => Math.max(40, budget - contextCost(ctx))
+
+export function turnPrompt({ self, target, move, type, know = null, budget, tutorial = false, words = WORDS, hot = '' }) {
   const system = [`You are ${self.name}, a level ${self.level} Pokémon. You fight by writing JavaScript.`,
     `When ${self.wild ? 'you pick' : 'your trainer calls'} a move, you write the code for it, then stop.`,
     'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.'].join('\n')
@@ -72,7 +82,8 @@ export function turnPrompt({ self, target, move, type, know = null, budget, tuto
       know ? `- ${knowLine(know)}` : `- First line of the function: const ${words.v} = <read data into a list of numbers>`]
   const user = [`Foe: ${target.name} Lv${target.level} (${target.types.join('/')}). ${call}`, `Write the function: function ${move.fn}(data)`, ...formatLines,
     `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(WORKED)} it returns ${JSON.stringify(move.ref(WORKED))}.`,
-    `- Byte budget: your whole code block must be at most ${budget} characters, comments included.`].join('\n')
+    ...(hot ? [`- Your notes: ${hot}`] : []),
+    `- Byte budget: your whole code block must be at most ${codeBudget(budget, { know, hot })} characters, comments included${contextCost({ know, hot }) ? ` (${budget} minus the ${contextCost({ know, hot })} your memory takes)` : ''}.`].join('\n')
   return { system, user }
 }
 
@@ -148,15 +159,15 @@ export const readerSource = (line, data) => `const data = ${JSON.stringify(data)
 /** Does the reader really read this data (run = sandbox result of readerSource)? Only verified readers are learned. */
 export const readsRight = (run, bytes) => run.ok && same(run.value, bytes)
 
-/** Remember a verified reader for a type: most recent last; the oldest is forgotten beyond `slots`. Returns new readers. */
-export function learn(readers, type, line, slots) {
+/** Remember a verified reader for a type: most recent last. `slots` (optional) caps how many are kept; the game passes none. */
+export function learn(readers, type, line, slots = Infinity) {
   const entries = Object.entries(readers).filter(([t]) => t !== type)
   entries.push([type, line])
   return Object.fromEntries(entries.slice(Math.max(0, entries.length - slots)))
 }
 
 /** Learn from a hit, if the hit's reader checks out. Pokédex types are not memorized. Returns new readers. */
-export async function learnFromHit({ readers, type, code, data, bytes, slots, dex = [], runSource }) {
+export async function learnFromHit({ readers, type, code, data, bytes, slots = Infinity, dex = [], runSource }) {
   const line = readerLine(code)
   if (!line || dex.includes(type)) return readers
   return readsRight(await runSource(readerSource(line, data)), bytes) ? learn(readers, type, line, slots) : readers

@@ -285,7 +285,10 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
         ? readSnapshot(memory, { saveBlock1Ptr: s.gSaveBlock1Ptr.address, saveBlock2Ptr: s.gSaveBlock2Ptr.address, partyCount: s.gPlayerPartyCount.address, party: s.gPlayerParty.address }) : null
       return snap ? badgeNames.filter((_, i) => snap.badges >> i & 1) : []
     }
-    const battle = new CodeBattle(new CodeMoveMailbox(memory, sym.address), reader, writer, runner, panel, localCodeMemory(safeStorage()), {
+    const minds = localCodeMemory(safeStorage())
+    // Until the PokÉEG exists: window.CodeRed.setHot(personality, text) pins hot memory for a Pokémon (dev / testing).
+    ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, setHot: (pid: number, text: string) => minds.setHot(pid, text), hot: (pid: number) => minds.hot(pid), readers: (pid: number) => minds.readers(pid) }
+    const battle = new CodeBattle(new CodeMoveMailbox(memory, sym.address), reader, writer, runner, panel, minds, {
       badges,
       onTurn: t => backend?.track('code_move', { ...t, code: t.code?.slice(0, 300) }),
     })

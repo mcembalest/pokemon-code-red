@@ -59,8 +59,10 @@ export function knowFor(type: TypeName, opts?: { dex?: string[]; readers?: Reade
 export function turnPrompt(args: {
   self: { name: string; level: number; wild?: boolean }
   target: { name: string; level: number; types: string[] }
-  move: Move; type: TypeName; know?: Know | null; budget: number; tutorial?: boolean
+  move: Move; type: TypeName; know?: Know | null; budget: number; tutorial?: boolean; words?: { data: string; v: string }; hot?: string
 }): { system: string; user: string }
+export function contextCost(ctx?: { know?: Know | null; hot?: string }): number
+export function codeBudget(budget: number, ctx?: { know?: Know | null; hot?: string }): number
 export function turnData(bytes: number[], type: TypeName, tutorial?: boolean): unknown
 export function definedName(code: string, fn: string): string
 export function answerSource(code: string, move: Move, data: unknown): string
@@ -71,8 +73,8 @@ export function missText(name: string, reason: MissReason | string): string
 export function readerLine(code: string | null | undefined): string | null
 export function readerSource(line: string, data: unknown): string
 export function readsRight(run: RunResult, bytes: number[]): boolean
-export function learn(readers: Readers, type: TypeName, line: string, slots: number): Readers
-export function learnFromHit(args: { readers: Readers; type: TypeName; code: string | null; data: unknown; bytes: number[]; slots: number; dex?: string[]; runSource: RunSource }): Promise<Readers>
+export function learn(readers: Readers, type: TypeName, line: string, slots?: number): Readers
+export function learnFromHit(args: { readers: Readers; type: TypeName; code: string | null; data: unknown; bytes: number[]; slots?: number; dex?: string[]; runSource: RunSource }): Promise<Readers>
 export function same(a: unknown, b: unknown): boolean
 export function extractCode(reply: string | null | undefined): { code: string | null; reason: string | null }
 export function formatOf(romType: string): TypeName
