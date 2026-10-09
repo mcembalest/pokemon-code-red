@@ -18,7 +18,11 @@ import { NamingMailbox } from './bridge/naming.ts'
 import { Backend, DEFAULT_API, localSessionStore } from './backend.ts'
 import { CloudSync, localSyncMark } from './cloud.ts'
 import { OwnedReader } from './agents/owned.ts'
-import { createPokeeg } from './agents/pokeeg.ts'
+import { createHotEditor, createPokeeg } from './agents/pokeeg.ts'
+import { EegMailbox } from './bridge/eeg.ts'
+import { EegLink } from './agents/eeg-link.ts'
+import { budgetAt, formatOf, stageOf } from '../../rules/index.mjs'
+import type { TypeName } from '../../rules/index.mjs'
 import { ProgressWatcher, readSnapshot } from './progress.ts'
 import { Agent } from './agents/agent.ts'
 import { CloudBrain, MockBrain, ReplayBrain } from './agents/brains.ts'
@@ -346,17 +350,41 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, setHot: (pid: number, text: string) => minds.setHot(pid, text), hot: (pid: number) => minds.hot(pid), readers: (pid: number) => minds.readers(pid), owned: () => owned?.all() ?? null }
     // The PokÉEG: every owned Pokémon's mind (party + boxes), from the toolbar.
     const owned = romBytes && OwnedReader.supported(rom.symbols) ? new OwnedReader(memory, romBytes, rom.symbols) : null
+    let eegLink: EegLink | null = null
     if (owned) {
       const eeg = createPokeeg(eegHost, { owned: () => { try { return memory.ready() ? owned.all() : null } catch { return null } }, minds, badges, onHot: (pid, text) => backend?.track('hot_memory', { pid, chars: text.length }) })
+      const showEeg = (on: boolean) => {
+        eeg.setVisible(on)
+        eegButton.setAttribute('aria-pressed', String(on))
+        eegButton.classList.toggle('code-red-speed-on', on)
+        if (on) eeg.element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
       eegButton.hidden = false
       eegButton.onpointerdown = event => event.preventDefault()
-      eegButton.onclick = () => {
-        eeg.setVisible(!eeg.visible)
-        eegButton.setAttribute('aria-pressed', String(eeg.visible))
-        eegButton.classList.toggle('code-red-speed-on', eeg.visible)
-        if (eeg.visible) eeg.element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-      }
+      eegButton.onclick = () => showEeg(!eeg.visible)
       disposers.push(() => { eeg.dispose(); eegButton.hidden = true; eegButton.onclick = eegButton.onpointerdown = null })
+      // The in-game PokÉEG (patches/008): the game lists the Pokémon and asks here for each mind; the panel follows its cursor.
+      const eegSym = rom.symbols.gCodeRedEeg
+      if (eegSym) {
+        const ejs = emulator.EJS_emulator!
+        const editor = createHotEditor(game, {
+          pause: () => { consoleActive = true; resumeConsole = !ejs.paused; ejs.pause(true) },
+          resume,
+          budget: pid => { const m = owned.all().find(x => x.personality === pid); return m ? budgetAt(m.level, { stage: stageOf(m.name), badges: badges() }) : null },
+        })
+        let openedByGame = false
+        eegLink = new EegLink({
+          mailbox: new EegMailbox(memory, eegSym.address), minds, badges,
+          speciesName: id => reader.speciesName(id),
+          typeOf: id => formatOf(owned.typesOf(id)[0]!) as TypeName,
+          editor: (pid, name, current, signal) => editor.edit(pid, name, current, signal),
+          follow: pid => {
+            if (pid) { if (!eeg.visible) { openedByGame = true; showEeg(true) } eeg.select(pid) }
+            else if (openedByGame) { openedByGame = false; showEeg(false) }
+          },
+        })
+        disposers.push(() => editor.element.remove())
+      }
     }
     const battle = new CodeBattle(new CodeMoveMailbox(memory, sym.address), reader, writer, runner, panel, minds, {
       badges,
@@ -366,6 +394,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     const poll = setInterval(() => {
       if (!memory.ready()) return
       void battle.poll()
+      eegLink?.poll()
       let now = false
       try { now = reader.inBattle() } catch { /* memory not ready */ }
       if (inBattle && !now) battle.battleOver()

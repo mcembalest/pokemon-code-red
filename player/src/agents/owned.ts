@@ -49,6 +49,11 @@ export class OwnedReader {
     return decodeText(this.rom.subarray(i, i + size))
   }
   typeName(id: number): string { return this.romText('gTypeNames', id, TYPE_NAME) }
+  /** A species' type names (one when both slots match). */
+  typesOf(species: number): string[] {
+    const t1 = this.romU8(this.at.gSpeciesInfo! + species * SPECIES_INFO + SI_TYPE1), t2 = this.romU8(this.at.gSpeciesInfo! + species * SPECIES_INFO + SI_TYPE2)
+    return t1 === t2 ? [this.typeName(t1)] : [this.typeName(t1), this.typeName(t2)]
+  }
 
   /** Level for an experience total under the species' growth rate (the box stores no level). */
   levelFor(species: number, experience: number): number {
@@ -72,8 +77,7 @@ export class OwnedReader {
     if (!species) return null
     const nick = new Uint8Array(NICKNAME_LEN)
     for (let i = 0; i < NICKNAME_LEN; i++) nick[i] = m.u8(base + NICKNAME + i)
-    const t1 = this.romU8(this.at.gSpeciesInfo! + species * SPECIES_INFO + SI_TYPE1), t2 = this.romU8(this.at.gSpeciesInfo! + species * SPECIES_INFO + SI_TYPE2)
-    const types = t1 === t2 ? [this.typeName(t1)] : [this.typeName(t1), this.typeName(t2)]
+    const types = this.typesOf(species)
     return { where, box, slot, personality, species, name: this.romText('gSpeciesNames', species, SPECIES_NAME), nickname: decodeText(nick), level: partyLevel ?? this.levelFor(species, w1), types }
   }
 
