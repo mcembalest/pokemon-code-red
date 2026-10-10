@@ -1,4 +1,4 @@
 {
- "seed": 2,
- "note": "Run 3: seed 2; D1 id resolved like the deploy job."
+ "seed": 3,
+ "note": "Run 4: after the live stream fix (#32); payload moves on the live route."
 }
