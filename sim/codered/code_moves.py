@@ -34,7 +34,8 @@ class CodeMoveHost:
         return {'id': g.u32(a + 8), 'move': g.u16(a + 16), 'side': g.u8(a + 18), 'level': g.u8(a + 19),
                 'attacker': g.u16(a + 20), 'target': g.u16(a + 22), 'attacker_pid': g.u32(a + 24), 'target_pid': g.u32(a + 28),
                 'target_level': g.u8(a + 32), 'target_types': (g.u8(a + 33), g.u8(a + 34)),
-                'battle_flags': g.u32(a + 36), 'trainer': g.u16(a + 40), 'stages': (g.u8(a + 43) ^ 0x80) - 0x80, 'class': g.u8(a + 46), 'frame': g.frame}
+                'battle_flags': g.u32(a + 36), 'trainer': g.u16(a + 40), 'stages': (g.u8(a + 43) ^ 0x80) - 0x80, 'class': g.u8(a + 46),
+                'called_slot': g.u8(a + 47), 'frame': g.frame}
 
     def service(self) -> None:
         """Call every frame."""
