@@ -1,1 +1,4 @@
-{ "seed": 1, "note": "Run 2: seed 1; leader states saved; invite errors visible." }
+{
+ "seed": 2,
+ "note": "Run 3: seed 2; D1 id resolved like the deploy job."
+}
