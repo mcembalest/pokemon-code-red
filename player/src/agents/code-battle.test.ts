@@ -231,7 +231,7 @@ test('payload move: a hit hands the bytes to the game before the reply; a miss h
   const turns: TurnRecord[] = []
   await b.poll(); g.request({ move: 45 }); await b.poll() // GROWL = ERROR: the mock writes the buzz
   assert.equal(g.reply().verdict, 1)
-  assert.equal(memory.u8(AT + 6), 1); assert.equal(memory.u16(AT + 8), 400)
+  assert.equal(memory.u8(AT + 6), 1); assert.equal(memory.u16(AT + 8), 399) // the count (first number) is checked, not played
   assert.equal(turns[0]!.payload, 'sound')
   memory.w8(AT + 6, 0) // the game played it
   g.request({ move: 45 }); await b.poll() // the mock's every-2nd mistake: 399 samples → wrong shape → miss, nothing delivered
