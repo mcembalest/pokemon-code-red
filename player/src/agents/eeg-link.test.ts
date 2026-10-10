@@ -6,9 +6,10 @@ import { decodeText } from './battle.ts'
 import { localCodeMemory } from './code-battle.ts'
 import { EegLink, mindOf } from './eeg-link.ts'
 
-const AT = 0x02020000
+const PTR = 0x02010000, AT = 0x02020000 // the symbol (a pointer) and the heap struct it points at
 function game() {
-  const memory = new GbaMemory(fakeCore()), mailbox = new EegMailbox(memory, AT)
+  const memory = new GbaMemory(fakeCore()), mailbox = new EegMailbox(memory, PTR)
+  memory.w32(PTR, AT)
   let id = 0
   // What the ROM does in Eeg_Ask (patches/008-pokeeg.patch).
   const ask = (op: 1 | 2, o: { pid?: number; species?: number; level?: number } = {}) => {

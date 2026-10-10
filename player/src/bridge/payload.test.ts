@@ -21,8 +21,10 @@ test('packSound: unsigned around 128 → signed 8-bit, clipped to 512 samples', 
 })
 
 test('mailbox: deliver publishes kind last; played counts what the game took', () => {
-  const memory = new GbaMemory(fakeCore()), AT = 0x02021000
-  const box = new PayloadMailbox(memory, AT)
+  const memory = new GbaMemory(fakeCore()), PTR = 0x02010000, AT = 0x02021000
+  const box = new PayloadMailbox(memory, PTR)
+  assert.equal(box.deliver('sound', [4]), false) // no battle: the pointer is 0, nothing to deliver to
+  memory.w32(PTR, AT) // the battle allocated its mailbox
   assert.ok(box.deliver('sound', [4, ...new Array(399).fill(230)]))
   assert.equal(memory.u32(AT), PAYLOAD_MAGIC); assert.equal(memory.u16(AT + 4), 1); assert.equal(memory.u8(AT + 6), 1); assert.equal(memory.u16(AT + 8), 400)
   assert.equal((memory.u8(AT + 28) << 24) >> 24, 4 - 128)

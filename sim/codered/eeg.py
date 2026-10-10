@@ -1,4 +1,5 @@
-"""Host side of the PokÉEG mailbox (patches/008-pokeeg.patch, struct CodeRedEeg, 260 B (v2)) for the simulator.
+"""Host side of the PokÉEG mailbox (patches/008-pokeeg.patch, struct CodeRedEeg, 264 B (v3)) for the simulator.
+The symbol gCodeRedEeg is a pointer: the game allocates the struct on its heap while the screen is open (0 when closed).
 
   0 u32 magic 'CRE1'  4 u16 version  6 u8 state (0 idle, 1 request, 2 reply, 4 cancelled)  7 u8 op (1 mind, 2 edit hot)
   8 u32 requestId  12 u32 epoch  16 u32 personality  20 u16 species  22 u8 level  23 u8 open
@@ -45,17 +46,22 @@ def wrap(text: str, width: int = 30) -> str:
 class EegHost:
     def __init__(self, g, mind, delay: int = 2):
         self.g, self.mind, self.delay = g, mind, delay
-        self.a = g.sym('gCodeRedEeg')
+        self.ptr = g.sym('gCodeRedEeg')
         self.requests: list[dict] = []
         self.hot_reply: str | None = None
         self._pending = None
+
+    @property
+    def a(self) -> int:
+        a = self.g.u32(self.ptr)
+        return a if 0x02000000 <= a < 0x02040000 else 0
 
     def enable(self) -> None:
         pass  # the game publishes requests whether or not a host is there
 
     def request(self) -> dict | None:
         g, a = self.g, self.a
-        if g.u32(a) != MAGIC or g.u8(a + 6) != 1:
+        if not a or g.u32(a) != MAGIC or g.u8(a + 6) != 1:
             return None
         return {'id': g.u32(a + 8), 'op': g.u8(a + 7), 'personality': g.u32(a + 16), 'species': g.u16(a + 20), 'level': g.u8(a + 22), 'frame': g.frame}
 

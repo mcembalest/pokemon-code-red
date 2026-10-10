@@ -224,8 +224,9 @@ test('a long note can push correct code over budget: that is the trade-off', asy
 
 test('payload move: a hit hands the bytes to the game before the reply; a miss hands nothing', async () => {
   const g = game(), { panel, log } = fakePanel()
-  const memory = g.memory, AT = 0x02021000
-  const payload = new PayloadMailbox(memory, AT)
+  const memory = g.memory, PTR = 0x02010000, AT = 0x02021000
+  memory.w32(PTR, AT) // the symbol points at the battle's heap mailbox
+  const payload = new PayloadMailbox(memory, PTR)
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 2, delay: instant }), sandbox, panel, store(), { payload, onTurn: r => turns.push(r) })
   const turns: TurnRecord[] = []
   await b.poll(); g.request({ move: 45 }); await b.poll() // GROWL = ERROR: the mock writes the buzz

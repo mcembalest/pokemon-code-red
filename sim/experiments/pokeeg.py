@@ -32,7 +32,13 @@ def open_eeg(g: World) -> bool:
     g.run(120)  # "RED booted up the PC."
     g.press('A'); g.run(90)  # "What would you like to do?" + the top menu
     g.press('DOWN', after=8); g.press('DOWN', after=8); g.press('A')
-    return g.run_until(lambda: g.u8(g.sym('gCodeRedEeg') + 0x17) == 1, limit=900)  # open flag
+    return g.run_until(lambda: eeg_at(g) and g.u8(eeg_at(g) + 0x17) == 1, limit=900)  # open flag
+
+
+def eeg_at(g: World) -> int:
+    """gCodeRedEeg is a pointer to the heap struct (0 while the screen is closed)."""
+    a = g.u32(g.sym('gCodeRedEeg'))
+    return a if 0x02000000 <= a < 0x02040000 else 0
 
 
 def main():
@@ -48,11 +54,12 @@ def main():
     assert open_eeg(g), 'PokÉEG did not open'
     g.run(400)
     g.screenshot(SHOTS / 'pokeeg-nohost.png')
-    eeg = g.sym('gCodeRedEeg')
+    eeg = eeg_at(g)
+    assert eeg, 'the screen holds no mailbox'
     results['nohost'] = {'species': g.u16(eeg + 0x14), 'level': g.u8(eeg + 0x16), 'state': g.u8(eeg + 6)}
     assert results['nohost']['species'] == 4 and results['nohost']['state'] == 0, results  # CHARMANDER, request timed out and cleared
     g.press('B'); g.run(120)
-    assert g.u8(eeg + 0x17) == 0, 'open flag must clear on exit'
+    assert eeg_at(g) == 0, 'the mailbox must be freed (pointer 0) on exit'
 
     # 2. Mock host answers like the page will.
     g.load_state(at_pc)

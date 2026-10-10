@@ -2,15 +2,16 @@ Code Red: the PokÉEG in the game (owner, 2026-10-09). A PC screen listing every
 the player owns (party, then the boxes) and, for the one under the cursor, a look inside
 its mind: its type's system, readers learned, Pokédex readers, byte budget, focus, the
 last ten turns (hit/miss) and its hot memory. The game asks the page through a mailbox
-(struct CodeRedEeg, 164 B) one Pokémon at a time; hot memory is typed on the page.
+(struct CodeRedEeg, 264 B, heap-allocated while the screen is open; the static symbol gCodeRedEeg
+is a pointer to it, NULL when closed) one Pokémon at a time; hot memory is typed on the page.
 Menu entries live in patch 003 (PC menu, bedroom PC); this patch is the screen itself.
 No host → the mind lines say so; the list still works.
 diff --git a/src/code_red_eeg.c b/src/code_red_eeg.c
 new file mode 100644
-index 00000000..76250313
+index 00000000..89e0fc6a
 --- /dev/null
 +++ b/src/code_red_eeg.c
-@@ -0,0 +1,687 @@
+@@ -0,0 +1,696 @@
 +// Code Red: the PokÉEG, in the game (owner, 2026-10-09). From the PC: every Pokémon the player
 +// owns (party, then the boxes), and for the one under the cursor a look inside its mind.
 +// The game knows the Pokémon; the page knows the mind (readers, hot memory, code history live in the
@@ -42,7 +43,9 @@ index 00000000..76250313
 +#include "constants/field_weather.h"
 +#include "constants/songs.h"
 +
-+// Fixed 164-byte transport. Host writes the reply fields; the game writes the request fields.
++// Fixed 264-byte transport, heap-allocated while the screen is open (EWRAM has ~1 KB of static
++// headroom; the heap has 112 KB). The static symbol is the pointer: NULL = closed. Host writes the
++// reply fields; the game writes the request fields.
 +struct CodeRedEeg {
 +    /*0x00*/ u32 magic;        // 'CRE1'
 +    /*0x04*/ u16 version;      // 1
@@ -69,7 +72,7 @@ index 00000000..76250313
 +    /*0x105*/ u8 pad2[3];
 +};
 +STATIC_ASSERT(sizeof(struct CodeRedEeg) == 264, CodeRedEegSize);
-+EWRAM_DATA volatile struct CodeRedEeg gCodeRedEeg = {0};
++EWRAM_DATA volatile struct CodeRedEeg *gCodeRedEeg = NULL;
 +static EWRAM_DATA u32 sEegRequestId = 0;
 +
 +#define EEG_MAGIC 0x31455243
@@ -204,16 +207,16 @@ index 00000000..76250313
 +
 +static void Eeg_Ask(u8 op, const struct EegEntry *e)
 +{
-+    gCodeRedEeg.state = 0;
-+    gCodeRedEeg.magic = EEG_MAGIC;
-+    gCodeRedEeg.version = 3;
-+    gCodeRedEeg.op = op;
-+    gCodeRedEeg.requestId = ++sEegRequestId;
-+    gCodeRedEeg.personality = e->personality;
-+    gCodeRedEeg.species = e->species;
-+    gCodeRedEeg.level = e->level;
-+    gCodeRedEeg.open = 1;
-+    gCodeRedEeg.state = 1; // publish last
++    gCodeRedEeg->state = 0;
++    gCodeRedEeg->magic = EEG_MAGIC;
++    gCodeRedEeg->version = 3;
++    gCodeRedEeg->op = op;
++    gCodeRedEeg->requestId = ++sEegRequestId;
++    gCodeRedEeg->personality = e->personality;
++    gCodeRedEeg->species = e->species;
++    gCodeRedEeg->level = e->level;
++    gCodeRedEeg->open = 1;
++    gCodeRedEeg->state = 1; // publish last
 +    sEeg->waited = 0;
 +}
 +
@@ -266,35 +269,35 @@ index 00000000..76250313
 +    switch (sEeg->tab)
 +    {
 +    case TAB_SYSTEM: // FIRE system \n Data arrives as: write log
-+        s = StringCopy(gStringVar4, gTypeNames[gSpeciesInfo[gCodeRedEeg.species].types[0]]);
++        s = StringCopy(gStringVar4, gTypeNames[gSpeciesInfo[gCodeRedEeg->species].types[0]]);
 +        s = StringAppend(s, sText_System);
 +        *s++ = CHAR_NEWLINE;
 +        s = StringCopy(s, sText_Arrives);
-+        Eeg_AppendOr(s, gCodeRedEeg.format, sText_NoneYet, 23);
++        Eeg_AppendOr(s, gCodeRedEeg->format, sText_NoneYet, 23);
 +        break;
 +    case TAB_READERS: // Learned: Water, Rock \n Pokédex: Normal, Rock, Ground
 +        s = StringCopy(gStringVar4, sText_Learned);
-+        s = Eeg_AppendOr(s, gCodeRedEeg.readersText, sText_NoneYet, 47);
++        s = Eeg_AppendOr(s, gCodeRedEeg->readersText, sText_NoneYet, 47);
 +        *s++ = CHAR_NEWLINE;
 +        s = StringCopy(s, sText_Dex);
-+        Eeg_AppendOr(s, gCodeRedEeg.dexText, sText_NoneYet, 47);
++        Eeg_AppendOr(s, gCodeRedEeg->dexText, sText_NoneYet, 47);
 +        break;
 +    case TAB_CODE: // Budget: 350 bytes a turn \n Last 5 turns: 4 hit, 1 miss
 +        s = StringCopy(gStringVar4, sText_Budget);
-+        s = ConvertIntToDecimalStringN(s, gCodeRedEeg.budget, STR_CONV_MODE_LEFT_ALIGN, 4);
++        s = ConvertIntToDecimalStringN(s, gCodeRedEeg->budget, STR_CONV_MODE_LEFT_ALIGN, 4);
 +        s = StringAppend(s, sText_BytesATurn);
 +        *s++ = CHAR_NEWLINE;
-+        if (gCodeRedEeg.nHistory == 0)
++        if (gCodeRedEeg->nHistory == 0)
 +            StringCopy(s, sText_NoCode);
 +        else
 +        {
-+            for (i = 0; i < gCodeRedEeg.nHistory && i < 10; i++) hits += gCodeRedEeg.history[i] ? 1 : 0;
++            for (i = 0; i < gCodeRedEeg->nHistory && i < 10; i++) hits += gCodeRedEeg->history[i] ? 1 : 0;
 +            s = StringCopy(s, sText_LastTurns);
-+            s = ConvertIntToDecimalStringN(s, gCodeRedEeg.nHistory, STR_CONV_MODE_LEFT_ALIGN, 2);
++            s = ConvertIntToDecimalStringN(s, gCodeRedEeg->nHistory, STR_CONV_MODE_LEFT_ALIGN, 2);
 +            s = StringAppend(s, sText_Turns);
 +            s = ConvertIntToDecimalStringN(s, hits, STR_CONV_MODE_LEFT_ALIGN, 2);
 +            s = StringAppend(s, sText_HitN);
-+            s = ConvertIntToDecimalStringN(s, gCodeRedEeg.nHistory - hits, STR_CONV_MODE_LEFT_ALIGN, 2);
++            s = ConvertIntToDecimalStringN(s, gCodeRedEeg->nHistory - hits, STR_CONV_MODE_LEFT_ALIGN, 2);
 +            StringAppend(s, sText_MissN);
 +        }
 +        break;
@@ -302,15 +305,15 @@ index 00000000..76250313
 +        s = StringCopy(gStringVar4, sText_Instinct);
 +        *s++ = CHAR_NEWLINE;
 +        s = StringCopy(s, sText_Trusts);
-+        s = ConvertIntToDecimalStringN(s, gCodeRedEeg.trust > 100 ? 100 : gCodeRedEeg.trust, STR_CONV_MODE_LEFT_ALIGN, 3);
++        s = ConvertIntToDecimalStringN(s, gCodeRedEeg->trust > 100 ? 100 : gCodeRedEeg->trust, STR_CONV_MODE_LEFT_ALIGN, 3);
 +        StringCopy(s, sText_Percent);
 +        break;
 +    default: // the note itself (the page wraps it onto two lines), or how to write one
-+        if (gCodeRedEeg.hot[0] == EOS)
++        if (gCodeRedEeg->hot[0] == EOS)
 +            StringCopy(gStringVar4, sText_NoNote);
 +        else
 +        {
-+            s = Eeg_CopyText(gStringVar4, gCodeRedEeg.hot, 99);
++            s = Eeg_CopyText(gStringVar4, gCodeRedEeg->hot, 99);
 +            for (i = 0; gStringVar4[i] != EOS; i++)
 +                if (gStringVar4[i] == CHAR_NEWLINE) break;
 +            if (gStringVar4[i] == EOS) // a one-line note leaves room for the hint
@@ -324,19 +327,19 @@ index 00000000..76250313
 +
 +static void Eeg_PollMind(void)
 +{
-+    if (sEeg->shownId == gCodeRedEeg.requestId || gCodeRedEeg.op != 1)
++    if (sEeg->shownId == gCodeRedEeg->requestId || gCodeRedEeg->op != 1)
 +        return;
-+    if (gCodeRedEeg.state == 2)
++    if (gCodeRedEeg->state == 2)
 +    {
-+        sEeg->shownId = gCodeRedEeg.requestId;
-+        gCodeRedEeg.state = 0;
++        sEeg->shownId = gCodeRedEeg->requestId;
++        gCodeRedEeg->state = 0;
 +        sEeg->haveMind = TRUE;
 +        Eeg_PrintMind();
 +    }
-+    else if (gCodeRedEeg.state == 1 && ++sEeg->waited == EEG_WAIT_FRAMES)
++    else if (gCodeRedEeg->state == 1 && ++sEeg->waited == EEG_WAIT_FRAMES)
 +    {
-+        sEeg->shownId = gCodeRedEeg.requestId;
-+        gCodeRedEeg.state = 0;
++        sEeg->shownId = gCodeRedEeg->requestId;
++        gCodeRedEeg->state = 0;
 +        sEeg->haveMind = FALSE;
 +        Eeg_PrintMind();
 +    }
@@ -374,7 +377,7 @@ index 00000000..76250313
 +    sEeg->haveMind = FALSE;
 +    if (index == LIST_CANCEL)
 +    {
-+        gCodeRedEeg.personality = 0;
++        gCodeRedEeg->personality = 0;
 +        Eeg_PrintBody(sText_ExitDesc);
 +    }
 +    else
@@ -427,8 +430,10 @@ index 00000000..76250313
 +static void Eeg_Init(MainCallback callback)
 +{
 +    sEeg = Alloc(sizeof(struct EegState));
-+    if (sEeg == NULL) { SetMainCallback2(callback); return; }
++    gCodeRedEeg = Alloc(sizeof(struct CodeRedEeg));
++    if (sEeg == NULL || gCodeRedEeg == NULL) { Eeg_Free(); SetMainCallback2(callback); return; }
 +    memset(sEeg, 0, sizeof(*sEeg));
++    memset((void *)gCodeRedEeg, 0, sizeof(*gCodeRedEeg));
 +    sEeg->savedCallback = callback;
 +    sEeg->arrows = 0xFF;
 +    sEeg->shownId = 0xFFFFFFFF;
@@ -581,8 +586,13 @@ index 00000000..76250313
 +
 +static void Eeg_Free(void)
 +{
-+    gCodeRedEeg.open = 0;
-+    gCodeRedEeg.state = 0;
++    if (gCodeRedEeg != NULL)
++    {
++        gCodeRedEeg->open = 0;
++        gCodeRedEeg->state = 0;
++        Free((void *)gCodeRedEeg);
++        gCodeRedEeg = NULL;
++    }
 +    if (sEeg != NULL)
 +    {
 +        if (sEeg->entries) Free(sEeg->entries);
@@ -604,7 +614,7 @@ index 00000000..76250313
 +    Eeg_PollMind();
 +    if (gPaletteFade.active)
 +        return;
-+    if (JOY_NEW(DPAD_LEFT | DPAD_RIGHT | L_BUTTON | R_BUTTON) && gCodeRedEeg.personality != 0)
++    if (JOY_NEW(DPAD_LEFT | DPAD_RIGHT | L_BUTTON | R_BUTTON) && gCodeRedEeg->personality != 0)
 +    {
 +        PlaySE(SE_SELECT);
 +        sEeg->tab = (sEeg->tab + (JOY_NEW(DPAD_RIGHT | R_BUTTON) ? 1 : TAB_COUNT - 1)) % TAB_COUNT;
@@ -647,14 +657,14 @@ index 00000000..76250313
 +    bool8 done = FALSE;
 +    if (JOY_NEW(B_BUTTON))
 +    {
-+        gCodeRedEeg.state = 4;
++        gCodeRedEeg->state = 4;
 +        done = TRUE;
 +    }
-+    else if (gCodeRedEeg.state == 2 || gCodeRedEeg.state == 4 || ++sEeg->waited >= EEG_EDIT_FRAMES)
++    else if (gCodeRedEeg->state == 2 || gCodeRedEeg->state == 4 || ++sEeg->waited >= EEG_EDIT_FRAMES)
 +        done = TRUE;
 +    if (!done)
 +        return;
-+    gCodeRedEeg.state = 0;
++    gCodeRedEeg->state = 0;
 +    PlaySE(SE_SELECT);
 +    // Show the mind again, with whatever note the page kept.
 +    sEeg->shownId = 0xFFFFFFFF;

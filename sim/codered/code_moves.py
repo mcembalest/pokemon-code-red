@@ -88,17 +88,24 @@ def pack_sound(samples: list[int]) -> bytes:
 
 
 class PayloadHost:
-    """Writes a move's bytes into gCodeRedPayload before the hit is reported; `played()` says the game took them."""
+    """Writes a move's bytes into the payload mailbox before the hit is reported; `played()` says the game took them.
+    gCodeRedPayload is a pointer to the heap struct the battle allocated (0 outside battle)."""
     def __init__(self, g):
-        self.g, self.a = g, g.sym('gCodeRedPayload')
+        self.g, self.ptr = g, g.sym('gCodeRedPayload')
+
+    @property
+    def a(self) -> int:
+        a = self.g.u32(self.ptr)
+        return a if 0x02000000 <= a < 0x02040000 else 0
 
     def deliver(self, kind: str, data: list[int]) -> None:
         g, a = self.g, self.a
+        assert a, 'no battle holds a payload mailbox'
         packed = pack_image(data) if kind == 'image' else pack_sound(data)
         g.w8(a + 6, 0)
         g.w32(a, PAYLOAD_MAGIC); g.w16(a + 4, 1); g.w16(a + 8, len(packed))
         g.write(a + 28, packed)
         g.w8(a + 6, PAYLOAD_KIND[kind])
 
-    def kind(self) -> int: return self.g.u8(self.a + 6)
-    def played(self) -> int: return self.g.u16(self.a + 10) if self.g.u32(self.a) == PAYLOAD_MAGIC else 0
+    def kind(self) -> int: return self.g.u8(self.a + 6) if self.a else 0
+    def played(self) -> int: return self.g.u16(self.a + 10) if self.a and self.g.u32(self.a) == PAYLOAD_MAGIC else 0

@@ -1,19 +1,48 @@
 Code Red: payload moves (owner, 2026-10-09: bytes are the universal medium). A move may make bytes
 instead of answering: ERROR makes a sound, FLASH a picture. The page judges the bytes and, on a hit,
-drops them into gCodeRedPayload (540 B: header + 16-byte wave header + 512 bytes) already in GBA form
-(signed 8 kHz samples / 4bpp tiles); when the battle takes the hit, the GBA plays the sound through the
-cry player or draws a 32×32 16-grey sprite over the target. The hook lives in patch 006
-(CodeRedMoveContinue → CodeRedPayloadShow). EWRAM is ~120 bytes from full after this.
+drops them into the payload mailbox (540 B: header + 16-byte wave header + 512 bytes) already in GBA
+form (signed 8 kHz samples / 4bpp tiles); when the battle takes the hit, the GBA plays the sound through
+the cry player or draws a 32×32 16-grey sprite over the target. The hook lives in patch 006
+(CodeRedMoveContinue → CodeRedPayloadShow). The mailbox is heap-allocated for the battle's duration
+(AllocateBattleResources / FreeBattleResources); the static symbol gCodeRedPayload is a pointer to it,
+NULL outside battle, so hosts read the pointer first.
+diff --git a/src/battle_util2.c b/src/battle_util2.c
+index 8a5fbccf..359f7eb3 100644
+--- a/src/battle_util2.c
++++ b/src/battle_util2.c
+@@ -6,8 +6,12 @@
+ #include "pokemon.h"
+ #include "trainer_tower.h"
+ 
++void CodeRedPayloadAlloc(void); // Code Red: the payload mailbox lives for the battle (src/code_red_payload.c)
++void CodeRedPayloadFree(void);
++
+ void AllocateBattleResources(void)
+ {
++    CodeRedPayloadAlloc();
+     if (gBattleTypeFlags & BATTLE_TYPE_TRAINER_TOWER)
+         InitTrainerTowerBattleStruct();
+     if (gBattleTypeFlags & BATTLE_TYPE_POKEDUDE)
+@@ -42,6 +46,7 @@ void AllocateBattleResources(void)
+ 
+ void FreeBattleResources(void)
+ {
++    CodeRedPayloadFree();
+     if (gBattleTypeFlags & BATTLE_TYPE_TRAINER_TOWER)
+         FreeTrainerTowerBattleStruct();
+     if (gBattleTypeFlags & BATTLE_TYPE_POKEDUDE)
 diff --git a/src/code_red_payload.c b/src/code_red_payload.c
 new file mode 100644
-index 00000000..624c889d
+index 00000000..c17cac50
 --- /dev/null
 +++ b/src/code_red_payload.c
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,146 @@
 +// Code Red: payload moves (owner, 2026-10-09: bytes are the universal medium). Some moves make bytes instead of
 +// answering — ERROR makes a sound, FLASH a picture. The page judges the bytes and, on a hit, drops them here before
 +// it replies; when the battle takes the hit (CodeRedMoveContinue) the GBA plays or draws them.
-+// EWRAM is nearly full (FireRed leaves ~700 B), so the page delivers bytes already in GBA form into one 512-byte buffer:
++// EWRAM's static area is nearly full (FireRed leaves ~1 KB), so the buffer lives on the heap for the battle's duration
++// (allocated with the battle's resources, freed with them; the static symbol gCodeRedPayload is the pointer, NULL
++// outside battle) and the page delivers bytes already in GBA form into one 512-byte buffer:
 +//   sound: up to 512 signed 8-bit samples at 8 kHz, looped as a cry-player tone for SOUND_FRAMES frames
 +//   image: 16 4bpp tiles (a 32×32 sprite, 16 grey shades), drawn over the target for IMAGE_FRAMES frames
 +#include "global.h"
@@ -51,7 +80,7 @@ index 00000000..624c889d
 +    /*0x1C*/ u8 data[PAYLOAD_BYTES];
 +};
 +STATIC_ASSERT(sizeof(struct CodeRedPayload) == 28 + PAYLOAD_BYTES, CodeRedPayloadSize);
-+EWRAM_DATA volatile struct CodeRedPayload gCodeRedPayload = {0};
++EWRAM_DATA volatile struct CodeRedPayload *gCodeRedPayload = NULL;
 +static EWRAM_DATA struct ToneData sTone = {0};
 +
 +static const struct OamData sOam = {
@@ -64,9 +93,28 @@ index 00000000..624c889d
 +    .anims = gDummySpriteAnimTable, .images = NULL, .affineAnims = gDummySpriteAffineAnimTable, .callback = SpriteCB_Payload,
 +};
 +
++// With the battle's resources (AllocateBattleResources / FreeBattleResources, battle_util2.c).
++void CodeRedPayloadAlloc(void)
++{
++    if (gCodeRedPayload != NULL) return;
++    gCodeRedPayload = Alloc(sizeof(struct CodeRedPayload));
++    if (gCodeRedPayload == NULL) return;
++    memset((void *)gCodeRedPayload, 0, sizeof(struct CodeRedPayload));
++    gCodeRedPayload->magic = PAYLOAD_MAGIC;
++    gCodeRedPayload->version = 1;
++}
++
++void CodeRedPayloadFree(void)
++{
++    if (gCodeRedPayload == NULL) return;
++    gCodeRedPayload->magic = 0;
++    Free((void *)gCodeRedPayload);
++    gCodeRedPayload = NULL;
++}
++
 +static void PlaySoundPayload(u16 length)
 +{
-+    volatile struct CodeRedPayload *p = &gCodeRedPayload;
++    volatile struct CodeRedPayload *p = gCodeRedPayload;
 +    if (length < 32) return;
 +    p->waveType = 0;
 +    p->waveStatus = 0x4000; // loop while the note is held
@@ -100,7 +148,7 @@ index 00000000..624c889d
 +{
 +    u16 i;
 +    u16 palette[16];
-+    struct SpriteSheet sheet = { (const u8 *)gCodeRedPayload.data, PAYLOAD_BYTES, PAYLOAD_TAG };
++    struct SpriteSheet sheet = { (const u8 *)gCodeRedPayload->data, PAYLOAD_BYTES, PAYLOAD_TAG };
 +    struct SpritePalette pal = { palette, PAYLOAD_TAG };
 +    s16 sx, sy;
 +    if (length < PAYLOAD_BYTES) return;
@@ -121,9 +169,9 @@ index 00000000..624c889d
 +// Called when the battle takes a code-move hit: play/draw whatever the host dropped off, once.
 +void CodeRedPayloadShow(void)
 +{
-+    volatile struct CodeRedPayload *p = &gCodeRedPayload;
++    volatile struct CodeRedPayload *p = gCodeRedPayload;
 +    u8 kind;
-+    if (p->magic != PAYLOAD_MAGIC || p->version != 1)
++    if (p == NULL || p->magic != PAYLOAD_MAGIC || p->version != 1)
 +        return;
 +    kind = p->kind;
 +    p->kind = PAYLOAD_NONE;

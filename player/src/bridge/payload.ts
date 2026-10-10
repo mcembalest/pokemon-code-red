@@ -1,12 +1,19 @@
 // Payload mailbox (ROM: patches/009-payload.patch, struct CodeRedPayload, 540 B). A move that made bytes (a sound,
 // a picture) hands them to the game here, already in GBA form, before the hit is reported; the game plays or draws
-// them when it takes the hit and clears `kind`.
+// them when it takes the hit and clears `kind`. The symbol gCodeRedPayload is a pointer: the game allocates the
+// struct on its heap for the battle's duration and the pointer is 0 outside battle (nothing to deliver to).
 //   0 u32 magic 'CRP1'  4 u16 version=1  6 u8 kind (0 none, 1 sound, 2 image)  8 u16 length  10 u16 played (game)
 //  12 u16 waveType  14 u16 waveStatus  16 u32 waveFreq  20 u32 waveLoopStart  24 u32 waveSize (the game fills these)
 //  28 u8 data[512]: sound = signed 8-bit samples at 8 kHz (≤ 512); image = 16 4bpp tiles of a 32×32 sprite, 16 greys
 import type { GbaMemory } from './memory.ts'
 
 export const PAYLOAD_MAGIC = 0x31505243
+/** The symbol holds a pointer into EWRAM (0x02000000–0x0203FFFF); 0 outside battle. */
+export function deref(m: Pick<GbaMemory, 'ready' | 'u32'>, pointer: number): number {
+  if (!m.ready()) return 0
+  const a = m.u32(pointer)
+  return a >= 0x02000000 && a + PAYLOAD_SIZE <= 0x02040000 ? a : 0
+}
 export const PAYLOAD_SIZE = 540
 export const PAYLOAD_BYTES = 512
 const KIND = { sound: 1, image: 2 } as const
@@ -35,13 +42,15 @@ export function packSound(samples: number[]): Uint8Array {
 
 export class PayloadMailbox {
   private readonly memory: Memory
-  private readonly address: number
-  constructor(memory: Memory, address: number) { this.memory = memory; this.address = address }
+  private readonly pointer: number
+  /** `pointer`: the address of the ROM's gCodeRedPayload symbol (a pointer to the struct). */
+  constructor(memory: Memory, pointer: number) { this.memory = memory; this.pointer = pointer }
+  private at(): number { return deref(this.memory, this.pointer) }
 
-  /** Hand the bytes to the game. Returns false when memory is not ready. */
+  /** Hand the bytes to the game. Returns false when memory is not ready or no battle holds a mailbox. */
   deliver(kind: PayloadKind, bytes: number[]): boolean {
-    const m = this.memory, a = this.address
-    if (!m.ready()) return false
+    const m = this.memory, a = this.at()
+    if (!a) return false
     const packed = kind === 'image' ? packImage(bytes) : packSound(bytes)
     m.w8(a + 6, 0)
     m.w32(a, PAYLOAD_MAGIC); m.w16(a + 4, 1)
@@ -52,5 +61,5 @@ export class PayloadMailbox {
   }
 
   /** How many payloads the game has played or drawn so far. */
-  played(): number { const m = this.memory, a = this.address; return m.ready() && m.u32(a) === PAYLOAD_MAGIC ? m.u16(a + 10) : 0 }
+  played(): number { const m = this.memory, a = this.at(); return a && m.u32(a) === PAYLOAD_MAGIC ? m.u16(a + 10) : 0 }
 }
