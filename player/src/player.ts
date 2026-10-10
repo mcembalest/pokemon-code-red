@@ -4,7 +4,7 @@ import './player.css'
 import { bindGameLifecycle, type LifecycleGame } from './game-lifecycle.ts'
 import { createRepl } from './repl.ts'
 import { bindGameText } from './game-text.ts'
-import { BASE_SHA1, ROM_SIZE, sha1 } from './patch.ts'
+import { BASES, ROM_SIZE, sha1 } from './patch.ts'
 import { bindGameKeyboard, type GameInput } from './keyboard.ts'
 import { createSpeed, type SpeedControls } from './speed.ts'
 import { applyCopyPatch } from './copy-patch.ts'
@@ -40,6 +40,8 @@ export interface RomInfo {
   base_sha1: string
   rom_sha1: string
   patch: string
+  /** Every FireRed file this build can be made from, each with its own copy patch (older builds: base_sha1 + patch only). */
+  bases?: { sha1: string; patch: string }[]
   symbols: Record<string, { address: number; bytes: number }>
 }
 
@@ -109,7 +111,7 @@ const TEMPLATE = `
     <button class="code-red-button" data-play-here type="button">Play here instead</button>
   </div>
   <div data-open hidden>
-    <p class="code-red-muted">Open your Pokémon FireRed (USA, v1.0) .gba file once. It stays on this device.</p>
+    <p class="code-red-muted">Open your Pokémon FireRed (USA, v1.0 or v1.1) .gba file once. It stays on this device. Best on a computer: phones may work but are not supported yet.</p>
     <button class="code-red-button" data-choose type="button">Open FireRed file</button>
     <input data-file type="file" accept=".gba,application/octet-stream" hidden />
   </div>
@@ -492,12 +494,16 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     const response = await fetch(assets + 'rom/rom.json', { cache: 'no-cache' })
     if (!response.ok) throw new Error('This Code Red build is missing its rom.json.')
     const parsed = await response.json() as RomInfo
-    if (parsed.base_sha1 !== BASE_SHA1) throw new Error('This Code Red build expects a different base game.')
+    if (!basesOf(parsed).some(b => b.sha1 in BASES)) throw new Error('This Code Red build expects a different base game.')
     return info = parsed
   }
+  const basesOf = (r: RomInfo) => r.bases ?? [{ sha1: r.base_sha1, patch: r.patch }]
 
   async function patchSource(bytes: Uint8Array): Promise<Uint8Array> {
-    const { patch, rom_sha1 } = await romInfo()
+    const rom = await romInfo(), digest = await sha1(bytes)
+    const base = basesOf(rom).find(b => b.sha1 === digest)
+    if (!base) throw new Error('That is not Pokémon FireRed (USA, v1.0 or v1.1). LeafGreen and other regions will not work.')
+    const { rom_sha1 } = rom, patch = base.patch
     const response = await fetch(assets + 'rom/' + patch)
     if (!response.ok) throw new Error('The patch could not load. Reload and try again.')
     const stream = new Blob([await response.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'))
@@ -628,16 +634,16 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     input.disabled = true
     say('Opening…')
     try {
-      if (file.size !== ROM_SIZE) throw new Error('Choose a 16 MB Pokémon FireRed (USA, v1.0) .gba file.')
-      const { rom_sha1 } = await romInfo()
+      if (file.size !== ROM_SIZE) throw new Error('Choose a 16 MB Pokémon FireRed (USA) .gba file, v1.0 or v1.1.')
+      const rom = await romInfo(), { rom_sha1 } = rom
       let bytes: Uint8Array = new Uint8Array(await file.arrayBuffer())
       const digest = await sha1(bytes)
       let sourceRemembered = false
-      if (digest === BASE_SHA1) {
+      if (basesOf(rom).some(b => b.sha1 === digest)) {
         try { await writeLocal(SOURCE_KEY, bytes); sourceRemembered = true } catch { /* play without storage */ }
         bytes = await patchSource(bytes)
       } else if (digest !== rom_sha1) {
-        throw new Error('That is not Pokémon FireRed (USA, v1.0). Rev 1, LeafGreen and other versions will not work.')
+        throw new Error('That is not Pokémon FireRed (USA, v1.0 or v1.1). LeafGreen and other regions will not work.')
       }
       try { await writeLocal(romKey(rom_sha1), bytes); remembered = true } catch { remembered = sourceRemembered }
       await start(bytes)

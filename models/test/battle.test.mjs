@@ -25,6 +25,6 @@ test('104 moves: unique names and functions, ≤ 12 chars, every answer computab
   for (const m of MOVES) for (const b of [[12, 40, 7, 33], [150, 11, 99, 64, 23, 180, 71]]) assert.doesNotThrow(() => JSON.stringify(m.ref(b, foe)), m.name)
   assert.equal(MOVES.find(m => m.name === 'SLICE').ref([1, 2, 3, 4]).join(), '1,2,3')
   const error = MOVES.find(m => m.name === 'ERROR')
-  assert.equal(error.payload.kind, 'sound'); assert.equal(error.ref([1, 2, 3]).length, 400); assert.equal(error.ref([1, 2, 3])[0], 3)
+  assert.equal(error.payload.kind, 'sound'); assert.equal(error.ref([1, 2, 3]).length, 3200); assert.equal(error.ref([1, 2, 3])[0], 3) // the count, then ~0.4 s at 8 kHz
   assert.equal(error.payload.check(error.ref([1, 2, 3]), [1, 2, 3]), null)
 })

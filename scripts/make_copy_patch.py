@@ -5,7 +5,8 @@ from pathlib import Path
 import hashlib,struct,sys
 root=Path(__file__).resolve().parents[1]
 base=Path(sys.argv[1]).read_bytes();target=Path(sys.argv[2]).read_bytes()
-assert hashlib.sha1(base).hexdigest()=='41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc'
+# FireRed USA v1.0 or v1.1 (Rev 1): the player's own file is the source of every byte
+assert hashlib.sha1(base).hexdigest() in ('41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc','dd5945db9b930750cb39d00c84da8571feebf417')
 assert len(base)==len(target)==16*1024*1024
 # Aligned anchors identify moved unchanged data; unmatched bytes also use copies.
 anchors={}
