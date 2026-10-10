@@ -431,7 +431,8 @@ async function ai(req: Request, env: Env, player: Player, ctx: Ctx): Promise<Res
   const [toPlayer, toLog] = r.body.tee();
   const done = new Response(toLog).text().then(record).catch((e) => console.error('ai record', e));
   if (ctx) ctx.waitUntil(done);
-  return new Response(toPlayer, { status: 200, headers: { 'content-type': type, 'cache-control': 'no-store' } });
+  // Always label a stream as one: the browser's parser only repairs Workers AI's numeric tokens in an event stream.
+  return new Response(toPlayer, { status: 200, headers: { 'content-type': type.includes('event-stream') ? type : 'text/event-stream; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
 /** Token usage from an OpenAI-style JSON body or SSE stream (last chunk carrying `usage`). */
