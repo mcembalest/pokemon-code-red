@@ -14,7 +14,9 @@ export const SOUND_MAX = 4096
 export const IMAGE_FRAMES = 4
 export const IMAGE_PIXELS = 1024 * IMAGE_FRAMES
 
-const ints = (v, hi) => Array.isArray(v) && v.every(x => Number.isInteger(x) && x >= 0 && x <= hi)
+const finite = v => Array.isArray(v) && v.every(x => typeof x === 'number' && Number.isFinite(x))
+/** Bytes are bytes: a fraction rounds, and anything past the edge sticks to it (0–255 for sound, 0–15 for color). */
+export const clampTo = (v, hi) => v.map(x => Math.max(0, Math.min(hi, Math.round(x))))
 
 // ---------- what a sound sounds like, measured ----------
 
@@ -61,9 +63,9 @@ const CHARACTER = {
 }
 
 const soundCheck = ({ loud, soft = false, character }) => (v, b) => {
-  if (!ints(v, 255) || v.length < 1001) return 'not a list of at least 1000 numbers from 0 to 255'
+  if (!finite(v) || v.length < 1001) return 'not a list of at least 1000 numbers'
   if (v[0] !== b.length) return `first number should be ${b.length}`
-  const s = v.slice(1, SOUND_MAX + 1), span = Math.max(...s) - Math.min(...s)
+  const s = clampTo(v.slice(1, SOUND_MAX + 1), 255), span = Math.max(...s) - Math.min(...s)
   if (span < loud) return `too quiet (from lowest to highest it spans ${span}, needs ${loud})`
   if (soft && (Math.max(...s) > 196 || Math.min(...s) < 60)) return 'too loud for a soft sound (stay between 60 and 196)'
   if (!fades(s)) return 'it never fades or stops (the end is as loud as the loudest part)'
@@ -84,8 +86,8 @@ const LOOK = {
 const imageCheck = ({ look }) => (v, b) => {
   if (!Array.isArray(v) || v.length < IMAGE_PIXELS + 1) return `not ${IMAGE_PIXELS + 1} numbers (the count, then 4 frames of 1024)`
   if (v[0] !== b.length) return `first number should be ${b.length}`
-  const px = v.slice(1, IMAGE_PIXELS + 1)
-  if (!ints(px, 15)) return 'colors are whole numbers from 0 to 15'
+  if (!finite(v)) return 'not a list of numbers'
+  const px = clampTo(v.slice(1, IMAGE_PIXELS + 1), 15)
   const fs = frames(px)
   const counts = fs.map(lit)
   if (counts.some(n => n < 30)) return `every frame needs at least 30 colored pixels (frames have ${counts.join(', ')})`
@@ -124,9 +126,9 @@ export const PAYLOAD = {
   // DIM (Sing): a soft lullaby — three notes (G, B, D), each swelling and fading, a gentle vibrato, quiet
   lullaby: sound('tune', `b=>{const o=[b.length],n=[392,494,587];let p=0;for(let i=0;i<3199;i++){const k=Math.floor(i/1067),u=(i%1067)/1067;p=(p+n[k]*(1+0.01*Math.sin(i/160))/8000)%1;o.push(Math.round(128+60*Math.sin(Math.PI*u)*(1-4*Math.abs(p-0.5))))}return o}`, { loud: 60, soft: true }),
   // FLASH: a starburst — a hot round core and eight rays growing frame by frame, breaking into sparkles in the last
-  flash: image('grows', 'flash', `b=>{const o=[b.length];for(let f=0;f<4;f++)for(let y=0;y<32;y++)for(let x=0;x<32;x++){const r=Math.hypot(x-15.5,y-15.5),a=Math.atan2(y-15.5,x-15.5),R=3+4*f;let c=r<R?15-2*r:Math.abs(Math.cos(4*a))**12>0.5&&r<2*R?12-(r-R):0;if(f===3&&Math.random()<0.5)c=0;o.push(Math.max(0,Math.min(15,Math.round(c))))}return o}`),
+  flash: image('grows', 'flash', `b=>{const o=[b.length];for(let f=0;f<4;f++)for(let i=0;i<1024;i++){const x=i%32-15.5,y=(i>>5)-15.5,r=Math.hypot(x,y),R=3+4*f;let c=r<R?15-2*r:Math.cos(4*Math.atan2(y,x))**12>.5&&r<2*R?12-r+R:0;if(f>2&&Math.random()<.5)c=0;o.push(Math.max(0,Math.round(c)))}return o}`),
   // SPARK: a jagged bolt from the top row to the bottom, white-hot core, blue glow, a new bolt each frame (it flickers)
-  spark: image('crosses', 'spark', `b=>{const o=[b.length];for(let f=0;f<4;f++){const px=new Array(1024).fill(0);let x=16;for(let y=0;y<32;y++){x=Math.max(3,Math.min(28,x+Math.floor(Math.random()*5)-2));for(let d=-3;d<=3;d++)px[y*32+x+d]=Math.max(px[y*32+x+d],15-4*Math.abs(d))}o.push(...px)}return o}`),
+  spark: image('crosses', 'spark', `b=>{const o=[b.length];for(let f=0;f<4;f++){const p=Array(1024).fill(0);let x=16;for(let y=0;y<32;y++){x=Math.max(3,Math.min(28,x+Math.floor(Math.random()*5)-2));for(let d=-3;d<4;d++)p[y*32+x+d]=Math.max(p[y*32+x+d],15-4*Math.abs(d))}o.push(...p)}return o}`),
 }
 
 /** What every sound and every picture move's prompt adds: how the GBA hears and sees the numbers. */
@@ -135,5 +137,8 @@ export const HOW = {
   image: 'A picture is 4 frames one after another, each 32 rows of 32 color numbers; 0 is see-through, 1 is the dimmest color and 15 the brightest. It is drawn over the foe, twice the size, frame after frame.',
 }
 
+/** One way to write it, for the prompt: the reference body, reading `nums` (the foe's numbers) for the count. */
+export const exampleBody = p => p.ref.toString().replace(/^b=>\{/, '').replace(/\}$/, '').replace(/\bb\.length\b/g, 'nums.length')
+
 /** The bytes the GBA gets from a hit (the count dropped): sound samples, or 4 frames of color numbers. */
-export const payloadBytes = (p, value) => (p.kind === 'image' ? value.slice(1, IMAGE_PIXELS + 1) : value.slice(1, SOUND_MAX + 1))
+export const payloadBytes = (p, value) => (p.kind === 'image' ? clampTo(value.slice(1, IMAGE_PIXELS + 1), 15) : clampTo(value.slice(1, SOUND_MAX + 1), 255))

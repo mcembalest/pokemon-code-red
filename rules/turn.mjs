@@ -3,7 +3,7 @@
 //   target's type → the right answer hits; anything else misses completely (the text box says why).
 // No sandbox here: callers run the sources this module builds (kernel runBlock in Node, the QuickJS runner in the page).
 import { EXAMPLE_BYTES, FORMATS, HINTS, example, show } from './formats.mjs'
-import { HOW, payloadBytes } from './payload.mjs'
+import { HOW, exampleBody, payloadBytes } from './payload.mjs'
 
 /** The worked example every move description shows: on these numbers it returns ... */
 export const WORKED = [42, 13, 140, 77]
@@ -83,7 +83,7 @@ export function turnPrompt({ self, target, move, type, know = null, budget, tuto
       know ? `- ${knowLine(know)}` : `- First line of the function: const ${words.v} = <read data into a list of numbers>`]
   const user = [`Foe: ${target.name} Lv${target.level} (${target.types.join('/')}). ${call}`, `Write the function: function ${move.fn}(data)`, ...formatLines,
     move.payload
-      ? `- ${move.fn} returns ${move.spec}. ${HOW[move.payload.kind]} Build the list with loops (a few lines, no comments): don't write the numbers out. Make it your own: any version with that character hits.`
+      ? `- ${move.fn} returns ${move.spec}. ${HOW[move.payload.kind]}\n- One way to write it, after reading ${words.v} (make it your own: change the numbers, the timing, the shape; any version with that character hits):\n${line(`function ${move.fn}(data){const nums=…;${exampleBody(move.payload)}}`)}`
       : `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(WORKED)} it returns ${JSON.stringify(move.ref(WORKED))}.`,
     ...(hot ? [`- Your notes: ${hot}`] : []),
     `- Byte budget: your whole code block must be at most ${codeBudget(budget, { know, hot })} characters, comments included${contextCost({ know, hot }) ? ` (${budget} minus the ${contextCost({ know, hot })} your memory takes)` : ''}.`].join('\n')
