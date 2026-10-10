@@ -57,3 +57,11 @@ test('patch failures and invalid output preserve source for reload retry', async
   await assert.rejects(restoreRom(f.cache, MOD_SHA1, digest), /verification/)
   assert.equal(f.files.get(SOURCE_KEY), source); assert.equal(f.files.has(ROM_KEY), false)
 })
+test('a remembered FireRed v1.1 (Rev 1) source rebuilds the current ROM too', async () => {
+  const rev1 = 'dd5945db9b930750cb39d00c84da8571feebf417'
+  const d = async (value: Uint8Array) => value[0] === 4 ? rev1 : value[0] === 2 ? MOD_SHA1 : 'invalid'
+  const files = new Map<string, ArrayBuffer>([[SOURCE_KEY, bytes(4).buffer]])
+  let patched = 0
+  const cache = { read: async (k: string) => files.get(k), write: async (k: string, v: Uint8Array) => { files.set(k, v.slice().buffer) }, patch: async (s: Uint8Array) => { assert.equal(s[0], 4); patched++; return bytes(2) } }
+  assert.equal((await restoreRom(cache, MOD_SHA1, d))?.bytes[0], 2); assert.equal(patched, 1)
+})

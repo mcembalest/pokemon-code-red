@@ -1,4 +1,4 @@
-import { BASE_SHA1, ROM_SIZE, sha1 } from './patch.ts'
+import { BASES, ROM_SIZE, sha1 } from './patch.ts'
 import { romKey, SOURCE_KEY } from './storage.ts'
 
 type Cache = {
@@ -11,18 +11,18 @@ type Cache = {
 // the original or migrate save states: only an independently verified source
 // can produce a new build. Missing/corrupt/evicted entries fall back to choice.
 export async function restoreRom(cache: Cache, romSha1: string, digest = sha1) {
-  async function verified(key: string, expected: string) {
+  async function verified(key: string, expected: string | string[]) {
     try {
       const stored = await cache.read(key)
       if (stored instanceof ArrayBuffer && stored.byteLength === ROM_SIZE) {
         const bytes = new Uint8Array(stored)
-        if (await digest(bytes) === expected) return bytes
+        if ([expected].flat().includes(await digest(bytes))) return bytes
       }
     } catch { /* Storage can be unavailable independently of patch loading. */ }
   }
   const current = await verified(romKey(romSha1), romSha1)
   if (current) return { bytes: current, remembered: true }
-  const source = await verified(SOURCE_KEY, BASE_SHA1)
+  const source = await verified(SOURCE_KEY, Object.keys(BASES))
   if (!source) return undefined
   const bytes = await cache.patch(source)
   if (bytes.byteLength !== ROM_SIZE || await digest(bytes) !== romSha1) {

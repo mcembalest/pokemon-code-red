@@ -29,7 +29,7 @@ jobs:
       - name: Base ROM from source (must equal FireRed USA v1.0)
         run: |
           python3 scripts/dev.py baseline
-          mkdir -p local && cp build/baseline.gba local/baserom.gba
+          mkdir -p local && cp build/baseline.gba local/baserom.gba && cp build/baseline-rev1.gba local/baserom-rev1.gba
       - name: Code Red ROM + bundle
         run: make rom-bundle
       - name: Save layout guard (existing player saves must keep loading)
@@ -49,6 +49,7 @@ jobs:
           python3 -m playwright install --with-deps chromium
           python3 scripts/serve_player.py & sleep 1
           python3 player/tests/e2e.py --phase boot
+          python3 player/tests/rev1.py
       - name: Invite gate + progress tracking (Chromium, mock backend)
         run: python3 player/tests/account.py
       - name: Cache simulator core
