@@ -1,11 +1,39 @@
 {
-  "note": "Expressive payloads v2 (worked example in the prompt, round+clamp): character checkers (falls/trills/rises/tune; grows/crosses), 4096-sample sounds, 4-frame 16-color pictures. Qwen2.5-Coder-32B.",
+  "note": "Expressive payloads v3: species voices (the worked example in each Pok\u00e9mon's own voice). Several attackers.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
-  "moves": ["ERROR", "BUZZ", "FEEDBACK", "DIM", "FLASH", "SPARK"],
-  "types": ["NORMAL", "WATER", "FIRE"],
-  "known": [true],
+  "moves": [
+    "ERROR",
+    "BUZZ",
+    "FEEDBACK",
+    "DIM",
+    "FLASH",
+    "SPARK"
+  ],
+  "types": [
+    "NORMAL",
+    "WATER",
+    "FIRE"
+  ],
+  "known": [
+    true
+  ],
   "samples": 8,
-  "levels": [5, 10, 15, 20],
+  "levels": [
+    5,
+    10,
+    15,
+    20
+  ],
   "concurrency": 16,
-  "payloadModel": "@cf/qwen/qwen2.5-coder-32b-instruct"
+  "payloadModel": "@cf/qwen/qwen2.5-coder-32b-instruct",
+  "selves": [
+    "CHARMANDER",
+    "SQUIRTLE",
+    "BULBASAUR",
+    "PIKACHU",
+    "PIDGEY",
+    "JIGGLYPUFF",
+    "ZUBAT",
+    "MAGNEMITE"
+  ]
 }
