@@ -187,7 +187,9 @@ test('payload moves: the check judges the bytes, a hit carries them, the prompt 
   assert.match(verdict(flash, bytes, run([4, ...new Array(1023).fill(255)])).want, /black/)
   const loop = `function error(data) { const nums = data; const out = [nums.length]; for (let i = 1; i < 400; i++) out.push(i % 20 < 10 ? 230 : 30); return out }`
   const v = await judge({ move: error, bytes, data: bytes, code: loop, budget: 300, runSource: async src => ({ ok: true, value: new Function(src)() }) })
-  assert.equal(v.hit, true); assert.equal(v.payload.bytes.length, 400)
+  assert.equal(v.hit, true); assert.equal(v.payload.bytes.length, 399); assert.equal(v.payload.bytes[0], 230) // the count is checked, not played
+  const f = verdict(flash, bytes, run(flash.ref(bytes))).payload.bytes
+  assert.equal(f.length, 1024); assert.equal(f[0], 255); assert.equal(f[1023], 0) // no count dot in the corner; the last pixel fills its slot
   const { user } = turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: flash, type: 'NORMAL', budget: 300 })
   assert.match(user, /one short loop/)
   assert.ok(user.length < 1200, String(user.length))
