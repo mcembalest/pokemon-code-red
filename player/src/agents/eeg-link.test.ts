@@ -39,7 +39,7 @@ test('mindOf: readers, Pokédex, budget, focus, last turns, short format, hot me
   assert.ok(m.budget > 400)
   assert.deepEqual(m.history, [true, false, true])
   assert.equal(m.format, 'write log'); assert.equal(m.hot, 'be brave'); assert.ok(m.focus > 0 && m.focus <= 100)
-  assert.equal(m.readersText, 'Rock, Water'); assert.equal(m.dexText, 'Rock, Grass, Normal, Ground'); assert.equal(m.trust, 13)
+  assert.equal(m.readersText, 'Rock, Water'); assert.equal(m.dexText, 'Rock, Grass, Normal, Ground'); assert.equal(m.doubtMax, 44)
 })
 
 test('link: answers a mind request, follows the cursor, runs the editor and writes the note back', async () => {
@@ -54,7 +54,7 @@ test('link: answers a mind request, follows the cursor, runs the editor and writ
   g.ask(1)
   link.poll()
   assert.equal(g.state(), 2)
-  assert.equal(g.text(40, 24), 'write log'); assert.equal(g.text(64, 100), 'old note'); assert.equal(g.text(164, 48), ''); assert.equal(g.text(212, 48), ''); assert.equal(g.memory.u8(AT + 260), 0)
+  assert.equal(g.text(40, 24), 'write log'); assert.equal(g.text(64, 100), 'old note'); assert.equal(g.text(164, 48), ''); assert.equal(g.text(212, 48), ''); assert.equal(g.memory.u8(AT + 260), 50) // no badges: it doubts a useless call half the time
   assert.deepEqual(followed, [111])
   g.ask(2)
   link.poll()
