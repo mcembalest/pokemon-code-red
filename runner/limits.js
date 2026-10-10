@@ -1,4 +1,4 @@
-export const LIMITS = Object.freeze({ source: 8192, input: 4096, output: 4096, heap: 8 * 1024 * 1024, stack: 128 * 1024, cpuMs: 250, wallMs: 3000 });
+export const LIMITS = Object.freeze({ source: 8192, input: 4096, output: 65536, heap: 8 * 1024 * 1024, stack: 128 * 1024, cpuMs: 250, wallMs: 3000 });
 export const bytes = text => new TextEncoder().encode(text).length;
 export function jsonShape(value, depth = 0) {
   if (depth > 8) throw Error('schema');

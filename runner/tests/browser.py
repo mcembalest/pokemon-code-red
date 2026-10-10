@@ -42,7 +42,7 @@ try:
             'import':'return import("https://example.com/guest.js");',
             'schema':'return JSON.parse(\'{"__proto__":{}}\');',
             'deep':'let x=0;for(let i=0;i<20;i++)x=[x];return x;',
-            'unicode_output':'return "😀".repeat(1500);',
+            'unicode_output':'return "😀".repeat(20000);',
         }.items():
             results[name]=run(source)
             assert not results[name]['ok'], (name,results[name])
