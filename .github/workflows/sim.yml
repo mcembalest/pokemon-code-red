@@ -58,3 +58,6 @@ jobs:
       - name: Payload moves (ERROR's buzz plays, FLASH's picture draws, the battle goes on)
         if: matrix.seed == 0 && !cancelled()  # even when the Misty route flaked
         run: python3 sim/experiments/payload.py
+      - name: Doubt (GROWL over SCRATCH is doubted 50% / 25% / 0% at 0 / 4 / 8 badges)
+        if: matrix.seed == 0 && !cancelled()  # even when the Misty route flaked
+        run: python3 sim/experiments/doubt.py 60

@@ -4,7 +4,7 @@ The symbol gCodeRedEeg is a pointer: the game allocates the struct on its heap w
   0 u32 magic 'CRE1'  4 u16 version  6 u8 state (0 idle, 1 request, 2 reply, 4 cancelled)  7 u8 op (1 mind, 2 edit hot)
   8 u32 requestId  12 u32 epoch  16 u32 personality  20 u16 species  22 u8 level  23 u8 open
  24 u8 readers  25 u8 dex  26 u16 budget  28 u8 focus×100  29 u8 nHistory  30 u8 history[10]
- 40 u8 format[24] (game text)  64 u8 hot[100] (game text; one '\n' allowed)  164 u8 readersText[48]  212 u8 dexText[48]  260 u8 trust (0-100)
+ 40 u8 format[24] (game text)  64 u8 hot[100] (game text; one '\n' allowed)  164 u8 readersText[48]  212 u8 dexText[48]  260 u8 doubtMax (0-50: the most it doubts a call, %)
 
 mind(request) -> dict(readers, dex, budget, focus, history, format, hot) answers op 1; for op 2 the host
 "types" `hot_reply` (the page opens an editor) and answers with state 2.
@@ -88,7 +88,7 @@ class EegHost:
             g.write(a + 64, encode_text(wrap(m.get('hot', '')), 100))
             g.write(a + 164, encode_text(m.get('readers_text', ''), 48))
             g.write(a + 212, encode_text(m.get('dex_text', ''), 48))
-            g.w8(a + 260, m.get('trust', 0))
+            g.w8(a + 260, m.get('doubt_max', 0))
         g.w8(a + 6, 2)  # reply (op 2: the page's editor closed)
         self._pending = None
 

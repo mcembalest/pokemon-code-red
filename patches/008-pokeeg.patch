@@ -8,10 +8,10 @@ Menu entries live in patch 003 (PC menu, bedroom PC); this patch is the screen i
 No host → the mind lines say so; the list still works.
 diff --git a/src/code_red_eeg.c b/src/code_red_eeg.c
 new file mode 100644
-index 00000000..89e0fc6a
+index 00000000..9c74299a
 --- /dev/null
 +++ b/src/code_red_eeg.c
-@@ -0,0 +1,696 @@
+@@ -0,0 +1,702 @@
 +// Code Red: the PokÉEG, in the game (owner, 2026-10-09). From the PC: every Pokémon the player
 +// owns (party, then the boxes), and for the one under the cursor a look inside its mind.
 +// The game knows the Pokémon; the page knows the mind (readers, hot memory, code history live in the
@@ -68,7 +68,7 @@ index 00000000..89e0fc6a
 +    /*0x40*/ u8 hot[100];      // game text, EOS-terminated: hot memory (may hold one newline: two lines)
 +    /*0xA4*/ u8 readersText[48]; // game text: the formats it learned to read ("Water, Rock"), or empty
 +    /*0xD4*/ u8 dexText[48];     // game text: the Pokédex's formats, or empty
-+    /*0x104*/ u8 trust;          // 0-100: how far it goes along with your picks (badges); the rest is doubt
++    /*0x104*/ u8 doubtMax;       // 0-50: the most it doubts a call, % (badges; rules/doubt.mjs maxDoubt)
 +    /*0x105*/ u8 pad2[3];
 +};
 +STATIC_ASSERT(sizeof(struct CodeRedEeg) == 264, CodeRedEegSize);
@@ -135,8 +135,9 @@ index 00000000..89e0fc6a
 +static const u8 sText_TabInstinct[] = _("INSTINCT");
 +static const u8 *const sTabNames[TAB_COUNT] = { sText_TabSystem, sText_TabReaders, sText_TabCode, sText_TabNote, sText_TabInstinct };
 +static const u8 sText_Instinct[] = _("Instinct: whatever hits hardest.");
-+static const u8 sText_Trusts[] = _("Trusts your picks: ");
-+static const u8 sText_Percent[] = _("% (badges)");
++static const u8 sText_Doubts[] = _("Doubts your calls: up to ");
++static const u8 sText_Percent[] = _("%");
++static const u8 sText_NeverDoubts[] = _("Never doubts your calls.");
 +static const u8 sText_LR[] = _("{LEFT_ARROW}{RIGHT_ARROW}");
 +static const u8 sText_System[] = _(" system");
 +static const u8 sText_Arrives[] = _("Data arrives as: ");
@@ -301,11 +302,16 @@ index 00000000..89e0fc6a
 +            StringAppend(s, sText_MissN);
 +        }
 +        break;
-+    case TAB_INSTINCT: // System 1: only wild Pokémon pick their own moves; yours goes with your pick as far as it trusts you
++    case TAB_INSTINCT: // System 1: yours uses your call unless its instinct overrules a weak one (fewer badges, more often)
 +        s = StringCopy(gStringVar4, sText_Instinct);
 +        *s++ = CHAR_NEWLINE;
-+        s = StringCopy(s, sText_Trusts);
-+        s = ConvertIntToDecimalStringN(s, gCodeRedEeg->trust > 100 ? 100 : gCodeRedEeg->trust, STR_CONV_MODE_LEFT_ALIGN, 3);
++        if (gCodeRedEeg->doubtMax == 0)
++        {
++            StringCopy(s, sText_NeverDoubts);
++            break;
++        }
++        s = StringCopy(s, sText_Doubts);
++        s = ConvertIntToDecimalStringN(s, gCodeRedEeg->doubtMax > 100 ? 100 : gCodeRedEeg->doubtMax, STR_CONV_MODE_LEFT_ALIGN, 3);
 +        StringCopy(s, sText_Percent);
 +        break;
 +    default: // the note itself (the page wraps it onto two lines), or how to write one

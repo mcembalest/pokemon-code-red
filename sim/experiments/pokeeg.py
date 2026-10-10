@@ -65,7 +65,7 @@ def main():
     g.load_state(at_pc)
     g.run = type(g).run.__get__(g)
     host = EegHost(g, lambda r: {'readers': 2, 'dex': 3, 'budget': 350, 'focus': 80, 'history': [1, 1, 0, 1, 1],
-                                 'format': 'write log', 'hot': 'return a plain number', 'readers_text': 'Water, Rock', 'dex_text': 'Normal, Rock, Ground', 'trust': 25})
+                                 'format': 'write log', 'hot': 'return a plain number', 'readers_text': 'Water, Rock', 'dex_text': 'Normal, Rock, Ground', 'doubt_max': 44})
     host.attach(); host.enable()
     assert open_eeg(g), 'PokÉEG did not open (host)'
     g.run(120)

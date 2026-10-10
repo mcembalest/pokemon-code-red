@@ -6,7 +6,7 @@
 //   8 u32 requestId  12 u32 epoch  16 u32 personality  20 u16 species  22 u8 level  23 u8 open (the screen is up)
 //  24 u8 readers  25 u8 dex  26 u16 budget  28 u8 focus×100  29 u8 nHistory  30 u8 history[10]  40 u8 format[24]  64 u8 hot[100]
 // 164 u8 readersText[48] ("Water, Rock")  212 u8 dexText[48]  — game text, EOS-terminated; hot may hold one newline (two lines)
-// 260 u8 trust 0-100 (how far it goes with your picks: badges; rules/doubt.mjs)
+// 260 u8 doubtMax 0-50: the most it doubts a call, in percent (badges; rules/doubt.mjs maxDoubt)
 import type { GbaMemory } from './memory.ts'
 
 export const EEG_MAGIC = 0x31455243
@@ -14,7 +14,7 @@ export const EEG_SIZE = 264
 export const EEG_VERSION = 3
 
 export interface EegRequest { id: number; op: 1 | 2; personality: number; species: number; level: number }
-export interface Mind { readers: number; dex: number; budget: number; focus: number; history: boolean[]; format: string; hot: string; readersText: string; dexText: string; trust: number }
+export interface Mind { readers: number; dex: number; budget: number; focus: number; history: boolean[]; format: string; hot: string; readersText: string; dexText: string; doubtMax: number }
 
 /** At most two lines of `width` characters (what the in-game NOTE tab holds); a longer note ends with …. */
 export function wrapNote(text: string, width = 30): string {
@@ -88,7 +88,7 @@ export class EegMailbox {
     encodeText(wrapNote(mind.hot), 100).forEach((b, i) => m.w8(a + 64 + i, b))
     encodeText(mind.readersText, 48).forEach((b, i) => m.w8(a + 164 + i, b))
     encodeText(mind.dexText, 48).forEach((b, i) => m.w8(a + 212 + i, b))
-    m.w8(a + 260, Math.max(0, Math.min(100, Math.round(mind.trust))))
+    m.w8(a + 260, Math.max(0, Math.min(100, Math.round(mind.doubtMax))))
     m.w8(a + 6, 2)
     return true
   }

@@ -3,7 +3,7 @@
 //   System 2, the code brain: the system it is (its type's data format), the readers it has learned,
 //   the hot memory you pin to it (in every prompt, costs bytes), and the code it wrote lately.
 // Page-side for now: the game can't open it from the PC yet; the toolbar button can.
-import { FAMILIES, FORMATS, HINTS, budgetAt, contextCost, focusAt, formatOf, partyDex, stageOf, trust } from '../../../rules/index.mjs'
+import { FAMILIES, FORMATS, HINTS, budgetAt, contextCost, focusAt, formatOf, maxDoubt, partyDex, stageOf } from '../../../rules/index.mjs'
 import type { TypeName } from '../../../rules/index.mjs'
 import type { CodeMemory } from './code-battle.ts'
 import type { OwnedMon } from './owned.ts'
@@ -111,7 +111,7 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
       <p class="code-red-eeg-system">A <b>${esc(type)}</b> system: its data arrives as <i>${esc(fmt?.note ?? 'a plain list')}</i>.<br>Its own moves are ${esc(family(type))}.</p>
       <section>
         <h4>System 1 · decision brain</h4>
-        <p>You pick its moves; its instinct is <i>whatever hits hardest</i>. When your pick looks worse to it, it doubts you: its code gets shaken in proportion. It trusts your picks <b>${Math.round(trust(badges) * 100)}%</b> <span class="code-red-muted">(${badges.length} of 8 badges; at 8 it never doubts you)</span>.</p>
+        <p>You call its moves; its instinct is <i>whatever hits hardest</i>. When your call looks weaker to it, it may doubt you and use its own pick instead: at most <b>${Math.round(maxDoubt(badges) * 100)}%</b> of the time, for a call it thinks is useless <span class="code-red-muted">(${badges.length} of 8 badges; every badge lowers it, at 8 it never doubts you)</span>.</p>
         <p>Focus ${focus.toFixed(2)} <span class="code-red-muted">(steadier as it levels)</span> · byte budget <b>${budget}</b> <span class="code-red-muted">(L${m.level}${stage ? `, evolved ×${stage}` : ''}${badges.length ? `, ${badges.length} badge${badges.length > 1 ? 's' : ''}` : ''})</span></p>
       </section>
       <section>

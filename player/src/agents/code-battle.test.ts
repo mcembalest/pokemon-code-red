@@ -19,13 +19,13 @@ function game() {
   const memory = new GbaMemory(fakeCore()), mailbox = new CodeMoveMailbox(memory, AT)
   let id = 0
   // What the ROM does in Cmd_attackcanceler (patches/006-code-moves.patch).
-  const request = (o: { move?: number; side?: 0 | 1; level?: number; attacker?: number; target?: number; types?: [number, number]; flags?: number; pid?: number; stages?: number; cls?: number } = {}) => {
+  const request = (o: { move?: number; side?: 0 | 1; level?: number; attacker?: number; target?: number; types?: [number, number]; flags?: number; pid?: number; stages?: number; cls?: number; called?: number } = {}) => {
     const side = o.side ?? 0
     memory.w32(AT + 8, ++id); memory.w32(AT + 12, 0); memory.w16(AT + 16, o.move ?? 10); memory.w8(AT + 18, side); memory.w8(AT + 19, o.level ?? 5)
     memory.w16(AT + 20, o.attacker ?? (side ? 7 : 4)); memory.w16(AT + 22, o.target ?? (side ? 4 : 7))
     memory.w32(AT + 24, o.pid ?? (side ? 222 : 111)); memory.w32(AT + 28, side ? 111 : 222); memory.w8(AT + 32, 5)
     const [t1, t2] = o.types ?? (side ? [10, 10] : [11, 11]); memory.w8(AT + 33, t1); memory.w8(AT + 34, t2)
-    memory.w32(AT + 36, o.flags ?? 0x8); memory.w16(AT + 40, o.flags === 0 ? 0 : 326); memory.w8(AT + 43, (o.stages ?? 0) & 0xff); memory.w8(AT + 46, o.cls ?? (o.flags === 0 ? 0 : 84))
+    memory.w32(AT + 36, o.flags ?? 0x8); memory.w16(AT + 40, o.flags === 0 ? 0 : 326); memory.w8(AT + 43, (o.stages ?? 0) & 0xff); memory.w8(AT + 46, o.cls ?? (o.flags === 0 ? 0 : 84)); memory.w8(AT + 47, o.called ?? 0)
     memory.w8(AT + 6, 1)
   }
   const reply = () => ({ state: memory.u8(AT + 6), verdict: memory.u8(AT + 35), reason: memory.u8(AT + 42) })
@@ -240,17 +240,16 @@ test('payload move: a hit hands the bytes to the game before the reply; a miss h
   assert.match(log.end.at(-1)!.detail ?? '', /at least 100|first number should be/)
 })
 
-test('doubt: your pick against its instinct shakes its code (not the move); the panel says what it wanted', async () => {
+test('doubt: the ROM says it used its own pick; the panel names the call it doubted; its code is not shaken', async () => {
   const g = game(), { panel, log } = fakePanel()
   const temps: number[] = []
   const spy: CodeWriter = { async write(p, onText) { temps.push(p.temperature); return mockWriter({ missEvery: 99, delay: instant }).write(p, onText) } }
-  const b = new CodeBattle(g.mailbox, names, spy, sandbox, panel, store(), { doubt: req => (req.move === 45 ? { notch: -2, wanted: 'SLICE' } : { notch: 0, wanted: null }) })
-  await b.poll(); g.request({ move: 10 }); await b.poll()   // SLICE: what it wanted
-  g.request({ move: 45 }); await b.poll()                     // ERROR: it doubts you
-  assert.equal(log.begin[0]!.notch, 0); assert.equal(log.begin[0]!.doubt, undefined)
-  assert.equal(log.begin[1]!.notch, -2); assert.deepEqual(log.begin[1]!.doubt, { notch: -2, wanted: 'SLICE' })
-  assert.ok(temps[1]! > temps[0]!, 'hotter writing when doubting')
-  assert.ok(log.begin[1]!.budget < log.begin[0]!.budget, 'smaller budget when doubting')
-  g.request({ move: 45, flags: 0x10 }); await b.poll()        // the tutorial battle never doubts
-  assert.equal(log.begin[2]!.doubt, undefined)
+  const turns: TurnRecord[] = []
+  const b = new CodeBattle(g.mailbox, names, spy, sandbox, panel, store(), { calledMove: req => (req.calledSlot === 2 ? 'ERROR' : null), onTurn: r => turns.push(r) })
+  await b.poll(); g.request({ move: 10 }); await b.poll()               // SLICE, as called
+  g.request({ move: 10, called: 2 }); await b.poll()                    // SLICE, though you called ERROR (slot 1)
+  assert.equal(log.begin[0]!.doubt, undefined)
+  assert.deepEqual(log.begin[1]!.doubt, { called: 'ERROR' })
+  assert.equal(log.begin[1]!.notch, 0); assert.equal(temps[1], temps[0]); assert.equal(log.begin[1]!.budget, log.begin[0]!.budget)
+  assert.equal(turns[1]!.doubted, 'ERROR'); assert.equal(turns[0]!.doubted, undefined)
 })

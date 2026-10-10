@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Payload moves in the real ROM (patches/009-payload.patch): the first rival battle, CHARMANDER's ERROR (Growl)
 hands the game a buzz; FLASH (poked into move slot 2) hands it a picture. Checks the game takes each payload
-(`played` counts up), the battle goes on, and screenshots the sprite.
+(`played` counts up), the battle goes on, and screenshots the sprite. All eight badges are set so CHARMANDER
+never doubts these calls (both moves score 0 to its instinct; sim/experiments/doubt.py covers doubt).
 
   python3 sim/experiments/payload.py
 Writes build/sim/results/payload.json; exits 1 on a failed check.
@@ -11,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from codered import World
 from codered.game import ROOT
-from codered.routes import CHECKPOINTS, opening
+from codered.routes import CHECKPOINTS, opening, SYS_FLAGS
 from codered.battle import Battle, BMON_MOVES, BMON_PP
 from codered.code_moves import CodeMoveHost, PayloadHost
 from codered.world import BMON_SIZE
@@ -29,6 +30,8 @@ def main():
     if not cp.exists():
         opening(g, 'CHARMANDER')
     g.load_state(cp.read_bytes())
+    for i in range(8):
+        g.set_flag(SYS_FLAGS + 0x20 + i)  # FLAG_BADGE01_GET … 08: no doubt
     payload = PayloadHost(g)
     delivered = []
 
