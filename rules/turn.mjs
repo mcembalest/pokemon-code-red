@@ -135,7 +135,11 @@ export function verdict(move, bytes, run) {
   if (!run.ok) return { hit: false, reason: 'crashed', error: String(run.error ?? '').slice(0, 200) }
   if (move.payload) { // bytes to play or draw: any value that passes the move's check hits, and rides along
     const why = move.payload.check(run.value, bytes)
-    return why ? { hit: false, reason: 'wrong answer', got: clip(run.value), want: why } : { hit: true, payload: { kind: move.payload.kind, bytes: run.value } }
+    if (why) return { hit: false, reason: 'wrong answer', got: clip(run.value), want: why }
+    // The first number is the foe's count (it proves the code read the foe's format); it is checked, not played or drawn.
+    // A picture keeps 1024 pixels: the last one is repeated to fill the slot the count took.
+    const rest = run.value.slice(1)
+    return { hit: true, payload: { kind: move.payload.kind, bytes: move.payload.kind === 'image' ? [...rest, rest[rest.length - 1]] : rest } }
   }
   const want = move.ref(bytes)
   return same(run.value, want) ? { hit: true } : { hit: false, reason: 'wrong answer', got: clip(run.value), want: clip(want) }
