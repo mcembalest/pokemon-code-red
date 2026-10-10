@@ -90,9 +90,9 @@ const imageCheck = ({ look }) => (v, b) => {
   const px = clampTo(v.slice(1, IMAGE_PIXELS + 1), 15)
   const fs = frames(px)
   const counts = fs.map(lit)
-  if (counts.some(n => n < 30)) return `every frame needs at least 30 colored pixels (frames have ${counts.join(', ')})`
+  if (counts.some(n => n < 16)) return `every frame needs at least 16 colored pixels (frames have ${counts.join(', ')})`
   if (counts.some(n => n > 900)) return 'leave some of each frame see-through (0): a shape, not a filled square'
-  if (new Set(px.filter(c => c > 0)).size < 4) return 'use at least 4 different colors (shades from dim to bright)'
+  if (new Set(px.filter(c => c > 0)).size < 3) return 'use at least 3 different colors (shades from dim to bright)'
   for (let f = 1; f < IMAGE_FRAMES; f++) if (fs[f].filter((c, i) => c !== fs[f - 1][i]).length < 30) return `frame ${f + 1} barely changes from frame ${f} (it should move)`
   return LOOK[look].test(fs) ? null : LOOK[look].why
 }
@@ -113,23 +113,59 @@ export const PALETTES = {
 // ---------- the moves ----------
 
 const src = s => (0, eval)(s)
-const sound = (character, ref, o = {}) => ({ kind: 'sound', character, check: soundCheck({ loud: o.loud ?? 120, soft: o.soft, character }), ref: src(ref) })
-const image = (look, palette, ref) => ({ kind: 'image', look, palette: PALETTES[palette], check: imageCheck({ look }), ref: src(ref) })
+
+// ---------- voices: every species sounds and draws a little differently (like its cry in the old games) ----------
+
+const hash = text => { let h = 2166136261; for (const ch of String(text)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) } return h >>> 0 }
+const pick = (h, xs, k) => xs[(h >>> k) % xs.length]
+const MOTIFS = [[1, 1.26, 1.5], [1.5, 1.26, 1], [1, 1.5, 1.26], [1.26, 1, 1.5], [1, 1.19, 1.5], [1.5, 1.19, 1]]
+/** A species' voice (stable: the same Pokémon always sounds like itself). */
+export function voiceOf(name = '') {
+  const h = hash(String(name).toUpperCase())
+  return {
+    m: +(0.6 + ((h % 1000) / 1000) * 1.1).toFixed(2),   // pitch ×0.6 … ×1.7
+    d: pick(h, [0.125, 0.25, 0.375], 3),                  // the square's duty: thin, nasal, round
+    w: pick(h, [60, 90, 140], 7),                         // how fast its voice wobbles
+    s: pick(h, [320, 480, 720], 11),                      // its stutter
+    motif: pick(h, MOTIFS, 13),                           // its lullaby's three notes
+    k: pick(h, [2, 3, 4, 5], 17),                         // FLASH: 4, 6, 8 or 10 rays
+    g: pick(h, [3, 4, 5], 19),                            // FLASH: how fast it grows
+    j: pick(h, [3, 5], 23),                               // SPARK: how jagged
+    gw: pick(h, [2, 3], 29),                              // SPARK: glow width
+  }
+}
+const DEFAULT_VOICE = { m: 1, d: 0.25, w: 90, s: 480, motif: [1, 1.26, 1.5], k: 4, g: 4, j: 5, gw: 3 }
+const hz = x => Math.round(x)
+
+const SOURCES = {
+  // ERROR (Growl): a glitchy growl — a nasal square sliding down, its voice wobbling (duty), gritty, stuttering, fading
+  growl: v => `b=>{const o=[b.length];let p=0;for(let i=0;i<3199;i++){const t=i/3200,d=${v.d}+0.12*Math.sin(i/${v.w});p=(p+(${hz(300 * v.m)}-${hz(190 * v.m)}*t)/8000)%1;o.push(Math.round(128+(1-t)*(i%${v.s}<${v.s - 80}?1:0.2)*((p<d?75:-75)+Math.random()*40-20)))}return o}`,
+  // BUZZ (Sonic Boom): a bird trill — a square flipping between two high notes, sliding down, fading
+  trill: v => `b=>{const o=[b.length];let p=0;for(let i=0;i<3199;i++){const t=i/3200,f=(Math.floor(i/${v.s / 2})%2?${hz(990 * Math.min(v.m, 1.4))}:${hz(740 * Math.min(v.m, 1.4))})*(1-0.3*t);p=(p+f/8000)%1;o.push(Math.round(128+(1-0.8*t)*(p<${v.d * 2 > 0.5 ? 0.5 : v.d * 2}?80:-80)))}return o}`,
+  // FEEDBACK (Supersonic): a rising whine — a thin square climbing with a fast vibrato, swelling, then cut
+  whine: v => `b=>{const o=[b.length];let p=0;for(let i=0;i<3199;i++){const t=i/3200,f=(${hz(300 * v.m)}+${hz(1500 * Math.min(v.m, 1.3))}*t*t)*(1+0.04*Math.sin(i/${v.w * 2}));p=(p+f/8000)%1;o.push(Math.round(128+(t<0.9?0.3+0.7*t:0)*(p<0.125?100:-60)))}return o}`,
+  // DIM (Sing): a soft lullaby — three notes, each swelling and fading, a gentle vibrato, quiet
+  lullaby: v => `b=>{const o=[b.length],n=[${v.motif.map(r => hz(392 * Math.min(v.m, 1.3) * r)).join(',')}];let p=0;for(let i=0;i<3199;i++){const k=Math.floor(i/1067),u=(i%1067)/1067;p=(p+n[k]*(1+0.01*Math.sin(i/160))/8000)%1;o.push(Math.round(128+60*Math.sin(Math.PI*u)*(1-4*Math.abs(p-0.5))))}return o}`,
+  // FLASH: a starburst — a hot round core and rays growing frame by frame, breaking into sparkles in the last
+  flash: v => `b=>{const o=[b.length];for(let f=0;f<4;f++)for(let i=0;i<1024;i++){const x=i%32-15.5,y=(i>>5)-15.5,r=Math.hypot(x,y),R=3+${v.g}*f;let c=r<R?15-2*r:Math.cos(${v.k}*Math.atan2(y,x))**12>.5&&r<2*R?12-r+R:0;if(f>2&&Math.random()<.5)c=0;o.push(Math.max(0,Math.round(c)))}return o}`,
+  // SPARK: a jagged bolt from the top row to the bottom, white-hot core, a glow, a new bolt each frame (it flickers)
+  spark: v => `b=>{const o=[b.length];for(let f=0;f<4;f++){const p=Array(1024).fill(0);let x=16;for(let y=0;y<32;y++){x=Math.max(3,Math.min(28,x+Math.floor(Math.random()*${v.j})-${(v.j - 1) / 2}));for(let d=-${v.gw};d<${v.gw + 1};d++)p[y*32+x+d]=Math.max(p[y*32+x+d],15-${v.gw === 3 ? 4 : 6}*Math.abs(d))}o.push(...p)}return o}`,
+}
+
+const sound = (key, character, o = {}) => ({ kind: 'sound', key, character, check: soundCheck({ loud: o.loud ?? 120, soft: o.soft, character }), ref: src(SOURCES[key](DEFAULT_VOICE)) })
+const image = (key, look, palette) => ({ kind: 'image', key, look, palette: PALETTES[palette], check: imageCheck({ look }), ref: src(SOURCES[key](DEFAULT_VOICE)) })
 
 export const PAYLOAD = {
-  // ERROR (Growl): a glitchy growl — a nasal square sliding down 300 → 110 Hz, its voice wobbling (duty), gritty, stuttering, fading
-  growl: sound('falls', `b=>{const o=[b.length];let p=0;for(let i=0;i<3199;i++){const t=i/3200,d=0.25+0.15*Math.sin(i/90);p=(p+(300-190*t)/8000)%1;o.push(Math.round(128+(1-t)*(i%480<400?1:0.2)*((p<d?75:-75)+Math.random()*40-20)))}return o}`),
-  // BUZZ (Sonic Boom): a bird trill — a square flipping between two high notes every 30 ms, sliding down, fading
-  trill: sound('trills', `b=>{const o=[b.length];let p=0;for(let i=0;i<3199;i++){const t=i/3200,f=(Math.floor(i/240)%2?990:740)*(1-0.3*t);p=(p+f/8000)%1;o.push(Math.round(128+(1-0.8*t)*(p<0.5?80:-80)))}return o}`),
-  // FEEDBACK (Supersonic): a rising whine — a thin square climbing 300 → 1800 Hz with a fast vibrato, swelling, then cut
-  whine: sound('rises', `b=>{const o=[b.length];let p=0;for(let i=0;i<3199;i++){const t=i/3200,f=(300+1500*t*t)*(1+0.04*Math.sin(i/180));p=(p+f/8000)%1;o.push(Math.round(128+(t<0.9?0.3+0.7*t:0)*(p<0.125?100:-60)))}return o}`),
-  // DIM (Sing): a soft lullaby — three notes (G, B, D), each swelling and fading, a gentle vibrato, quiet
-  lullaby: sound('tune', `b=>{const o=[b.length],n=[392,494,587];let p=0;for(let i=0;i<3199;i++){const k=Math.floor(i/1067),u=(i%1067)/1067;p=(p+n[k]*(1+0.01*Math.sin(i/160))/8000)%1;o.push(Math.round(128+60*Math.sin(Math.PI*u)*(1-4*Math.abs(p-0.5))))}return o}`, { loud: 60, soft: true }),
-  // FLASH: a starburst — a hot round core and eight rays growing frame by frame, breaking into sparkles in the last
-  flash: image('grows', 'flash', `b=>{const o=[b.length];for(let f=0;f<4;f++)for(let i=0;i<1024;i++){const x=i%32-15.5,y=(i>>5)-15.5,r=Math.hypot(x,y),R=3+4*f;let c=r<R?15-2*r:Math.cos(4*Math.atan2(y,x))**12>.5&&r<2*R?12-r+R:0;if(f>2&&Math.random()<.5)c=0;o.push(Math.max(0,Math.round(c)))}return o}`),
-  // SPARK: a jagged bolt from the top row to the bottom, white-hot core, blue glow, a new bolt each frame (it flickers)
-  spark: image('crosses', 'spark', `b=>{const o=[b.length];for(let f=0;f<4;f++){const p=Array(1024).fill(0);let x=16;for(let y=0;y<32;y++){x=Math.max(3,Math.min(28,x+Math.floor(Math.random()*5)-2));for(let d=-3;d<4;d++)p[y*32+x+d]=Math.max(p[y*32+x+d],15-4*Math.abs(d))}o.push(...p)}return o}`),
+  growl: sound('growl', 'falls'),
+  trill: sound('trill', 'trills'),
+  whine: sound('whine', 'rises'),
+  lullaby: sound('lullaby', 'tune', { loud: 60, soft: true }),
+  flash: image('flash', 'grows', 'flash'),
+  spark: image('spark', 'crosses', 'spark'),
 }
+
+/** The reference in a species' voice (what the prompt shows it as one way to write its own). */
+export const voicedRef = (p, name) => src(SOURCES[p.key](voiceOf(name)))
 
 /** What every sound and every picture move's prompt adds: how the GBA hears and sees the numbers. */
 export const HOW = {
@@ -138,7 +174,7 @@ export const HOW = {
 }
 
 /** One way to write it, for the prompt: the reference body, reading `nums` (the foe's numbers) for the count. */
-export const exampleBody = p => p.ref.toString().replace(/^b=>\{/, '').replace(/\}$/, '').replace(/\bb\.length\b/g, 'nums.length')
+export const exampleBody = (p, name) => (name ? voicedRef(p, name) : p.ref).toString().replace(/^b=>\{/, '').replace(/\}$/, '').replace(/\bb\.length\b/g, 'nums.length')
 
 /** The bytes the GBA gets from a hit (the count dropped): sound samples, or 4 frames of color numbers. */
 export const payloadBytes = (p, value) => (p.kind === 'image' ? clampTo(value.slice(1, IMAGE_PIXELS + 1), 15) : clampTo(value.slice(1, SOUND_MAX + 1), 255))

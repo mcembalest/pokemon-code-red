@@ -192,7 +192,7 @@ test('payload moves: the checker judges the character, a hit carries the bytes (
   const pic = verdict(flash, bytes, run(flash.ref(bytes)))
   assert.equal(pic.payload.kind, 'image'); assert.equal(pic.payload.bytes.length, 4096); assert.equal(pic.payload.bytes[0], 0) // a see-through corner, no count dot
   const square = [4, ...Array.from({ length: 4096 }, (_, i) => { const k = i % 1024; return (k & 31) > 8 && (k & 31) < 24 && k >> 5 > 8 && k >> 5 < 24 ? 15 : 0 })]
-  assert.match(verdict(flash, bytes, run(square)).want, /4 different colors/)
+  assert.match(verdict(flash, bytes, run(square)).want, /3 different colors/)
   assert.match(verdict(flash, bytes, run([4, ...new Array(4096).fill(300)])).want, /see-through/) // 300 sticks to 15: a filled square
   assert.equal(verdict(error, bytes, run(error.ref(bytes).map((x, i) => (i ? x + 0.4 : x)))).hit, true) // fractions round
   const blob = [4, ...Array.from({ length: 4096 }, (_, i) => { const f = i >> 10, k = i % 1024, r = Math.hypot((k & 31) - 15.5, (k >> 5) - 15.5); return r < 5 + f ? Math.max(1, 15 - Math.round(r)) : 0 })]
@@ -201,6 +201,9 @@ test('payload moves: the checker judges the character, a hit carries the bytes (
   const { user } = turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: error, type: 'NORMAL', budget: 300 })
   assert.match(user, /phase p/); assert.match(user, /make it your own/); assert.match(user, /function error\(data\)\{const nums=/)
   assert.ok(user.length < 1800, String(user.length))
+  // every species has its own voice: the example in the prompt differs, the character doesn't
+  const pid = turnPrompt({ self: { name: 'PIDGEY', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: error, type: 'NORMAL', budget: 300 }).user
+  assert.notEqual(pid, user.replace(/\bA\b/g, 'PIDGEY')); assert.match(pid, /PIDGEY's own voice/)
 })
 
 test('doubt: the chance it uses its own pick is ½ × how much worse your call is × (8 − badges) / 8', () => {

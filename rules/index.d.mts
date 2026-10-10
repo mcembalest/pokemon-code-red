@@ -5,7 +5,7 @@ export type Answer = number | string | unknown[] | undefined
 
 export type PayloadKind = 'sound' | 'image'
 /** A move that makes bytes (a sound, a picture) instead of answering: check() returns null for a hit or why it missed. */
-export interface Payload { kind: PayloadKind; character?: string; look?: string; palette?: [number, number, number][]; check(value: unknown, bytes: number[]): string | null; ref(bytes: number[]): number[] }
+export interface Payload { kind: PayloadKind; key: string; character?: string; look?: string; palette?: [number, number, number][]; check(value: unknown, bytes: number[]): string | null; ref(bytes: number[]): number[] }
 export const PAYLOAD: Record<'growl' | 'trill' | 'whine' | 'lullaby' | 'flash' | 'spark', Payload>
 export const PALETTES: Record<'flash' | 'spark' | 'grey', [number, number, number][]>
 export const SAMPLE_RATE: number
@@ -19,6 +19,11 @@ export function pitchSlope(samples: number[]): number
 export function pitchJumps(samples: number[]): number
 export function notes(samples: number[]): number
 export function fades(samples: number[]): boolean
+export interface Voice { m: number; d: number; w: number; s: number; motif: number[]; k: number; g: number; j: number; gw: number }
+export function voiceOf(name?: string): Voice
+export function voicedRef(p: Payload, name: string): (bytes: number[]) => number[]
+export function exampleBody(p: Payload, name?: string): string
+export function clampTo(v: number[], hi: number): number[]
 export interface Move {
   firered: string; name: string; fn: string; spec: string; shape: 'a number' | 'a list' | 'text' | 'no key' | 'null'
   ref(bytes: number[]): Answer
