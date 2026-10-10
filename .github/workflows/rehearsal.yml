@@ -1,0 +1,93 @@
+name: rehearsal
+# Dress rehearsal before playtesters (2026-10-10). Two halves:
+#  1. sim/rehearse.py — the real models write every code move (both sides) while the simulator plays power-on → Misty:
+#     can a player get through, how long do they wait, how many tokens does a playthrough cost?
+#  2. player/tests/rehearsal_live.py — a brand-new account on the LIVE site (one-use invite minted here, revoked after):
+#     join, ROM, starter card, rival battle, PokÉEG, in-game save → cloud, and each gym leader the sim reached.
+# Results → release `rehearsal` (JSON + a few screenshots; never states, ROM bytes or the recovery-code screen).
+# Runs when rehearsal.json changes (any branch) or by hand.
+on:
+  push:
+    paths: ['rehearsal.json']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: rehearsal
+  cancel-in-progress: false
+jobs:
+  rehearse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 170
+    env:
+      CODERED_RUN: rehearsal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: System packages
+        run: sudo apt-get update && sudo apt-get install -y build-essential binutils-arm-none-eabi libpng-dev libmgba-dev
+      - name: Cache pinned decomp + compiler
+        uses: actions/cache@v4
+        with:
+          path: .cache/agbcc
+          key: agbcc-${{ hashFiles('upstream.lock.json') }}
+      - name: Setup, base ROM, Code Red ROM
+        run: |
+          make setup
+          python3 scripts/dev.py baseline
+          mkdir -p local && cp build/baseline.gba local/baserom.gba
+          make rom-bundle
+          python3 scripts/symbols.py
+      - name: Simulator core + browser fixtures
+        run: |
+          pip install --break-system-packages pillow playwright==1.56.0
+          sim/build_core.sh
+          python3 sim/make_states.py
+      - name: Half 1 — power-on → Misty, the real models writing every move
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          mkdir -p build/sim/rehearsal; SEED=$(jq -r ".seed // 0" rehearsal.json)
+          timeout 110m python3 sim/rehearse.py --seed "$SEED" > build/sim/rehearsal/log.txt 2>&1 || echo "::warning title=sim::did not reach Misty"
+          tail -n 60 build/sim/rehearsal/log.txt
+          jq -c '{ok, error, wall_seconds, code_turns, your_hit_rate, foe_hit_rate, tokens, model_wait_seconds, wait_median, wait_p90}' build/sim/rehearsal/summary.json | sed 's/^/::notice title=sim::/' || true
+      - name: Mint a one-use invite
+        id: invite
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd worker && npm ci --no-audit --no-fund >/dev/null
+          A=ABCDEFGHJKMNPQRSTUVWXYZ23456789
+          pick() { python3 -c "import secrets;print(''.join(secrets.choice('$A') for _ in range(4)))"; }
+          CODE="RED-$(pick)-$(pick)"; echo "::add-mask::$CODE"; NOW=$(date +%s000)
+          npx wrangler d1 execute code-red --remote --command "INSERT INTO invites (code, note, max_uses, uses, created_at, revoked) VALUES ('$CODE', 'dress rehearsal (CI)', 1, 0, $NOW, 0)" >/dev/null
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+      - name: Half 2 — a new friend on the live site
+        env:
+          INVITE: ${{ steps.invite.outputs.code }}
+          SITE: https://maxcembalest.com/pokemon-code-red
+        run: |
+          python3 -m playwright install --with-deps chromium >/dev/null
+          timeout 50m python3 player/tests/rehearsal_live.py || echo "::warning title=live::rehearsal script failed"
+          jq -c '.summary' build/rehearsal/live.json | sed 's/^/::notice title=live::/' || true
+          jq -c '.steps[] | {step, ok, seconds}' build/rehearsal/live.json | sed 's/^/::notice title=step::/' || true
+      - name: Revoke the invite
+        if: always() && steps.invite.outputs.code != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: cd worker && npx wrangler d1 execute code-red --remote --command "UPDATE invites SET revoked = 1 WHERE code = '${{ steps.invite.outputs.code }}'" >/dev/null
+      - name: Publish results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          S=${GITHUB_SHA::7}; mkdir -p pub
+          for f in build/sim/rehearsal/summary.json build/sim/rehearsal/turns.jsonl build/sim/rehearsal/log.txt build/rehearsal/live.json; do [ -f "$f" ] && cp "$f" "pub/$S-$(basename $f)"; done
+          for f in 01-join 03-rom-chooser 04-booted 05-starter-card 06-rival-end 07-pokeeg 08-pokeeg-instinct 10-saved; do [ -f "build/rehearsal/$f.png" ] && cp "build/rehearsal/$f.png" "pub/$S-$f.png"; done
+          for f in build/rehearsal/gym-*-end.png build/sim/rehearsal/fail.png; do [ -f "$f" ] && cp "$f" "pub/$S-$(basename $f)"; done
+          gh release view rehearsal >/dev/null 2>&1 || gh release create rehearsal --prerelease --title "Dress rehearsal" --notes "Outputs of .github/workflows/rehearsal.yml. Safe to delete."
+          gh release upload rehearsal pub/* --clobber
