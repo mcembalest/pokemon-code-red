@@ -2,7 +2,8 @@
 """Doubt in the real ROM (patch 006, CodeRedDoubts): in the first rival battle CHARMANDER is told to use GROWL
 (instinct score 0) while SCRATCH is right there. Its chance of using SCRATCH instead is
     ½ × (1 − 0 / score(SCRATCH)) × (8 − badges) / 8  =  50% / 25% / 0%  at 0 / 4 / 8 badges.
-Each trial reloads the battle with a different RNG seed; a doubt is the disobedient-move hit marker, and the move\nit used instead is gCalledMove.
+Each trial reloads the battle with a different RNG seed; a doubt is the disobedient-move hit marker, and the move it used
+instead is gCalledMove.
 Also screenshots the "doubted your call!" text once.
 
   python3 sim/experiments/doubt.py [trials per badge count, default 60]

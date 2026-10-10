@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Payload moves in the real ROM (patches/009-payload.patch): the first rival battle, CHARMANDER's ERROR (Growl)
-hands the game a buzz; FLASH (poked into move slot 2) hands it a picture. Checks the game takes each payload
-(`played` counts up), the battle goes on, and screenshots the sprite. All eight badges are set so CHARMANDER
+hands the game the reference growl (rules/payload.mjs); FLASH (poked into move slot 2) hands it the 4-frame starburst
+in its palette. Checks the game takes each payload (`played` counts up) and the battle goes on, and screenshots the
+starburst every few frames (payload-flash-strip.png: does it animate?). How sounds play: sim/experiments/payload_audio.py. All eight badges are set so CHARMANDER
 never doubts these calls (both moves score 0 to its instinct; sim/experiments/doubt.py covers doubt).
 
   python3 sim/experiments/payload.py
 Writes build/sim/results/payload.json; exits 1 on a failed check.
 """
-import json, sys
+import json, subprocess, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from codered import World
@@ -19,8 +20,9 @@ from codered.world import BMON_SIZE
 
 MOVE_GROWL, MOVE_FLASH = 45, 148
 OUT = ROOT / 'build/sim/results'
-BUZZ = [4] + [230 if i % 20 < 10 else 30 for i in range(399)]
-SQUARE = [4] + [0 if 10 <= (k + 1) % 32 < 22 and 10 <= (k + 1) // 32 < 22 else 255 for k in range(1023)]
+REFS = json.loads(subprocess.run(['node', '-e', "import('./rules/index.mjs').then(r => { const b = [42, 13, 140, 77]; "
+    "console.log(JSON.stringify({ growl: r.PAYLOAD.growl.ref(b).slice(1), flash: r.PAYLOAD.flash.ref(b).slice(1), palette: r.PAYLOAD.flash.palette })) })"],
+    cwd=ROOT, capture_output=True, text=True, check=True).stdout)
 
 
 def main():
@@ -37,9 +39,9 @@ def main():
 
     def decide(r):
         if r['side'] == 0 and r['move'] == MOVE_GROWL:
-            payload.deliver('sound', BUZZ); delivered.append('sound'); return ('hit', None)
+            payload.deliver('sound', REFS['growl']); delivered.append('sound'); return ('hit', None)
         if r['side'] == 0 and r['move'] == MOVE_FLASH:
-            payload.deliver('image', SQUARE); delivered.append('image'); return ('hit', None)
+            payload.deliver('image', REFS['flash'], REFS['palette']); delivered.append('image'); return ('hit', None)
         return ('hit', None)
     host = CodeMoveHost(g, decide); host.attach(); host.enable()
     b = Battle(g)
@@ -47,6 +49,7 @@ def main():
     base = g.sym('gBattleMons')
     plan = [1, 2, 1, 2]  # slot 1 = ERROR (Growl), slot 2 = FLASH
     turns, frame0, poked = 0, g.frame, False
+    changes = 0
     while not b.over() and turns < 4 and g.frame - frame0 < 60 * 60 * 3:
         if b.choosing_action():
             if not poked:  # once the battle has loaded its Pokémon: give CHARMANDER FLASH in slot 2 so both payload kinds get used
@@ -54,18 +57,26 @@ def main():
             b.act(0)
         elif b.choosing_move():
             b.use_move(plan[turns]); turns += 1
-            if turns == 2:  # FLASH just chosen: the sprite shows when the hit lands
+            if turns == 2:  # FLASH just chosen: the sprite animates when the hit lands
                 g.run_until(lambda: payload.played() >= 2, limit=1200)
-                g.run(30); p = OUT / 'payload-flash.png'; g.screenshot(p); shots.append(str(p))
+                from PIL import Image
+                frames = []
+                for k in range(8):
+                    g.run(6); p = OUT / f'payload-flash-{k}.png'; g.screenshot(p); frames.append(Image.open(p).convert('RGB'))
+                strip = Image.new('RGB', (240 * 4, 160)); [strip.paste(frames[k * 2], (240 * k, 0)) for k in range(4)]
+                strip.save(OUT / 'payload-flash-strip.png'); shots.append(str(OUT / 'payload-flash-strip.png'))
+                region = (120, 0, 240, 100)
+                changes = sum(1 for k in range(1, 4) if list(frames[k].crop(region).getdata()) != list(frames[k - 1].crop(region).getdata()))
         else:
             g.press('A', hold=2, after=6)
     g.run(400)  # the last hit lands
     results = {'delivered': delivered, 'played': payload.played(), 'kind_after': payload.kind(), 'turns': turns,
-               'requests': [{k: r[k] for k in ('move', 'side')} for r in host.requests], 'outcome': g.battle_outcome(), 'shots': shots}
+               'requests': [{k: r[k] for k in ('move', 'side')} for r in host.requests], 'outcome': g.battle_outcome(), 'shots': shots, 'flash_frames_changing': changes}
     (OUT / 'payload.json').write_text(json.dumps(results, indent=1))
     print(json.dumps(results))
     checks = {'both kinds delivered': set(delivered) >= {'sound', 'image'}, 'game played every payload': results['played'] == len(delivered) and results['played'] >= 2,
-              'kind cleared': results['kind_after'] == 0, 'battle went on': results['outcome'] in ('ongoing', 'won', 'lost')}
+              'kind cleared': results['kind_after'] == 0, 'battle went on': results['outcome'] in ('ongoing', 'won', 'lost'),
+              'the starburst animated': changes >= 2}
     print(json.dumps(checks))
     sys.exit(0 if all(checks.values()) else 1)
 

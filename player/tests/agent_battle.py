@@ -36,7 +36,8 @@ def battle(p, url, records=None):
     page.evaluate('b64 => EJS_emulator.gameManager.loadState(Uint8Array.from(atob(b64), c => c.charCodeAt(0)))', base64.b64encode(STATE.read_bytes()).decode())
     page.wait_for_timeout(1000)
     # Every verdict the code panel shows: "<side>: <head> | <foot>".
-    page.evaluate('''window.__verdicts = []; new MutationObserver(() => { for (const p of document.querySelectorAll(".code-red-code-pane")) { const s = p.dataset.state; if (s === "hit" || s === "miss" || s === "vanilla") { const v = p.dataset.side + ": " + p.querySelector("header").textContent + " | " + p.querySelector("footer").textContent; if (!window.__verdicts.includes(v)) window.__verdicts.push(v) } } }).observe(document.querySelector("[data-stage]"), { subtree: true, childList: true, characterData: true, attributes: true })''')
+    # One entry per verdict: a pane that goes writing → hit records once, even if two turns read the same.
+    page.evaluate('''window.__verdicts = []; const last = new WeakMap(); new MutationObserver(() => { for (const p of document.querySelectorAll(".code-red-code-pane")) { const s = p.dataset.state, was = last.get(p); last.set(p, s); if (s !== was && (s === "hit" || s === "miss" || s === "vanilla")) window.__verdicts.push(p.dataset.side + ": " + p.querySelector("header").textContent + " | " + p.querySelector("footer").textContent) } }).observe(document.querySelector("[data-stage]"), { subtree: true, childList: true, characterData: true, attributes: true })''')
     # Agents mode starts with the agent in control (button pressed).
     assert page.get_attribute('[data-agent]', 'aria-pressed') == 'true'
     page.wait_for_function('document.querySelector("[data-agent-box]")?.dataset.turns >= "1"', timeout=60000)

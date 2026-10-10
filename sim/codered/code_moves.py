@@ -72,19 +72,26 @@ PAYLOAD_MAGIC = 0x31505243
 PAYLOAD_KIND = {'sound': 1, 'image': 2}
 
 
-def pack_image(pixels: list[int]) -> bytes:
-    """1024 brightness bytes → 512 bytes of 4bpp tiles (1D 32×32 sprite order), like the page does."""
-    out = bytearray(512)
-    for y in range(32):
-        for x in range(32):
-            shade = 1 + round(max(0, min(255, pixels[y * 32 + x])) * 14 / 255)  # 1..15: index 0 is transparent on the GBA
-            at = ((y >> 3) * 4 + (x >> 3)) * 32 + (y & 7) * 4 + ((x & 7) >> 1)
-            out[at] = (out[at] & 0x0F) | (shade << 4) if x & 1 else (out[at] & 0xF0) | shade
-    return bytes(out)
+def pack_image(pixels: list[int]) -> tuple[bytes, int]:
+    """Color numbers 0-15, 1024 a frame (up to 4 frames) → 4bpp tiles, 512 bytes a frame (1D 32×32 order), like the page."""
+    frames = max(1, min(4, len(pixels) // 1024))
+    out = bytearray(512 * frames)
+    for f in range(frames):
+        for y in range(32):
+            for x in range(32):
+                c = max(0, min(15, int(round(pixels[f * 1024 + y * 32 + x]))))
+                at = f * 512 + ((y >> 3) * 4 + (x >> 3)) * 32 + (y & 7) * 4 + ((x & 7) >> 1)
+                out[at] = (out[at] & 0x0F) | (c << 4) if x & 1 else (out[at] & 0xF0) | c
+    return bytes(out), frames
 
 
 def pack_sound(samples: list[int]) -> bytes:
-    return bytes(((max(0, min(255, s)) - 128) & 0xFF) for s in samples[:512])
+    return bytes(((max(0, min(255, int(round(s)))) - 128) & 0xFF) for s in samples[:4096])
+
+
+def bgr555(rgb) -> int:
+    r, g, b = rgb
+    return (r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10)
 
 
 class PayloadHost:
@@ -98,13 +105,22 @@ class PayloadHost:
         a = self.g.u32(self.ptr)
         return a if 0x02000000 <= a < 0x02040000 else 0
 
-    def deliver(self, kind: str, data: list[int]) -> None:
+    def deliver(self, kind: str, data: list[int], palette=None) -> None:
+        """Version 2 layout: 6 kind, 7 frames, 8 length, 10 played, 12 palette[16], 60 data[4096]."""
         g, a = self.g, self.a
         assert a, 'no battle holds a payload mailbox'
-        packed = pack_image(data) if kind == 'image' else pack_sound(data)
         g.w8(a + 6, 0)
-        g.w32(a, PAYLOAD_MAGIC); g.w16(a + 4, 1); g.w16(a + 8, len(packed))
-        g.write(a + 28, packed)
+        g.w32(a, PAYLOAD_MAGIC); g.w16(a + 4, 2)
+        if kind == 'image':
+            packed, frames = pack_image(data)
+            g.w8(a + 7, frames)
+            pal = palette or [[i * 17] * 3 for i in range(16)]
+            for i in range(16):
+                g.w16(a + 12 + 2 * i, bgr555(pal[i]))
+        else:
+            packed = pack_sound(data)
+        g.w16(a + 8, len(packed))
+        g.write(a + 60, packed)
         g.w8(a + 6, PAYLOAD_KIND[kind])
 
     def kind(self) -> int: return self.g.u8(self.a + 6) if self.a else 0

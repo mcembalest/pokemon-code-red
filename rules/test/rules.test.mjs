@@ -176,23 +176,34 @@ test('one context budget: the reader and hot memory are charged against the budg
   assert.deepEqual(Object.keys(learn({ A: '1', B: '2', C: '3' }, 'D', '4')), ['A', 'B', 'C', 'D'], 'no slot cap')
 })
 
-test('payload moves: the check judges the bytes, a hit carries them, the prompt shows a loop-sized example', async () => {
-  const error = byName.ERROR, flash = byName.FLASH
+test('payload moves: the checker judges the character, a hit carries the bytes (no count), the prompt says how', async () => {
+  const error = byName.ERROR, flash = byName.FLASH, spark = byName.SPARK
   const bytes = [42, 13, 140, 77]
   const run = v => ({ ok: true, value: v })
-  assert.equal(verdict(error, bytes, run(error.ref(bytes))).hit, true)
-  assert.deepEqual(verdict(error, bytes, run(error.ref(bytes))).payload.kind, 'sound')
-  assert.equal(verdict(error, bytes, run(new Array(400).fill(128))).want, 'first number should be 4'); assert.match(verdict(error, bytes, run([4, 230, 30])).want, /at least 100/)
-  assert.match(verdict(error, bytes, run([4, ...new Array(399).fill(128)])).want, /loud/)
-  assert.match(verdict(flash, bytes, run([4, ...new Array(1023).fill(255)])).want, /black/)
-  const loop = `function error(data) { const nums = data; const out = [nums.length]; for (let i = 1; i < 400; i++) out.push(i % 20 < 10 ? 230 : 30); return out }`
-  const v = await judge({ move: error, bytes, data: bytes, code: loop, budget: 300, runSource: async src => ({ ok: true, value: new Function(src)() }) })
-  assert.equal(v.hit, true); assert.equal(v.payload.bytes.length, 399); assert.equal(v.payload.bytes[0], 230) // the count is checked, not played
-  const f = verdict(flash, bytes, run(flash.ref(bytes))).payload.bytes
-  assert.equal(f.length, 1024); assert.equal(f[0], 255); assert.equal(f[1023], 0) // no count dot in the corner; the last pixel fills its slot
-  const { user } = turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: flash, type: 'NORMAL', budget: 300 })
-  assert.match(user, /one short loop/)
-  assert.ok(user.length < 1200, String(user.length))
+  for (const m of ['ERROR', 'BUZZ', 'FEEDBACK', 'DIM', 'FLASH', 'SPARK']) assert.equal(verdict(byName[m], bytes, run(byName[m].ref(bytes))).hit, true, m)
+  const hit = verdict(error, bytes, run(error.ref(bytes)))
+  assert.equal(hit.payload.kind, 'sound'); assert.equal(hit.payload.bytes.length, 3199) // the count is checked, not played
+  const tone = [4, ...Array.from({ length: 3199 }, (_, i) => (Math.floor(i / 10) % 2 ? 30 : 230))]
+  assert.match(verdict(error, bytes, run(tone)).want, /fades/) // a flat tone is not a growl
+  const rising = [4, ...byName.FEEDBACK.ref(bytes).slice(1)]
+  assert.match(verdict(error, bytes, run(rising)).want, /slide down/)
+  assert.equal(verdict(error, bytes, run(tone.map((x, i) => (i ? x : 9)))).want, 'first number should be 4')
+  assert.match(verdict(error, bytes, run([4, 230, 30])).want, /at least 1000/)
+  const pic = verdict(flash, bytes, run(flash.ref(bytes)))
+  assert.equal(pic.payload.kind, 'image'); assert.equal(pic.payload.bytes.length, 4096); assert.equal(pic.payload.bytes[0], 0) // a see-through corner, no count dot
+  const square = [4, ...Array.from({ length: 4096 }, (_, i) => { const k = i % 1024; return (k & 31) > 8 && (k & 31) < 24 && k >> 5 > 8 && k >> 5 < 24 ? 15 : 0 })]
+  assert.match(verdict(flash, bytes, run(square)).want, /3 different colors/)
+  assert.match(verdict(flash, bytes, run([4, ...new Array(4096).fill(300)])).want, /see-through/) // 300 sticks to 15: a filled square
+  assert.equal(verdict(error, bytes, run(error.ref(bytes).map((x, i) => (i ? x + 0.4 : x)))).hit, true) // fractions round
+  const blob = [4, ...Array.from({ length: 4096 }, (_, i) => { const f = i >> 10, k = i % 1024, r = Math.hypot((k & 31) - 15.5, (k >> 5) - 15.5); return r < 5 + f ? Math.max(1, 15 - Math.round(r)) : 0 })]
+  assert.equal(verdict(flash, bytes, run(blob)).hit, true) // a glowing ball that grows is a flash…
+  assert.match(verdict(spark, bytes, run(blob)).want, /top rows/) // …not a bolt
+  const { user } = turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: error, type: 'NORMAL', budget: 300 })
+  assert.match(user, /phase p/); assert.match(user, /make it your own/); assert.match(user, /function error\(data\)\{const nums=/)
+  assert.ok(user.length < 1800, String(user.length))
+  // every species has its own voice: the example in the prompt differs, the character doesn't
+  const pid = turnPrompt({ self: { name: 'PIDGEY', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: error, type: 'NORMAL', budget: 300 }).user
+  assert.notEqual(pid, user.replace(/\bA\b/g, 'PIDGEY')); assert.match(pid, /PIDGEY's own voice/)
 })
 
 test('doubt: the chance it uses its own pick is ½ × how much worse your call is × (8 − badges) / 8', () => {

@@ -1,29 +1,39 @@
 {
-  "note": "More payload moves on Qwen2.5-Coder-32B: BUZZ, DIM, FEEDBACK (sounds at different pitches), SPARK (a bright bar). 4 samples; recipe specs.",
+  "note": "Expressive payloads v3: species voices (the worked example in each Pok\u00e9mon's own voice). Several attackers.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": [
+    "ERROR",
     "BUZZ",
-    "DIM",
     "FEEDBACK",
+    "DIM",
+    "FLASH",
     "SPARK"
   ],
   "types": [
     "NORMAL",
     "WATER",
-    "FIRE",
-    "ROCK",
-    "PSYCHIC"
+    "FIRE"
   ],
   "known": [
-    false,
     true
   ],
-  "samples": 4,
+  "samples": 8,
   "levels": [
     5,
     10,
-    15
+    15,
+    20
   ],
   "concurrency": 16,
-  "payloadModel": "@cf/qwen/qwen2.5-coder-32b-instruct"
+  "payloadModel": "@cf/qwen/qwen2.5-coder-32b-instruct",
+  "selves": [
+    "CHARMANDER",
+    "SQUIRTLE",
+    "BULBASAUR",
+    "PIKACHU",
+    "PIDGEY",
+    "JIGGLYPUFF",
+    "ZUBAT",
+    "MAGNEMITE"
+  ]
 }

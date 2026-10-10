@@ -11,31 +11,7 @@
 // Indexes count from 0. No answer is null. Ties → the first one. "Rounded down" = Math.floor.
 import { FIRERED } from './firered.mjs'
 
-/**
- * Payload moves (owner, 2026-10-09): bytes are the universal medium, so a move may *make* bytes instead of answering —
- * a sound the GBA plays, a picture it draws. There is no single right answer: `check(value, bytes)` returns null for a
- * hit or why it missed. The foe's data still matters (the first number must be its count: the type's format must be read).
- * `ref` is the example shown in the prompt (a function of the foe's bytes), `kind` is what the GBA does with the bytes.
- */
-const isBytes = (v, n) => Array.isArray(v) && v.length === n && v.every(x => Number.isInteger(x) && x >= 0 && x <= 255)
-const crossings = v => { let n = 0, last = 0; for (const x of v) { const s = Math.sign(x - 128); if (s && last && s !== last) n++; if (s) last = s } return n }
-// a sound may run long: the GBA keeps the first 512 samples (the page clips), so only "too short" is a miss
-const soundCheck = ({ hi, lo, switches }) => (v, b) => !isBytes(v, v?.length) || v.length < 100 ? 'not at least 100 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : Math.max(...v) < hi ? `never loud (above ${hi})` : Math.min(...v.slice(1)) > lo ? `never quiet (below ${lo})` : crossings(v) < switches ? `switches fewer than ${switches} times` : null
-const imageCheck = ({ white, dark }) => (v, b) => !isBytes(v, v?.length) || v.length < 1024 ? 'not 1024 numbers from 0 to 255' : v[0] !== b.length ? `first number should be ${b.length}` : v.filter(x => x > 200).length < white ? `not enough white (fewer than ${white} numbers above 200)` : v.filter(x => x < 50).length < dark ? `not enough black (fewer than ${dark} numbers below 50)` : null
-/** A sound: `run` samples of `hi` then `run` of `lo`, repeating (the pitch); a picture: white with black from `from` to `to`, or the reverse. */
-// refs are built from source text with the numbers inlined: the stand-in model (player mockWriter) prints ref.toString() as its code.
-const sound = (hi, lo, run) => ({ kind: 'sound', n: 400, check: soundCheck({ hi: hi - 10, lo: lo + 10, switches: 3 }),
-  ref: (0, eval)(`b => [b.length, ...Array.from({ length: 399 }, (_, i) => (Math.floor(i / ${run}) % 2 ? ${lo} : ${hi}))]`) })
-const image = (bg, fg, from, to, { white, dark }) => ({ kind: 'image', n: 1024, check: imageCheck({ white, dark }),
-  ref: (0, eval)(`b => [b.length, ...Array.from({ length: 1023 }, (_, k) => (k + 1 >= ${from} && k + 1 < ${to} ? ${fg} : ${bg}))]`) })
-export const PAYLOAD = {
-  sound: sound(230, 30, 1),            // ERROR: a harsh 4 kHz buzz
-  buzz: sound(230, 30, 2),             // BUZZ: 2 kHz
-  whine: sound(230, 30, 6),            // FEEDBACK: 667 Hz
-  hum: sound(160, 96, 8),              // DIM: a soft 500 Hz hum
-  image: image(255, 0, 640, 1024, { white: 300, dark: 100 }),   // FLASH: white, then black
-  spark: image(0, 255, 480, 544, { white: 50, dark: 500 }),     // SPARK: black with a bright bar across the middle
-}
+import { PAYLOAD } from './payload.mjs'
 
 const sum = b => b.reduce((a, x) => a + x, 0)
 const max = b => Math.max(...b)
@@ -65,7 +41,7 @@ const TABLE = [
   ['Double Slap', 'UNDO', 'the numbers without the first one', b => b.slice(1)],
   ['Fury Attack', 'SPAM', 'a list of 5 copies of the first number', b => Array(5).fill(b[0])],
   ['Fury Swipes', 'GREP', 'the numbers that are under 50', b => b.filter(x => x < 50)],
-  ['Sing', 'DIM', 'a soft hum, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate eight at a time: eight 160s, eight 96s, eight 160s, … until the list has 400 numbers', PAYLOAD.hum],
+  ['Sing', 'DIM', 'a soft lullaby, as a list of about 3200 numbers: the first is how many numbers the foe had; then three notes one after another, each gently swelling and fading, quiet (every number between 60 and 196)', PAYLOAD.lullaby],
   ['Smokescreen', 'BLUR', 'the numbers in reverse order', b => [...b].reverse()],
   ['Headbutt', 'REBOOT', 'the first number plus the last', b => b[0] + b.at(-1)],
   ['Hyper Fang', 'CRASH', 'the number at index (first number % number of numbers)', b => b[b[0] % b.length]],
@@ -77,10 +53,10 @@ const TABLE = [
   ['Harden', 'HARDEN', "each number written as a string, like 42 → '42' (a list of strings)", b => b.map(String)],
   ['Bind', 'BIND', 'the first and last number, as a list of two', b => [b[0], b.at(-1)]],
   ['Wrap', 'WRAP', 'the numbers wrapped in another list', b => [[...b]]],
-  ['Growl', 'ERROR', 'a buzz, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate 230, 30, 230, 30, … until the list has 400 numbers', PAYLOAD.sound],
-  ['Flash', 'FLASH', 'a flash, as a list of 1024 numbers (a 32 by 32 picture): the first is how many numbers the foe had (data.length); then 255 (white) until the list has 640 numbers, then 0 (black) until it has 1024', PAYLOAD.image],
+  ['Growl', 'ERROR', 'a glitchy growl, as a list of about 3200 numbers: the first is how many numbers the foe had; then a buzzy square wave whose pitch slides down, with a wobbling voice (change d slowly), a little random grit and a stutter, fading out', PAYLOAD.growl],
+  ['Flash', 'FLASH', 'a flash, as a list of 4097 numbers: the first is how many numbers the foe had; then 4 frames: a bright round core with rays around it that grows bigger frame by frame (brightest in the middle) and breaks into sparkles in the last frame', PAYLOAD.flash],
   ['Camouflage', 'SPOOF', 'the list with the first and last numbers swapped', b => [b.at(-1), ...b.slice(1, -1), b[0]]],
-  ['Supersonic', 'FEEDBACK', 'a feedback whine, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate six at a time: six 230s, six 30s, six 230s, … until the list has 400 numbers', PAYLOAD.whine],
+  ['Supersonic', 'FEEDBACK', 'a feedback whine, as a list of about 3200 numbers: the first is how many numbers the foe had; then a thin square wave (d = 0.125) whose pitch climbs with a fast wobble (vibrato), getting louder, then cut off', PAYLOAD.whine],
   ['Defense Curl', 'LOCKDOWN', 'a list holding only the first number', b => [b[0]]],
   ['Screech', 'DISTORTION', 'the numbers after the first half (the first half is half the length, rounded down)', b => b.slice(Math.floor(b.length / 2))],
   ['Disable', 'DISABLE', 'the last number minus the first', b => b.at(-1) - b[0]],
@@ -100,7 +76,7 @@ const TABLE = [
   ['Rapid Spin', 'SPINUP', 'the numbers with the first one moved to the end', b => [...b.slice(1), b[0]]],
   ['Recover', 'RECOVER', 'how many numbers are greater than 50', b => b.filter(x => x > 50).length],
   ['Whirlwind', 'FAILOVER', 'the numbers with the last one moved to the front', b => [b.at(-1), ...b.slice(0, -1)]],
-  ['Sonic Boom', 'BUZZ', 'a buzz, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate two at a time: 230, 230, 30, 30, 230, 230, 30, 30, … until the list has 400 numbers', PAYLOAD.buzz],
+  ['Sonic Boom', 'BUZZ', 'a chirping trill, as a list of about 3200 numbers: the first is how many numbers the foe had; then a square wave that flips back and forth between two high notes, sliding a little lower and fading', PAYLOAD.trill],
   ['Growth', 'UPGRADE', 'the list with one extra number at the end: how many numbers there were', b => [...b, b.length]],
   ['Scary Face', 'FREEZE', 'how many numbers are over 150', b => b.filter(x => x > 150).length],
   ['Splash', 'SPLASH', 'nothing: return without a value', () => undefined],
@@ -123,7 +99,7 @@ const TABLE = [
   ['Leech Seed', 'LEECH SEED', 'the sum of the numbers at even indexes (0, 2, 4…)', b => sum(b.filter((_, i) => i % 2 === 0))],
   // ELECTRIC — peaks
   ['Thunder Wave', 'POWERCUT', 'the numbers in their order, without the largest one', b => { const i = b.indexOf(max(b)); return b.filter((_, j) => j !== i) }],
-  ['Spark', 'SPARK', 'a spark, as a list of 1024 numbers (a 32 by 32 picture): the first is how many numbers the foe had (data.length); then 0 (black) everywhere except 255 (white) at positions 480 to 543 (a bright bar across the middle)', PAYLOAD.spark],
+  ['Spark', 'SPARK', 'a spark, as a list of 4097 numbers: the first is how many numbers the foe had; then 4 frames: a jagged lightning bolt from the top row to the bottom row, white-hot (15) in the middle and dimmer at its edges, a different bolt in each frame', PAYLOAD.spark],
   ['Thunder Shock', 'SURGE', 'the largest number plus 1', b => max(b) + 1],
   ['Charge', 'CHARGE', 'the largest number times 2', b => max(b) * 2],
   // ICE — freeze
