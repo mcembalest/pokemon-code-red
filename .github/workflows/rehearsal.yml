@@ -5,9 +5,10 @@ name: rehearsal
 #  2. player/tests/rehearsal_live.py — a brand-new account on the LIVE site (one-use invite minted here, revoked after):
 #     join, ROM, starter card, rival battle, PokÉEG, in-game save → cloud, and each gym leader the sim reached.
 # Results → release `rehearsal` (JSON + a few screenshots; never states, ROM bytes or the recovery-code screen).
-# Runs when rehearsal.json changes (any branch) or by hand.
+# Runs when rehearsal.json changes on a branch, or by hand.
 on:
   push:
+    branches-ignore: [main]   # run from a branch: merging the tooling must not start a rehearsal (real tokens, a test account)
     paths: ['rehearsal.json']
   workflow_dispatch:
 permissions:
