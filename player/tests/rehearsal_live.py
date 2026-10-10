@@ -189,7 +189,11 @@ def main():
                          'your_hits': sum(t['state'] == 'hit' for t in mine), 'vanilla': sum(t['state'] == 'vanilla' for t in ts),
                          'wait_median_s': round(waits[len(waits) // 2] / 1000, 1) if waits else None,
                          'wait_p90_s': round(waits[int(len(waits) * 0.9)] / 1000, 1) if waits else None,
-                         'steps_failed': [s['step'] for s in report['steps'] if not s['ok']]}
+                         'steps_failed': [s['step'] for s in report['steps'] if not s['ok']],
+                         # sound/picture moves: the panel says "makes a sound" / "draws a picture"
+                         'payload_turns': sum(1 for t in mine if 'makes a sound' in t['head'] or 'draws a picture' in t['head']),
+                         'payload_hits': sum(1 for t in mine if ('makes a sound' in t['head'] or 'draws a picture' in t['head']) and t['state'] == 'hit'),
+                         'payload_codes': [t['code'][:160] for t in mine if 'makes a sound' in t['head'] or 'draws a picture' in t['head']][:4]}
     (OUT / 'live.json').write_text(json.dumps(report, indent=1))
     print(json.dumps(report['summary'], indent=1))
 
