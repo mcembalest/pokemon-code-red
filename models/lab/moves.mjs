@@ -26,18 +26,18 @@ const moves = (cfg.moves === 'all' ? MOVES : MOVES.filter(m => cfg.moves.include
 const modelFor = move => (move.payload && cfg.payloadModel ? cfg.payloadModel : cfg.model)
 const wordings = cfg.words ?? [WORDS]
 for (const move of moves) for (const type of cfg.types) for (const known of cfg.known) for (const words of wordings) for (let i = 0; i < cfg.samples; i++)
-  jobs.push({ move, type, known, words, level: cfg.levels[i % cfg.levels.length], seed: 5000 + jobs.length * 7 })
+  jobs.push({ move, type, known, words, level: cfg.levels[i % cfg.levels.length], seed: 5000 + jobs.length * 7, self: cfg.selves ? cfg.selves[jobs.length % cfg.selves.length] : cfg.self ?? 'CHARMANDER' })
 
-async function one({ move, type, known, words, level, seed }) {
+async function one({ move, type, known, words, level, seed, self }) {
   const r = rng(seed), bytes = targetBytes(r), data = turnData(bytes, type)
   const know = known ? knowFor(type, { dex: [type] }) : null
   const budget = budgetAt(level)
-  const { system, user } = turnPrompt({ self: { name: cfg.self ?? 'CHARMANDER', level }, target: { name: cfg.target ?? 'RATTATA', level, types: [type] }, move, type, know, budget, words })
+  const { system, user } = turnPrompt({ self: { name: self, level }, target: { name: cfg.target ?? 'RATTATA', level, types: [type] }, move, type, know, budget, words })
   try {
     const { text, ms } = await ask(system, user, focusAt(level), modelFor(move))
     const { code } = extractCode(text)
     const v = await judge({ move, bytes, data, code, budget, runSource })
-    return { move: move.name, type, known, words: `${words.data}/${words.v}`, level, hit: v.hit, reason: v.reason ?? null, got: v.got, want: v.want, error: v.error?.slice(0, 120), ms, text: text.slice(0, 900) }
+    return { move: move.name, self, type, known, words: `${words.data}/${words.v}`, level, hit: v.hit, reason: v.reason ?? null, got: v.got, want: v.want, error: v.error?.slice(0, 120), ms, text: text.slice(0, 900) }
   } catch (e) { return { move: move.name, type, known, level, hit: false, reason: 'api', error: String(e.message).slice(0, 120) } }
 }
 
