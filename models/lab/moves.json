@@ -1,29 +1,11 @@
 {
-  "note": "More payload moves on Qwen2.5-Coder-32B: BUZZ, DIM, FEEDBACK (sounds at different pitches), SPARK (a bright bar). 4 samples; recipe specs.",
+  "note": "Expressive payloads (2026-10-10): character checkers (falls/trills/rises/tune; grows/crosses), 4096-sample sounds, 4-frame 16-color pictures. Qwen2.5-Coder-32B.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
-  "moves": [
-    "BUZZ",
-    "DIM",
-    "FEEDBACK",
-    "SPARK"
-  ],
-  "types": [
-    "NORMAL",
-    "WATER",
-    "FIRE",
-    "ROCK",
-    "PSYCHIC"
-  ],
-  "known": [
-    false,
-    true
-  ],
-  "samples": 4,
-  "levels": [
-    5,
-    10,
-    15
-  ],
+  "moves": ["ERROR", "BUZZ", "FEEDBACK", "DIM", "FLASH", "SPARK"],
+  "types": ["NORMAL", "WATER", "FIRE"],
+  "known": [true],
+  "samples": 8,
+  "levels": [5, 10, 15, 20],
   "concurrency": 16,
   "payloadModel": "@cf/qwen/qwen2.5-coder-32b-instruct"
 }
