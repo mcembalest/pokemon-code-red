@@ -1,8 +1,8 @@
 Code Red: payload moves (owner, 2026-10-09: bytes are the universal medium). A move may make bytes
 instead of answering: ERROR makes a sound, FLASH a picture. The page judges the bytes and, on a hit,
-drops them into the payload mailbox (540 B: header + 16-byte wave header + 512 bytes) already in GBA
-form (signed 8 kHz samples / 4bpp tiles); when the battle takes the hit, the GBA plays the sound through
-the cry player or draws a 32×32 16-grey sprite over the target. The hook lives in patch 006
+drops them into the payload mailbox (4156 B, version 2: header, 16-color palette, wave header, 4096 bytes) in GBA
+form (≤ 4096 signed 8 kHz samples / ≤ 4 frames of 4bpp tiles); when the battle takes the hit, the GBA plays the sound once through
+the cry player (~0.5 s) or animates a 32×32 sprite over the target at 2×. The hook lives in patch 006
 (CodeRedMoveContinue → CodeRedPayloadShow). The mailbox is heap-allocated for the battle's duration
 (AllocateBattleResources / FreeBattleResources); the static symbol gCodeRedPayload is a pointer to it,
 NULL outside battle, so hosts read the pointer first.
@@ -33,18 +33,20 @@ index 8a5fbccf..359f7eb3 100644
      if (gBattleTypeFlags & BATTLE_TYPE_POKEDUDE)
 diff --git a/src/code_red_payload.c b/src/code_red_payload.c
 new file mode 100644
-index 00000000..c17cac50
+index 00000000..eca91dfd
 --- /dev/null
 +++ b/src/code_red_payload.c
-@@ -0,0 +1,146 @@
-+// Code Red: payload moves (owner, 2026-10-09: bytes are the universal medium). Some moves make bytes instead of
-+// answering — ERROR makes a sound, FLASH a picture. The page judges the bytes and, on a hit, drops them here before
-+// it replies; when the battle takes the hit (CodeRedMoveContinue) the GBA plays or draws them.
-+// EWRAM's static area is nearly full (FireRed leaves ~1 KB), so the buffer lives on the heap for the battle's duration
-+// (allocated with the battle's resources, freed with them; the static symbol gCodeRedPayload is the pointer, NULL
-+// outside battle) and the page delivers bytes already in GBA form into one 512-byte buffer:
-+//   sound: up to 512 signed 8-bit samples at 8 kHz, looped as a cry-player tone for SOUND_FRAMES frames
-+//   image: 16 4bpp tiles (a 32×32 sprite, 16 grey shades), drawn over the target for IMAGE_FRAMES frames
+@@ -0,0 +1,168 @@
++// Code Red: payload moves (owner, 2026-10-09: bytes are the universal medium; 2026-10-10: expressive — the
++// pixelated animal sounds of the 90s games). Some moves make bytes instead of answering: ERROR a glitchy growl, BUZZ a
++// trill, FEEDBACK a rising whine, DIM a lullaby; FLASH a starburst, SPARK a bolt. The page judges the bytes and, on a
++// hit, drops them here before it replies; when the battle takes the hit (CodeRedMoveContinue) the GBA plays or draws them.
++// The buffer lives on the heap for the battle's duration (allocated with the battle's resources, freed with them; the
++// static symbol gCodeRedPayload is the pointer, NULL outside battle; ~18 KB of heap is free mid-battle) and the page
++// delivers bytes already in GBA form:
++//   sound: up to 4096 signed 8-bit samples at 8 kHz (~0.5 s), played once through the cry player
++//   image: up to 4 frames of 32×32 4bpp tiles (512 bytes each) in the page's 16-color palette (index 0 see-through),
++//          drawn over the target at 2× (popping in from 1.5×), each frame held FRAME_TICKS, the loop twice
 +#include "global.h"
 +#include "gflib.h"
 +#include "battle.h"
@@ -56,41 +58,49 @@ index 00000000..c17cac50
 +extern struct MusicPlayerInfo *gMPlay_PokemonCry;
 +
 +#define PAYLOAD_MAGIC 0x31505243 // 'CRP1'
-+#define PAYLOAD_BYTES 512
++#define PAYLOAD_BYTES 4096
++#define FRAME_BYTES 512
++#define MAX_FRAMES 4
++#define FRAME_TICKS 6
 +#define PAYLOAD_NONE 0
 +#define PAYLOAD_SOUND 1
 +#define PAYLOAD_IMAGE 2
 +#define PAYLOAD_TAG 0xCCEE
-+#define IMAGE_FRAMES 48
-+#define SOUND_FRAMES 36
 +
 +struct CodeRedPayload {
 +    /*0x00*/ u32 magic;
-+    /*0x04*/ u16 version;   // 1
-+    /*0x06*/ u8 kind;       // host: 0 none, 1 sound, 2 image (the game clears it after playing)
-+    /*0x07*/ u8 pad;
-+    /*0x08*/ u16 length;    // bytes used (sound: samples; image: 512)
-+    /*0x0A*/ u16 played;    // game: how many payloads it has played (the host can tell it took)
++    /*0x04*/ u16 version;     // 2
++    /*0x06*/ u8 kind;         // host: 0 none, 1 sound, 2 image (the game clears it after playing)
++    /*0x07*/ u8 frames;       // image: 1-4
++    /*0x08*/ u16 length;      // bytes used (sound: samples; image: frames × 512)
++    /*0x0A*/ u16 played;      // game: how many payloads it has played (the host can tell it took)
++    /*0x0C*/ u16 palette[16]; // image: BGR555, index 0 unused (see-through)
 +    // a WaveData header (16 bytes) the game fills; the engine reads its samples right after it: `data`
-+    /*0x0C*/ u16 waveType;
-+    /*0x0E*/ u16 waveStatus;
-+    /*0x10*/ u32 waveFreq;
-+    /*0x14*/ u32 waveLoopStart;
-+    /*0x18*/ u32 waveSize;
-+    /*0x1C*/ u8 data[PAYLOAD_BYTES];
++    /*0x2C*/ u16 waveType;
++    /*0x2E*/ u16 waveStatus;
++    /*0x30*/ u32 waveFreq;
++    /*0x34*/ u32 waveLoopStart;
++    /*0x38*/ u32 waveSize;
++    /*0x3C*/ u8 data[PAYLOAD_BYTES];
 +};
-+STATIC_ASSERT(sizeof(struct CodeRedPayload) == 28 + PAYLOAD_BYTES, CodeRedPayloadSize);
++STATIC_ASSERT(sizeof(struct CodeRedPayload) == 60 + PAYLOAD_BYTES, CodeRedPayloadSize);
 +EWRAM_DATA volatile struct CodeRedPayload *gCodeRedPayload = NULL;
 +static EWRAM_DATA struct ToneData sTone = {0};
 +
 +static const struct OamData sOam = {
-+    .y = 0, .affineMode = ST_OAM_AFFINE_OFF, .objMode = ST_OAM_OBJ_NORMAL, .bpp = ST_OAM_4BPP,
++    .y = 0, .affineMode = ST_OAM_AFFINE_DOUBLE, .objMode = ST_OAM_OBJ_NORMAL, .bpp = ST_OAM_4BPP,
 +    .shape = SPRITE_SHAPE(32x32), .size = SPRITE_SIZE(32x32), .priority = 0, .paletteNum = 0,
 +};
++static const union AffineAnimCmd sAffinePop[] = {
++    AFFINEANIMCMD_FRAME(384, 384, 0, 0),  // 1.5×
++    AFFINEANIMCMD_FRAME(16, 16, 0, 8),    // → 2× (chunky pixels, like the old games)
++    AFFINEANIMCMD_END,
++};
++static const union AffineAnimCmd *const sAffineAnims[] = { sAffinePop };
 +static void SpriteCB_Payload(struct Sprite *sprite);
 +static const struct SpriteTemplate sTemplate = {
 +    .tileTag = PAYLOAD_TAG, .paletteTag = PAYLOAD_TAG, .oam = &sOam,
-+    .anims = gDummySpriteAnimTable, .images = NULL, .affineAnims = gDummySpriteAffineAnimTable, .callback = SpriteCB_Payload,
++    .anims = gDummySpriteAnimTable, .images = NULL, .affineAnims = sAffineAnims, .callback = SpriteCB_Payload,
 +};
 +
 +// With the battle's resources (AllocateBattleResources / FreeBattleResources, battle_util2.c).
@@ -101,7 +111,7 @@ index 00000000..c17cac50
 +    if (gCodeRedPayload == NULL) return;
 +    memset((void *)gCodeRedPayload, 0, sizeof(struct CodeRedPayload));
 +    gCodeRedPayload->magic = PAYLOAD_MAGIC;
-+    gCodeRedPayload->version = 1;
++    gCodeRedPayload->version = 2;
 +}
 +
 +void CodeRedPayloadFree(void)
@@ -117,7 +127,7 @@ index 00000000..c17cac50
 +    volatile struct CodeRedPayload *p = gCodeRedPayload;
 +    if (length < 32) return;
 +    p->waveType = 0;
-+    p->waveStatus = 0x4000; // loop while the note is held
++    p->waveStatus = 0;            // one shot: plays to its last sample
 +    p->waveFreq = 8000 * 1024;
 +    p->waveLoopStart = 0;
 +    p->waveSize = length;
@@ -127,7 +137,7 @@ index 00000000..c17cac50
 +    SetPokemonCryVolume(120);
 +    SetPokemonCryPanpot(0);
 +    SetPokemonCryPitch(15360);
-+    SetPokemonCryLength(SOUND_FRAMES);
++    SetPokemonCryLength(length * 60 / 8000 + 8); // hold the note past the last sample (release 0 cuts it)
 +    SetPokemonCryProgress(0);
 +    SetPokemonCryRelease(0);
 +    SetPokemonCryChorus(0);
@@ -135,26 +145,34 @@ index 00000000..c17cac50
 +    gMPlay_PokemonCry = SetPokemonCryTone(&sTone);
 +}
 +
++// data[0] = ticks, data[1] = frames, data[2] = base tile
 +static void SpriteCB_Payload(struct Sprite *sprite)
 +{
-+    if (++sprite->data[0] < IMAGE_FRAMES)
++    u16 tick = ++sprite->data[0];
++    if (tick >= sprite->data[1] * FRAME_TICKS * 2)
++    {
++        FreeSpriteTilesByTag(PAYLOAD_TAG);
++        FreeSpritePaletteByTag(PAYLOAD_TAG);
++        FreeOamMatrix(sprite->oam.matrixNum);
++        DestroySprite(sprite);
 +        return;
-+    FreeSpriteTilesByTag(PAYLOAD_TAG);
-+    FreeSpritePaletteByTag(PAYLOAD_TAG);
-+    DestroySprite(sprite);
++    }
++    sprite->oam.tileNum = sprite->data[2] + ((tick / FRAME_TICKS) % sprite->data[1]) * (FRAME_BYTES / TILE_SIZE_4BPP);
 +}
 +
-+static void ShowImagePayload(u16 length)
++static void ShowImagePayload(u8 frames)
 +{
 +    u16 i;
 +    u16 palette[16];
-+    struct SpriteSheet sheet = { (const u8 *)gCodeRedPayload->data, PAYLOAD_BYTES, PAYLOAD_TAG };
++    struct SpriteSheet sheet;
 +    struct SpritePalette pal = { palette, PAYLOAD_TAG };
 +    s16 sx, sy;
-+    if (length < PAYLOAD_BYTES) return;
-+    palette[0] = RGB_BLACK; // index 0 is transparent in a 4bpp sprite: the page packs pixels into 1..15
-+    for (i = 1; i < 16; i++)
-+        palette[i] = RGB((i - 1) * 31 / 14, (i - 1) * 31 / 14, (i - 1) * 31 / 14); // 15 greys, black to white
++    if (frames == 0 || frames > MAX_FRAMES) return;
++    sheet.data = (const u8 *)gCodeRedPayload->data;
++    sheet.size = frames * FRAME_BYTES;
++    sheet.tag = PAYLOAD_TAG;
++    for (i = 0; i < 16; i++)
++        palette[i] = gCodeRedPayload->palette[i];
 +    FreeSpriteTilesByTag(PAYLOAD_TAG);
 +    FreeSpritePaletteByTag(PAYLOAD_TAG);
 +    LoadSpriteSheet(&sheet);
@@ -163,7 +181,11 @@ index 00000000..c17cac50
 +    sy = GetBattlerSpriteCoord(gBattlerTarget, BATTLER_COORD_Y_PIC_OFFSET);
 +    i = CreateSprite(&sTemplate, sx, sy, 0);
 +    if (i < MAX_SPRITES)
++    {
 +        gSprites[i].data[0] = 0;
++        gSprites[i].data[1] = frames;
++        gSprites[i].data[2] = gSprites[i].oam.tileNum;
++    }
 +}
 +
 +// Called when the battle takes a code-move hit: play/draw whatever the host dropped off, once.
@@ -171,14 +193,14 @@ index 00000000..c17cac50
 +{
 +    volatile struct CodeRedPayload *p = gCodeRedPayload;
 +    u8 kind;
-+    if (p == NULL || p->magic != PAYLOAD_MAGIC || p->version != 1)
++    if (p == NULL || p->magic != PAYLOAD_MAGIC || p->version != 2)
 +        return;
 +    kind = p->kind;
 +    p->kind = PAYLOAD_NONE;
 +    if (kind == PAYLOAD_SOUND)
 +        PlaySoundPayload(p->length > PAYLOAD_BYTES ? PAYLOAD_BYTES : p->length);
 +    else if (kind == PAYLOAD_IMAGE)
-+        ShowImagePayload(p->length);
++        ShowImagePayload(p->length >= p->frames * FRAME_BYTES ? p->frames : 0);
 +    else
 +        return;
 +    p->played++;

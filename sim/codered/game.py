@@ -86,7 +86,13 @@ class Game:
         def video(data, w, h, pitch):
             if data:
                 self._video = (data, w, h, pitch)
-        self._callbacks = [env, video, _AUDIO(lambda *_: None), _BATCH(lambda _, n: n), _POLL(lambda: None),
+        self.audio: bytearray | None = None  # set to bytearray() to record: interleaved stereo int16 at the core's rate
+        @_BATCH
+        def batch(data, frames):
+            if self.audio is not None and data:
+                self.audio += C.string_at(data, frames * 4)
+            return frames
+        self._callbacks = [env, video, _AUDIO(lambda *_: None), batch, _POLL(lambda: None),
                            _INPUT(lambda port, dev, idx, key: 1 if port == 0 and self.keys >> key & 1 else 0)]
         for name, cb in zip(['environment', 'video_refresh', 'audio_sample', 'audio_sample_batch', 'input_poll', 'input_state'], self._callbacks):
             getattr(lib, 'retro_set_' + name)(cb)

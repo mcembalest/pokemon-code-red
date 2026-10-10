@@ -5,8 +5,20 @@ export type Answer = number | string | unknown[] | undefined
 
 export type PayloadKind = 'sound' | 'image'
 /** A move that makes bytes (a sound, a picture) instead of answering: check() returns null for a hit or why it missed. */
-export interface Payload { kind: PayloadKind; n: number; check(value: unknown, bytes: number[]): string | null; ref(bytes: number[]): number[] }
-export const PAYLOAD: Record<PayloadKind, Payload>
+export interface Payload { kind: PayloadKind; character?: string; look?: string; palette?: [number, number, number][]; check(value: unknown, bytes: number[]): string | null; ref(bytes: number[]): number[] }
+export const PAYLOAD: Record<'growl' | 'trill' | 'whine' | 'lullaby' | 'flash' | 'spark', Payload>
+export const PALETTES: Record<'flash' | 'spark' | 'grey', [number, number, number][]>
+export const SAMPLE_RATE: number
+export const SOUND_MAX: number
+export const IMAGE_FRAMES: number
+export const IMAGE_PIXELS: number
+export const HOW: Record<PayloadKind, string>
+export function payloadBytes(p: Payload, value: number[]): number[]
+export function soundFeatures(samples: number[], win?: number): { hz: number; rms: number }[]
+export function pitchSlope(samples: number[]): number
+export function pitchJumps(samples: number[]): number
+export function notes(samples: number[]): number
+export function fades(samples: number[]): boolean
 export interface Move {
   firered: string; name: string; fn: string; spec: string; shape: 'a number' | 'a list' | 'text' | 'no key' | 'null'
   ref(bytes: number[]): Answer
@@ -54,7 +66,7 @@ export interface Know { from: 'dex' | 'memory'; line: string }
 export interface RunResult { ok: boolean; value?: unknown; error?: string }
 export type RunSource = (source: string) => Promise<RunResult>
 export type MissReason = 'no code' | 'over budget' | 'crashed' | 'wrong answer'
-export interface Verdict { hit: boolean; reason?: MissReason; error?: string; got?: string; want?: string; payload?: { kind: PayloadKind; bytes: number[] } }
+export interface Verdict { hit: boolean; reason?: MissReason; error?: string; got?: string; want?: string; payload?: { kind: PayloadKind; bytes: number[]; palette?: [number, number, number][] } }
 
 export const WORKED: number[]
 export function rng(seed: number): () => number

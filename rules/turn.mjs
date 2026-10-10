@@ -3,6 +3,7 @@
 //   target's type → the right answer hits; anything else misses completely (the text box says why).
 // No sandbox here: callers run the sources this module builds (kernel runBlock in Node, the QuickJS runner in the page).
 import { EXAMPLE_BYTES, FORMATS, HINTS, example, show } from './formats.mjs'
+import { HOW, payloadBytes } from './payload.mjs'
 
 /** The worked example every move description shows: on these numbers it returns ... */
 export const WORKED = [42, 13, 140, 77]
@@ -82,7 +83,7 @@ export function turnPrompt({ self, target, move, type, know = null, budget, tuto
       know ? `- ${knowLine(know)}` : `- First line of the function: const ${words.v} = <read data into a list of numbers>`]
   const user = [`Foe: ${target.name} Lv${target.level} (${target.types.join('/')}). ${call}`, `Write the function: function ${move.fn}(data)`, ...formatLines,
     move.payload
-      ? `- ${move.fn} returns ${move.spec}. Build the list with one short loop (a few lines, no comments): don't write the numbers out. On the numbers ${JSON.stringify(WORKED)} one good answer starts ${JSON.stringify(move.ref(WORKED).slice(0, 8)).replace(/\]$/, ', …]')}.`
+      ? `- ${move.fn} returns ${move.spec}. ${HOW[move.payload.kind]} Build the list with loops (a few lines, no comments): don't write the numbers out. Make it your own: any version with that character hits.`
       : `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(WORKED)} it returns ${JSON.stringify(move.ref(WORKED))}.`,
     ...(hot ? [`- Your notes: ${hot}`] : []),
     `- Byte budget: your whole code block must be at most ${codeBudget(budget, { know, hot })} characters, comments included${contextCost({ know, hot }) ? ` (${budget} minus the ${contextCost({ know, hot })} your memory takes)` : ''}.`].join('\n')
@@ -137,9 +138,7 @@ export function verdict(move, bytes, run) {
     const why = move.payload.check(run.value, bytes)
     if (why) return { hit: false, reason: 'wrong answer', got: clip(run.value), want: why }
     // The first number is the foe's count (it proves the code read the foe's format); it is checked, not played or drawn.
-    // A picture keeps 1024 pixels: the last one is repeated to fill the slot the count took.
-    const rest = run.value.slice(1)
-    return { hit: true, payload: { kind: move.payload.kind, bytes: move.payload.kind === 'image' ? [...rest, rest[rest.length - 1]] : rest } }
+    return { hit: true, payload: { kind: move.payload.kind, bytes: payloadBytes(move.payload, run.value), ...(move.payload.palette ? { palette: move.payload.palette } : {}) } }
   }
   const want = move.ref(bytes)
   return same(run.value, want) ? { hit: true } : { hit: false, reason: 'wrong answer', got: clip(run.value), want: clip(want) }

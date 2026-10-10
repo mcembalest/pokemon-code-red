@@ -167,7 +167,7 @@ export class CodeBattle {
     const verdict: Verdict = v.hit ? 'hit' : 'miss'
     const reason = v.reason as MissReason | undefined
     const made = v.payload
-    if (v.hit && made) this.options.payload?.deliver(made.kind, made.bytes) // before the reply: the game plays it as it takes the hit
+    if (v.hit && made) this.options.payload?.deliver(made.kind, made.bytes, made.palette) // before the reply: the game plays it as it takes the hit
     await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s code hit!` : missText(attacker, reason ?? 'crashed'), ...(v.got ? { detail: `returned ${v.got}, needed ${v.want}` } : v.error ? { detail: v.error } : {}) })
     this.mailbox.reply(req, verdict, reason ?? 'crashed')
     if (side === 0) this.memory.remember?.(req.attackerPersonality, { at: Date.now(), move: move.name, type, target, verdict, ...(reason ? { reason } : {}), notch, budget, code: (code ?? '').slice(0, 1200) })
@@ -224,7 +224,8 @@ export function mockWriter(options: { missEvery?: number; chunk?: number; delay?
       let body = src.replace(/\bb\b/g, 'nums')
       if (offByOne) body = move.shape === 'a list' ? `(${body}).slice(1) // skip the first, surely` : `(${body}) + 1 // grab one more`
       const lines = body.startsWith('{')
-        ? body.slice(1, -1).trim().split(/;\s*|\n/).filter(Boolean).map(l => `  ${l.trim()}`)
+        ? /for\s*\(/.test(body) ? [`  ${body.slice(1, -1).trim()}`] // a loop: keep it on one line (splitting at ; would break the for header)
+          : body.slice(1, -1).trim().split(/;\s*|\n/).filter(Boolean).map(l => `  ${l.trim()}`)
         : [`  return ${body}`]
       const text = ['```js', `function ${move.fn}(data) {`, `  ${reader}`, ...helpers, ...lines, '}', '```'].join('\n')
       for (let i = 0; i < text.length; i += chunk) { onText(text.slice(i, i + chunk)); await delay(25) }
