@@ -57,14 +57,15 @@ def main():
     saved = set()
     def at_menu():
         m = g.map()
-        if m.endswith('_GYM') and g.in_battle():
-            key = f"{m.replace('MAP_', '').lower()}-{g.u16(g.sym('gTrainerBattleOpponent_A'))}"
+        trainer = g.u16(g.sym('gTrainerBattleOpponent_A'))
+        if m.endswith('_GYM') and g.in_battle() and trainer in (414, 415):  # TRAINER_LEADER_BROCK, TRAINER_LEADER_MISTY
+            key = f"{m.replace('MAP_', '').lower()}-{trainer}"
             if key not in saved:
                 saved.add(key)
                 (OUT / f'gym-{key}.raw').write_bytes(g.save_state()[:-8])
     play = Battle.play
     def play_and_save(self, *a, **k):
-        if g.run_until(self.choosing_action, limit=3000):
+        if g.map().endswith('_GYM') and g.mash(self.choosing_action, 'A', limit=3000, period=20):  # through the intro text
             at_menu()
         return play(self, *a, **k)
     Battle.play = play_and_save

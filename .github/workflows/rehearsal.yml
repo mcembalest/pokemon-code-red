@@ -59,11 +59,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          cd worker && npm ci --no-audit --no-fund >/dev/null
+          cd worker && npm ci --no-audit --no-fund > npm.out 2>&1 || { echo "::error title=npm::$(tail -c 600 npm.out | tr '\n' ' ')"; exit 1; }
           A=ABCDEFGHJKMNPQRSTUVWXYZ23456789
           pick() { python3 -c "import secrets;print(''.join(secrets.choice('$A') for _ in range(4)))"; }
           CODE="RED-$(pick)-$(pick)"; echo "::add-mask::$CODE"; NOW=$(date +%s000)
-          npx wrangler d1 execute code-red --remote --command "INSERT INTO invites (code, note, max_uses, uses, created_at, revoked) VALUES ('$CODE', 'dress rehearsal (CI)', 1, 0, $NOW, 0)" >/dev/null
+          npx wrangler d1 execute code-red --remote --command "INSERT INTO invites (code, note, max_uses, uses, created_at, revoked) VALUES ('$CODE', 'dress rehearsal (CI)', 1, 0, $NOW, 0)" > d1.out 2>&1 || { echo "::error title=d1::$(tail -c 800 d1.out | tr '\n' ' ' | sed "s/$CODE/RED-…/g")"; exit 1; }
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
       - name: Half 2 — a new friend on the live site
         env:
