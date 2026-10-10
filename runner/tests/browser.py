@@ -30,6 +30,8 @@ try:
         assert results['known'] == {'ok':True,'value':{'total':318}}
         results['capabilities'] = run('return [typeof fetch,typeof XMLHttpRequest,typeof WebSocket,typeof document,typeof localStorage,typeof indexedDB,typeof process,typeof require,typeof self,typeof EJS_emulator];')
         assert results['capabilities']['value'] == ['undefined']*10
+        results['console'] = run('console.log("example usage", 1); console.error(2); return 3;')
+        assert results['console'] == {'ok':True,'value':3}, results['console']
         for name, source in {
             'infinite':'while(true){}',
             'allocation':'const a=[];while(true)a.push(new Array(10000).fill(42));',

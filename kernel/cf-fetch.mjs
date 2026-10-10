@@ -49,7 +49,10 @@ function sseFixer() {
 export function workersAIFetch(base) {
   return async (input, init) => {
     const res = await (base ?? globalThis.fetch)(input, fixRequest(init))
-    if (!res.body || !(res.headers.get('content-type') ?? '').includes('event-stream')) return res
+    // A stream we asked for is fixed whatever its content-type says: through the game's Worker it can come back
+    // labelled application/json (or unlabelled), and then every numeric token was dropped (dress rehearsal 2026-10-10).
+    const asked = (() => { try { return JSON.parse(init?.body ?? '{}').stream === true } catch { return false } })()
+    if (!res.body || !((res.headers.get('content-type') ?? '').includes('event-stream') || (asked && res.ok))) return res
     const body = res.body.pipeThrough(new TextDecoderStream()).pipeThrough(sseFixer()).pipeThrough(new TextEncoderStream())
     return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers })
   }

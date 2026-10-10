@@ -25,7 +25,9 @@ before(async () => {
       if (req.url === '/ai/chat/completions') {
         const body = JSON.parse(b);
         if (body.stream) {
-          res.setHeader('content-type', 'text/event-stream');
+          // labelled application/json on purpose: the live gateway's streams seem to arrive unlabelled or so, and the
+          // Worker must relabel them (the browser only repairs numeric tokens in an event stream; rehearsal 2026-10-10)
+          res.setHeader('content-type', 'application/json');
           res.write('data: {"choices":[{"index":0,"delta":{"role":"assistant","content":"```js\\nawait tools.scratch({slot:1})"}}]}\n\n');
           res.write('data: {"choices":[{"index":0,"delta":{"content":"\\n```"},"finish_reason":"stop"}]}\n\n');
           res.write('data: {"choices":[],"usage":{"prompt_tokens":200,"completion_tokens":20,"total_tokens":220}}\n\n');

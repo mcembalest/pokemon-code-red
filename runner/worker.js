@@ -27,6 +27,9 @@ self.onmessage = async ({ data }) => {
     // Capture serialization before guest code. Getters/toJSON run inside the VM,
     // under the same interrupt deadline and heap limit.
     const serialize = unwrap(vm.evalCode(`(()=>{const stringify=JSON.stringify;return value=>{if(value && typeof value.then==='function')throw Error('async');const text=stringify(value);if(typeof text!=='string'||text.length>${LIMITS.output})throw Error('output');return text}})()`));
+    // A silent console, guest-side only (no host function): models often add "example usage" console.log lines,
+    // and a missing console turned a right answer into a crash (dress rehearsal 2026-10-10).
+    unwrap(vm.evalCode(`globalThis.console={log(){},info(){},warn(){},error(){},debug(){}}`));
     const argument = unwrap(vm.evalCode(`JSON.parse(${JSON.stringify(input)})`));
     const fn = unwrap(vm.evalCode(`(function(input){"use strict";\n${source}\n})`, 'guest.js', { type: 'global' }));
     const result = unwrap(vm.callFunction(fn, vm.undefined, argument));
