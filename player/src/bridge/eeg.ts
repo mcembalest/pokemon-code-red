@@ -1,6 +1,7 @@
-// PokÉEG mailbox (ROM: patches/008-pokeeg.patch, struct CodeRedEeg, 260 B, version 2). The in-game PokÉEG screen
+// PokÉEG mailbox (ROM: patches/008-pokeeg.patch, struct CodeRedEeg, 264 B, version 3). The in-game PokÉEG screen
 // asks the page for one Pokémon's mind at a time, and for the page's editor when the player picks
-// "Hot memory"; the page's own panel follows the in-game cursor while the screen is open.
+// "Hot memory"; the page's own panel follows the in-game cursor while the screen is open. The symbol gCodeRedEeg
+// is a pointer: the game allocates the struct on its heap while the screen is open (0 when closed).
 //   0 u32 magic 'CRE1'  4 u16 version  6 u8 state (0 idle, 1 request, 2 reply, 4 cancelled)  7 u8 op (1 mind, 2 edit hot)
 //   8 u32 requestId  12 u32 epoch  16 u32 personality  20 u16 species  22 u8 level  23 u8 open (the screen is up)
 //  24 u8 readers  25 u8 dex  26 u16 budget  28 u8 focus×100  29 u8 nHistory  30 u8 history[10]  40 u8 format[24]  64 u8 hot[100]
@@ -45,32 +46,39 @@ export function encodeText(text: string, size: number): Uint8Array {
 
 export class EegMailbox {
   private readonly memory: Memory
-  private readonly address: number
-  constructor(memory: Memory, address: number) { this.memory = memory; this.address = address }
+  private readonly pointer: number
+  /** `pointer`: the address of the ROM's gCodeRedEeg symbol, which holds a pointer to the struct (0 while the screen is closed). */
+  constructor(memory: Memory, pointer: number) { this.memory = memory; this.pointer = pointer }
+  private at(): number {
+    const m = this.memory
+    if (!m.ready()) return 0
+    const a = m.u32(this.pointer)
+    return a >= 0x02000000 && a + EEG_SIZE <= 0x02040000 ? a : 0
+  }
 
   /** The in-game screen is open, and which Pokémon its cursor is on (0 = EXIT). */
   open(): { personality: number } | null {
-    const m = this.memory, a = this.address
-    if (!m.ready() || m.u32(a) !== EEG_MAGIC || m.u8(a + 23) !== 1) return null
+    const m = this.memory, a = this.at()
+    if (!a || m.u32(a) !== EEG_MAGIC || m.u8(a + 23) !== 1) return null
     return { personality: m.u32(a + 16) >>> 0 }
   }
 
   snapshot(): EegRequest | null {
-    const m = this.memory, a = this.address
-    if (!m.ready() || m.u32(a) !== EEG_MAGIC || m.u16(a + 4) !== EEG_VERSION || m.u8(a + 6) !== 1) return null
+    const m = this.memory, a = this.at()
+    if (!a || m.u32(a) !== EEG_MAGIC || m.u16(a + 4) !== EEG_VERSION || m.u8(a + 6) !== 1) return null
     const op = m.u8(a + 7)
     if (op !== 1 && op !== 2) return null
     return { id: m.u32(a + 8) >>> 0, op, personality: m.u32(a + 16) >>> 0, species: m.u16(a + 20), level: m.u8(a + 22) }
   }
 
   private live(req: EegRequest): boolean {
-    const m = this.memory, a = this.address
-    return m.ready() && m.u32(a) === EEG_MAGIC && m.u8(a + 6) === 1 && (m.u32(a + 8) >>> 0) === req.id
+    const m = this.memory, a = this.at()
+    return !!a && m.u32(a) === EEG_MAGIC && m.u8(a + 6) === 1 && (m.u32(a + 8) >>> 0) === req.id
   }
 
   /** Answer a mind request (op 1). */
   reply(req: EegRequest, mind: Mind): boolean {
-    const m = this.memory, a = this.address
+    const m = this.memory, a = this.at()
     if (!this.live(req)) return false
     m.w8(a + 24, Math.min(255, mind.readers)); m.w8(a + 25, Math.min(255, mind.dex)); m.w16(a + 26, Math.min(65535, mind.budget)); m.w8(a + 28, Math.max(0, Math.min(255, mind.focus)))
     const h = mind.history.slice(-10)
@@ -86,6 +94,6 @@ export class EegMailbox {
   }
 
   /** The editor closed (op 2): the game asks for the mind again. */
-  done(req: EegRequest): boolean { if (!this.live(req)) return false; this.memory.w8(this.address + 6, 2); return true }
-  cancel(req: EegRequest): boolean { if (!this.live(req)) return false; this.memory.w8(this.address + 6, 4); return true }
+  done(req: EegRequest): boolean { if (!this.live(req)) return false; this.memory.w8(this.at() + 6, 2); return true }
+  cancel(req: EegRequest): boolean { if (!this.live(req)) return false; this.memory.w8(this.at() + 6, 4); return true }
 }

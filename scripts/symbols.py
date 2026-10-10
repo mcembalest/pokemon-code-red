@@ -26,8 +26,8 @@ WANTED = {
     'gMoveSelectionCursor': 4,
     'gBattleOutcome': 1,
     'gCodeRedMove': 48,
-    'gCodeRedEeg': 264,
-    'gCodeRedPayload': 540,
+    'gCodeRedEeg': 4,
+    'gCodeRedPayload': 4,
     'gTasks': 16 * 40,
     'gPokemonStoragePtr': 4,  # PC boxes (PokÉEG: every owned Pokémon)
     # code / ROM data (bytes = 0: not RAM)
