@@ -1,4 +1,9 @@
 export const BASE_SHA1 = '41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc'
+/** The FireRed files a player may bring (2026-10-10: Rev 1 too; many dumps are v1.1). Each has its own copy patch. */
+export const BASES: Record<string, string> = {
+  '41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc': 'Pokémon FireRed (USA) v1.0',
+  'dd5945db9b930750cb39d00c84da8571feebf417': 'Pokémon FireRed (USA) v1.1',
+}
 export const ROM_SIZE = 16 * 1024 * 1024
 
 export function applyIps(base: Uint8Array, patch: Uint8Array): Uint8Array {

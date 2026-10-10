@@ -14,6 +14,7 @@ CACHE = ROOT / '.cache'
 SOURCE = CACHE / 'pokefirered'
 OUT = ROOT / 'build'
 BASE_SHA1 = '41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc'
+REV1_SHA1 = 'dd5945db9b930750cb39d00c84da8571feebf417'
 
 def environment():
     env = os.environ.copy()
@@ -73,6 +74,12 @@ def build(baseline=False):
     digest = hashlib.sha1(data).hexdigest()
     if baseline and digest != BASE_SHA1:
         raise SystemExit(f'Baseline mismatch: {digest}')
+    if baseline:  # FireRed v1.1 (Rev 1) too: many players' files are Rev 1, and it gets its own copy patch
+        run(['make', 'firered_rev1', '-j' + str(min(os.cpu_count() or 2, 8))], SOURCE)
+        rev1 = (SOURCE / 'pokefirered_rev1.gba').read_bytes()
+        if hashlib.sha1(rev1).hexdigest() != REV1_SHA1:
+            raise SystemExit(f'Rev 1 baseline mismatch: {hashlib.sha1(rev1).hexdigest()}')
+        (OUT / 'baseline-rev1.gba').write_bytes(rev1)
     target = OUT / ('baseline.gba' if baseline else 'code-red.gba')
     target.write_bytes(data)
     manifest = {'file': target.name, 'sha1': digest, 'bytes': len(data), 'baseline': baseline,
