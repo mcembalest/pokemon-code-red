@@ -1,9 +1,10 @@
-// The PokÉEG (owner, 2026-10-08): a look inside the mind of every Pokémon you own, party and PC boxes.
-//   System 1, the decision brain: what picks moves (today: you; the FireRed AI for foes).
-//   System 2, the code brain: the system it is (its type's data format), the readers it has learned,
-//   the hot memory you pin to it (in every prompt, costs bytes), and the code it wrote lately.
-// Page-side for now: the game can't open it from the PC yet; the toolbar button can.
-import { FAMILIES, FORMATS, HINTS, budgetAt, contextCost, focusAt, formatOf, maxDoubt, partyDex, stageOf } from '../../../rules/index.mjs'
+// The PokÉEG (owner, 2026-10-08; brain scan 2026-10-10): a look inside the mind of every Pokémon you own, party and
+// PC boxes, laid out like the in-game screen (code_red_eeg.c): a brain scan (agents/scan.ts) over seven tabs.
+//   NATURE, WIRING (IVs), TRAINING (EVs), BOND (friendship: how much it listens to your calls) come from FireRed itself;
+//   CODE (its type's data format, budget), MEMORY (readers, last turns, recent code), NOTE (hot memory) from its code brain.
+// The toolbar button opens it; the in-game PokÉEG (bedroom PC) opens it too and moves its cursor.
+import { FAMILIES, FORMATS, HINTS, budgetAt, contextCost, formatOf, partyDex, stageOf } from '../../../rules/index.mjs'
+import { NATURES, STATS, TABS, W as SCAN_W, H as SCAN_H, channelLabels, doubtPercent, drawScan, natureStats, waves } from './scan.ts'
 import type { TypeName } from '../../../rules/index.mjs'
 import type { CodeMemory } from './code-battle.ts'
 import type { OwnedMon } from './owned.ts'
@@ -91,9 +92,22 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
       `<button type="button" data-pid="${m.personality}" aria-pressed="${m.personality === selected}"><b>${esc(m.nickname || m.name)}</b> <small>${m.nickname && m.nickname !== m.name ? esc(m.name) + ' · ' : ''}L${m.level} · ${esc(m.types.join('/'))}</small></button>`).join('')).join('')
   }
 
+  // The brain scan (agents/scan.ts): the same picture as the in-game screen, animated while the panel is open.
+  let tab: (typeof TABS)[number] = 'NATURE', frame = 0, raf = 0
+  let scan: { canvas: HTMLCanvasElement; img: ImageData; mon: OwnedMon; waves: Int8Array[] } | null = null
+  const tick = () => {
+    raf = 0
+    if (!visible || !scan || !scan.canvas.isConnected) return
+    frame++
+    drawScan(scan.img, { mon: scan.mon, nature: scan.mon.nature, waves: scan.waves, frame, tab })
+    scan.canvas.getContext('2d')!.putImageData(scan.img, 0, 0)
+    raf = requestAnimationFrame(tick)
+  }
+  const animate = () => { if (!raf && visible) raf = requestAnimationFrame(tick) }
+
   const renderMind = () => {
     const m = mons.find(x => x.personality === selected)
-    if (!m) { mind.innerHTML = '<p class="code-red-muted">Pick a Pokémon.</p>'; return }
+    if (!m) { mind.innerHTML = '<p class="code-red-muted">Pick a Pokémon.</p>'; scan = null; return }
     const type = formatOf(m.types[0]!) as TypeName
     const fmt = FORMATS[type]
     const badges = o.badges()
@@ -103,29 +117,58 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
     const stage = stageOf(m.name)
     const budget = budgetAt(m.level, { stage, badges })
     const cost = contextCost({ hot: hot.trim() })
-    const focus = focusAt(m.level)
     const recent = (o.minds.recent?.(m.personality) ?? []).slice().reverse()
+    const last = (o.minds.recent?.(m.personality) ?? []).slice(-10)
     const chips = (xs: string[], cls = '') => xs.length ? xs.map(x => `<span class="code-red-eeg-chip ${cls}">${esc(x)}</span>`).join(' ') : '<span class="code-red-muted">none yet</span>'
-    mind.innerHTML = `
-      <h3>${esc(m.nickname || m.name)} <small>${esc(m.name)} · L${m.level} · ${esc(m.types.join('/'))}${m.where === 'party' ? '' : ` · box ${m.box + 1}`}</small></h3>
-      <p class="code-red-eeg-system">A <b>${esc(type)}</b> system: its data arrives as <i>${esc(fmt?.note ?? 'a plain list')}</i>.<br>Its own moves are ${esc(family(type))}.</p>
-      <section>
-        <h4>System 1 · decision brain</h4>
-        <p>You call its moves; its instinct is <i>whatever hits hardest</i>. When your call looks weaker to it, it may doubt you and use its own pick instead: at most <b>${Math.round(maxDoubt(m.friendship) * 100)}%</b> of the time, for a call it thinks is useless <span class="code-red-muted">(friendship ${m.friendship} of 255: the closer you are, the more it listens; at 255 it never doubts you)</span>.</p>
-        <p>Focus ${focus.toFixed(2)} <span class="code-red-muted">(steadier as it levels)</span> · byte budget <b>${budget}</b> <span class="code-red-muted">(L${m.level}${stage ? `, evolved ×${stage}` : ''}${badges.length ? `, ${badges.length} badge${badges.length > 1 ? 's' : ''}` : ''})</span></p>
-      </section>
-      <section>
-        <h4>System 2 · code brain</h4>
-        <p>Readers it learned: ${chips(Object.keys(readers), 'is-learned')}</p>
-        <p>Pokédex readers (shared): ${chips(dex)}</p>
-        <details><summary>How it reads ${esc(type)} data</summary><pre><code>${esc(HINTS[type] ?? 'const nums = data')}</code></pre></details>
-        <label class="code-red-eeg-hot">Hot memory <small>(in every prompt · ${hot.trim().length} chars = ${cost} bytes off its ${budget})</small>
+    const { up, down } = natureStats(m.nature)
+    const stats = (v: number[]) => `<p class="code-red-eeg-stats">${STATS.map((n, i) => `<span>${n} <b>${v[i] ?? 0}</b></span>`).join('')}</p>`
+    const doubt = doubtPercent(m.friendship)
+    const hits = last.filter(t => t.verdict === 'hit').length
+    const body: Record<(typeof TABS)[number], string> = {
+      NATURE: `<p><b>${NATURES[m.nature]}</b> nature</p>` + (up === down
+        ? '<p>Raises and lowers nothing: every lobe glows alike.</p>'
+        : `<p>Raises ${STATS[up]}: its lobe glows.</p><p>Lowers ${STATS[down]}: its lobe dims.</p>`),
+      WIRING: `<p>Wiring (IVs), set at birth:</p>${stats(m.ivs)}<p class="code-red-muted">Each pair of electrodes is one stat; the better its IV, the brighter.</p>`,
+      TRAINING: `<p>Training (EVs): <b>${m.evs.reduce((a, b) => a + b, 0)}</b> of 510</p>${stats(m.evs)}`,
+      BOND: `<p>Friendship: <b>${m.friendship}</b> of 255</p><p>Instinct: whatever hits hardest.</p><p>${doubt ? `Doubts your calls: up to <b>${doubt}%</b>` : 'Never doubts your calls.'}</p>
+        <p class="code-red-muted">When your call looks weaker to its instinct, it may use its own pick instead. The closer you are, the less it doubts you.</p>`,
+      CODE: `<p><b>${esc(type)}</b> system</p><p>Data arrives as: <i>${esc(fmt?.short ?? 'plain list')}</i> <span class="code-red-muted">(${esc(fmt?.note ?? 'a plain list')})</span></p>
+        <p>Budget: <b>${budget}</b> bytes a turn <span class="code-red-muted">(L${m.level}${stage ? `, evolved ×${stage}` : ''}${badges.length ? `, ${badges.length} badge${badges.length > 1 ? 's' : ''}` : ''})</span></p>
+        <p class="code-red-muted">Its own moves are ${esc(family(type))}.</p>
+        <details><summary>How it reads ${esc(type)} data</summary><pre><code>${esc(HINTS[type] ?? 'const nums = data')}</code></pre></details>`,
+      MEMORY: `<p>Learned: ${chips(Object.keys(readers), 'is-learned')}</p><p>Pokédex: ${chips(dex)}</p>
+        <p>${last.length ? `Last ${last.length} turns: ${hits} hit, ${last.length - hits} miss` : 'No code written yet.'}</p>
+        <h5>Recent code (${recent.length})</h5>
+        ${recent.length ? recent.map(t => `<details class="code-red-eeg-turn" data-verdict="${t.verdict}"><summary><b>${esc(t.move)}</b> → ${esc(t.target)} · ${t.verdict === 'hit' ? 'hit' : `missed (${esc(t.reason ?? 'crashed')})`}${t.notch ? ` · ${t.notch < 0 ? 'shaken' : 'steady'} ${t.notch}` : ''} <small>${when(t.at)}</small></summary><pre><code>${esc(t.code)}</code></pre></details>`).join('') : '<p class="code-red-muted">Nothing written yet: battle, then come back.</p>'}`,
+      NOTE: `<label class="code-red-eeg-hot">Hot memory <small>(in every prompt · ${hot.trim().length} chars = ${cost} bytes off its ${budget})</small>
           <textarea data-hot rows="3" maxlength="200" placeholder="A note it always sees, e.g. “always return a plain number”">${esc(hot)}</textarea>
         </label>
-        <p><button class="code-red-button" type="button" data-save-hot ${hot === o.minds.hot(m.personality) ? 'disabled' : ''}>Pin</button> <span class="code-red-muted">Comments cost bytes too: keep it short.</span></p>
-        <h5>Recent code (${recent.length})</h5>
-        ${recent.length ? recent.map(t => `<details class="code-red-eeg-turn" data-verdict="${t.verdict}"><summary><b>${esc(t.move)}</b> → ${esc(t.target)} · ${t.verdict === 'hit' ? 'hit' : `missed (${esc(t.reason ?? 'crashed')})`}${t.notch ? ` · ${t.notch < 0 ? 'shaken' : 'steady'} ${t.notch}` : ''} <small>${when(t.at)}</small></summary><pre><code>${esc(t.code)}</code></pre></details>`).join('') : '<p class="code-red-muted">Nothing written yet: battle, then come back.</p>'}
-      </section>`
+        <p><button class="code-red-button" type="button" data-save-hot ${hot === o.minds.hot(m.personality) ? 'disabled' : ''}>Pin</button> <span class="code-red-muted">Comments cost bytes too: keep it short.</span></p>`,
+    }
+    mind.innerHTML = `
+      <h3>${esc(m.nickname || m.name)} <small>${esc(m.name)} · L${m.level} · ${esc(m.types.join('/'))}${m.where === 'party' ? ' · party' : ` · box ${m.box + 1}`}</small></h3>
+      <div class="code-red-eeg-scan">
+        <canvas width="${SCAN_W}" height="${SCAN_H}" aria-label="Brain scan of ${esc(m.nickname || m.name)}"></canvas>
+        ${channelLabels().map(l => `<span data-channel="${l.tab}" style="left:${(l.x / SCAN_W) * 100}%;top:${(l.y / SCAN_H) * 100}%">${l.name}</span>`).join('')}
+      </div>
+      <div class="code-red-eeg-tabs" role="tablist">${TABS.map(t => `<button type="button" role="tab" data-tab="${t}" aria-selected="${t === tab}">${t}</button>`).join('')}</div>
+      ${TABS.map(t => `<section class="code-red-eeg-tab" data-panel="${t}" ${t === tab ? '' : 'hidden'}>${body[t]}</section>`).join('')}`
+    const canvas = mind.querySelector('canvas')!
+    scan = { canvas, img: canvas.getContext('2d')!.createImageData(SCAN_W, SCAN_H), mon: m, waves: waves(m, last.map(t => t.verdict === 'hit')) }
+    const showTab = () => {
+      mind.querySelectorAll<HTMLElement>('[data-panel]').forEach(p => { p.hidden = p.dataset.panel !== tab })
+      mind.querySelectorAll<HTMLElement>('[data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)))
+      mind.querySelectorAll<HTMLElement>('[data-channel]').forEach(l => l.classList.toggle('is-on', l.dataset.channel === tab))
+    }
+    showTab()
+    const tabs = mind.querySelector<HTMLElement>('.code-red-eeg-tabs')!
+    tabs.onclick = event => { const b = (event.target as HTMLElement).closest<HTMLElement>('[data-tab]'); if (b) { tab = b.dataset.tab as typeof tab; showTab() } }
+    tabs.onkeydown = event => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
+      tab = TABS[(TABS.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length]!
+      showTab(); tabs.querySelector<HTMLElement>(`[data-tab="${tab}"]`)!.focus()
+    }
+    animate()
     const area = mind.querySelector<HTMLTextAreaElement>('[data-hot]')!
     const save = mind.querySelector<HTMLButtonElement>('[data-save-hot]')!
     area.oninput = () => {
@@ -141,7 +184,7 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
     if (!visible) return
     mons = o.owned() ?? []
     if (selected === null && mons.length) selected = mons[0]!.personality
-    const key = mons.map(m => `${m.personality}:${m.level}:${m.where}${m.box}`).join(',') + '|' + selected
+    const key = mons.map(m => `${m.personality}:${m.level}:${m.where}${m.box}:${m.friendship}:${m.evs.join('.')}`).join(',') + '|' + selected
     if (key !== lastKey) { lastKey = key; renderList(); renderMind() }
   }
   list.onclick = event => {
@@ -156,9 +199,9 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
   return {
     element,
     get visible() { return visible },
-    setVisible(on) { visible = on; element.hidden = !on; lastKey = ''; refresh() },
+    setVisible(on) { visible = on; element.hidden = !on; lastKey = ''; refresh(); animate() },
     select(personality) { if (selected !== personality) { selected = personality; hotDraft = null; lastKey = ''; refresh() } },
     refresh: () => { lastKey = ''; refresh() },
-    dispose() { clearInterval(timer); element.remove() },
+    dispose() { clearInterval(timer); if (raf) cancelAnimationFrame(raf); element.remove() },
   }
 }

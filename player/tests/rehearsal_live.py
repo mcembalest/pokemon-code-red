@@ -158,8 +158,8 @@ def main():
         page.wait_for_timeout(4000)
         page.screenshot(path=str(OUT / '07-pokeeg.png'))
         panel = page.locator('.code-red-eeg').is_visible()
-        for _ in range(4): press(page, 'RIGHT', after=20)
-        page.screenshot(path=str(OUT / '08-pokeeg-instinct.png'))
+        for _ in range(3): press(page, 'RIGHT', after=20)  # NATURE → WIRING → TRAINING → BOND
+        page.screenshot(path=str(OUT / '08-pokeeg-bond.png'))
         for _ in range(6): press(page, 'B', after=30)
         step('PokÉEG from the bedroom PC', panel, t0, page_panel_followed=panel)
 

@@ -72,12 +72,13 @@ def main():
     g.screenshot(SHOTS / 'pokeeg-host.png')
     results['host'] = {'requests': [r['op'] for r in host.requests], 'personality': host.requests[0]['personality'] if host.requests else None}
     assert host.requests and host.requests[0]['op'] == 1, results
-    # R steps through the tabs: SYSTEM → READERS → CODE → NOTE; a screenshot of each.
-    for tab in ('readers', 'code', 'note', 'instinct'):
+    # The brain scan breathes and scrolls: two frames a second apart.
+    g.screenshot(SHOTS / 'pokeeg-tab-nature.png'); g.run(60); g.screenshot(SHOTS / 'pokeeg-scan-later.png')
+    # RIGHT steps through the tabs: NATURE → WIRING → TRAINING → BOND → CODE → MEMORY → NOTE; a screenshot of each.
+    for tab in ('wiring', 'training', 'bond', 'code', 'memory', 'note'):
         g.press('RIGHT'); g.run(20)
         g.screenshot(SHOTS / f'pokeeg-tab-{tab}.png')
     # A on the NOTE tab → the game asks the page to edit (op 2); the host replies with a new note.
-    g.press('LEFT'); g.run(20)  # back to NOTE
     host.hot_reply = 'be brave'
     g.press('A'); g.run(200)
     g.screenshot(SHOTS / 'pokeeg-edited.png')

@@ -93,7 +93,7 @@ jobs:
         run: |
           S=${GITHUB_SHA::7}; mkdir -p pub
           for f in build/sim/rehearsal/summary.json build/sim/rehearsal/turns.jsonl build/sim/rehearsal/log.txt build/rehearsal/live.json; do [ -f "$f" ] && cp "$f" "pub/$S-$(basename $f)"; done
-          for f in 01-join 03-rom-chooser 04-booted 05-starter-card 06-rival-end 07-pokeeg 08-pokeeg-instinct 10-saved; do [ -f "build/rehearsal/$f.png" ] && cp "build/rehearsal/$f.png" "pub/$S-$f.png"; done
+          for f in 01-join 03-rom-chooser 04-booted 05-starter-card 06-rival-end 07-pokeeg 08-pokeeg-bond 10-saved; do [ -f "build/rehearsal/$f.png" ] && cp "build/rehearsal/$f.png" "pub/$S-$f.png"; done
           for f in build/rehearsal/gym-*-end.png build/sim/rehearsal/fail.png; do [ -f "$f" ] && cp "$f" "pub/$S-$(basename $f)"; done
           gh release view rehearsal >/dev/null 2>&1 || gh release create rehearsal --prerelease --title "Dress rehearsal" --notes "Outputs of .github/workflows/rehearsal.yml. Safe to delete."
           gh release upload rehearsal pub/* --clobber
