@@ -246,8 +246,8 @@ test('one context budget: your note costs bytes, a helper costs when called; the
   g.request({ pid: 111 }); await b.poll()
   assert.equal(log.begin[1]!.memoryCost, 31, 'carrying is free; the note always costs')
   assert.match(seen[1]!, /Helpers you carry \(already defined: call them, don't write them again; each one you call costs its size from your budget\):\nfunction myReadWater\(/)
-  assert.match(seen[0]!, /if you read WATER data in a helper defined outside your function, function myReadWater\(data\)/)
-  assert.doesNotMatch(seen[1]!, /Optional: if you read WATER/, 'no offer once it carries one')
+  assert.match(seen[0]!, /You carry no WATER reader yet\. If this block defines a working function myReadWater\(data\)/)
+  assert.doesNotMatch(seen[1]!, /You carry no WATER reader/, 'no offer once it carries one')
 })
 
 test('a long note can push correct code over budget: that is the trade-off', async () => {
@@ -288,4 +288,23 @@ test('doubt: the ROM says it used its own pick; the panel names the call it doub
   assert.deepEqual(log.begin[1]!.doubt, { called: 'ERROR' })
   assert.equal(log.begin[1]!.notch, 0); assert.equal(temps[1], temps[0]); assert.equal(log.begin[1]!.budget, log.begin[0]!.budget)
   assert.equal(turns[1]!.doubted, 'ERROR'); assert.equal(turns[0]!.doubted, undefined)
+})
+
+test('a right reader under a wrong answer is still kept; a non-reader helper only from a hit', async () => {
+  const g = game(), { panel } = fakePanel(), mem = store()
+  const records: TurnRecord[] = []
+  let n = 0
+  const writer: CodeWriter = { async write(p, onText) {
+    if (p.meta.remember) return '```js\n```'
+    n++
+    // turn 1: a right WATER reader, a wrong answer (one too many); turn 2: a hit with a plain helper
+    const text = n === 1 ? "```js\nfunction myReadWater(data) { return data.split('\\n').map(Number) }\nconst myJunk = 1\nfunction slice(data) { return myReadWater(data).slice(0, 4) }\n```"
+      : "```js\nconst myMax = xs => Math.max(...xs)\nfunction slice(data) { return myReadWater(data).slice(0, 3) }\n```"
+    onText(text); return text
+  } }
+  const b = new CodeBattle(g.mailbox, names, writer, sandbox, panel, mem, { onTurn: r => records.push(r) })
+  await b.poll(); g.request({ pid: 111 }); await b.poll()
+  assert.equal(records[0]!.verdict, 'miss'); assert.deepEqual(records[0]!.kept, ['myReadWater'], 'the reader checked out; myJunk did not count under a miss')
+  g.request({ pid: 111 }); await b.poll()
+  assert.equal(records[1]!.verdict, 'hit'); assert.deepEqual(records[1]!.kept, ['myReadWater', 'myMax'])
 })

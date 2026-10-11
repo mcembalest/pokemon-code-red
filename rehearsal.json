@@ -1,4 +1,4 @@
 {
  "seeds": [0, 1],
- "note": "Memory is code v5: recall by format (only this format’s reader is shown), readers must name their format, the keep offer only while it has none. Sim half only, 45 min per seed."
+ "note": "Memory is code v6: verified readers kept from wrong answers too, clearer no-reader line, working memory ≥ 200 bytes. Sim half only, 45 min per seed."
 }

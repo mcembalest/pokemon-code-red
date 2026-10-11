@@ -9,7 +9,7 @@ import {
   BADGES, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, notchOf,
   rng, stageOf, targetBytes, tokenCapFor, turnData, turnPrompt, turnType,
   type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged, type Helper,
-  checkSource, consolidatePrompt, recall, extractHelpers, withoutCarried, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
+  checkSource, consolidatePrompt, readerType, recall, extractHelpers, withoutCarried, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
 import type { PayloadMailbox, PayloadKind } from '../bridge/payload.ts'
@@ -234,10 +234,13 @@ export class CodeBattle {
     const used = judged ? carried.filter(n => new RegExp(`(?<!(?:function|const|let|var)\\s+)\\b${n}\\b`).test(judged)) : []
     const charged = helpersSource(mergeHelpers(lib, work).filter(h => used.includes(h.name)))
     const v: Judged = await judge({ move, bytes, data, code: judged, budget: codeBudget(budget, { know, hot, memory: charged }), runSource, prelude })
-    // Working memory: the my… helpers its code defined in a hit, kept for the battle if they check out.
+    // Working memory: the my… helpers its code defined, kept for the battle if they check out. A reader is checked on
+    // its own (it must read this format right), so a right reader under a wrong answer is still kept; other helpers
+    // can't be checked beyond compiling, so those only from a hit.
     let kept: string[] | undefined
-    if (remembers && code && v.hit) {
-      const fresh = await this.compiles(extractHelpers(code), { type, data, bytes })
+    if (remembers && code && (v.hit || v.reason === 'wrong answer')) {
+      const found = extractHelpers(code).filter(h => v.hit || readerType(h.name))
+      const fresh = await this.compiles(found, { type, data, bytes })
       if (fresh.length) {
         const helpers = fitHelpers(mergeHelpers(work, fresh), workCap(budget))
         const w = this.work.get(pid)

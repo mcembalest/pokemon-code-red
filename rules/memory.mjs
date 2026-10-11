@@ -12,10 +12,11 @@
 // No parser dependency: a small scanner that skips strings and comments finds the definitions.
 
 /** Long-term memory cap in characters: 105 at level 5, 180 at 20, 280 at 40 (a level-5 Pokémon can keep about one reader). */
-export const MEMORY = { capBase: 80, capPerLevel: 5, workShare: 0.25 }
+export const MEMORY = { capBase: 80, capPerLevel: 5, workShare: 0.5, workMin: 200 }
 export const libCap = level => MEMORY.capBase + MEMORY.capPerLevel * Math.max(1, level)
-/** Working memory may take at most this share of the turn's budget; the oldest helpers drop first. */
-export const workCap = budget => Math.floor(budget * MEMORY.workShare)
+/** Working memory may hold at most this many characters (half the turn's budget, at least 200: two or three readers);
+ *  the oldest helpers drop first. Carrying is free; a helper costs only when called. */
+export const workCap = budget => Math.max(MEMORY.workMin, Math.floor(budget * MEMORY.workShare))
 
 /** The code with strings, template literals and comments blanked out (same length), so braces inside them don't count. */
 function mask(code) {
@@ -171,6 +172,6 @@ export function memoryLines({ lib = [], work = [], type = '' }) {
   const name = fmt ? `myRead${fmt[0]}${fmt.slice(1).toLowerCase()}` : ''
   return [
     ...(all.length ? [`- Helpers you carry (already defined: call them, don't write them again; each one you call costs its size from your budget):\n${helpersSource(all)}`] : []),
-    ...(fmt && !hasReader ? [`- Optional: if you read ${fmt} data in a helper defined outside your function, function ${name}(data){…}, you keep it for the rest of this battle.`] : []),
+    ...(fmt && !hasReader ? [`- You carry no ${fmt} reader yet. If this block defines a working function ${name}(data) above your move's function (your own code, not a stub) and reads the data with it, you keep ${name} for the rest of this battle.`] : []),
   ]
 }

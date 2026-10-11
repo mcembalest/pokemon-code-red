@@ -116,7 +116,7 @@ export function typeChart(rom: Uint8Array, at: number): (moveType: number, defTy
 
 // memory.mjs — a Pokémon's memory is code (2026-10-11)
 export interface Helper { name: string; src: string }
-export const MEMORY: { capBase: number; capPerLevel: number; workShare: number }
+export const MEMORY: { capBase: number; capPerLevel: number; workShare: number; workMin: number }
 export function libCap(level: number): number
 export function workCap(budget: number): number
 export function extractHelpers(code: string | null | undefined): Helper[]
