@@ -208,7 +208,7 @@ MT_MOON_AVOID = ('MAP_DIGLETTS_CAVE_NORTH_ENTRANCE', 'MAP_DIGLETTS_CAVE_SOUTH_EN
 
 
 def mt_moon_fossil(g: World) -> bool:
-    """B2F: trigger Super Nerd Miguel (coord event at 14,11), beat him, take the Dome Fossil (13,7);
+    """B2F: trigger Super Nerd Miguel (coord event at 14,11), beat him, take a fossil (Dome at 13,7 or Helix at 14,7);
     he then steps aside and the way to the exit ladder opens. data/maps/MtMoon_B2F/scripts.inc"""
     if not journey(g, 'MAP_MT_MOON_B2F', 'MAP_ROUTE4', MT_MOON_AVOID, at=(15, 11)):
         return False
@@ -216,11 +216,15 @@ def mt_moon_fossil(g: World) -> bool:
         return False
     g.walk_to(14, 11)
     g.handle()
-    if not g.walk_to(13, 8):
-        return False
-    g.interact('UP')
-    g.handle()  # YES (default) -> obtained DOME FOSSIL
-    return 'DOME_FOSSIL' in g.bag()
+    # Either fossil opens the way (the sim has stood under the wrong one and come away empty: 2026-10-11).
+    for x in (13, 14):
+        if not g.walk_to(x, 8):
+            continue
+        g.interact('UP')
+        g.handle()  # YES (default) -> obtained the fossil
+        if 'DOME_FOSSIL' in g.bag() or 'HELIX_FOSSIL' in g.bag():
+            return True
+    return False
 
 
 def progress_trace(path=None):
