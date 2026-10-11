@@ -3,7 +3,7 @@
 //   NATURE, WIRING (IVs), TRAINING (EVs), BOND (friendship: how much it listens to your calls) come from FireRed itself;
 //   CODE (its type's data format, budget), MEMORY (readers, last turns, recent code), NOTE (hot memory) from its code brain.
 // The toolbar button opens it; the in-game PokÉEG (bedroom PC) opens it too and moves its cursor.
-import { FAMILIES, FORMATS, budgetAt, contextCost, formatOf, stageOf } from '../../../rules/index.mjs'
+import { FAMILIES, FORMATS, budgetAt, contextCost, formatOf, helpersFromReaders, helpersSize, helpersSource, libCap, stageOf } from '../../../rules/index.mjs'
 import { NATURES, STATS, TABS, W as SCAN_W, H as SCAN_H, channelLabels, doubtPercent, drawScan, natureStats, waves } from './scan.ts'
 import type { TypeName } from '../../../rules/index.mjs'
 import type { CodeMemory } from './code-battle.ts'
@@ -111,7 +111,9 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
     const type = formatOf(m.types[0]!) as TypeName
     const fmt = FORMATS[type]
     const badges = o.badges()
-    const readers = o.minds.readers(m.personality)
+    const lib = o.minds.lib(m.personality)
+    const libShown = lib.length ? lib : helpersFromReaders(o.minds.readers(m.personality))
+    const cap = libCap(m.level), libBytes = helpersSize(libShown)
     const hot = hotDraft?.pid === m.personality ? hotDraft.text : o.minds.hot(m.personality)
     const stage = stageOf(m.name)
     const budget = budgetAt(m.level, { stage, badges })
@@ -134,7 +136,7 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
       CODE: `<p><b>${esc(type)}</b> system</p><p>Data arrives as: <i>${esc(fmt?.short ?? 'plain list')}</i> <span class="code-red-muted">(${esc(fmt?.note ?? 'a plain list')})</span></p>
         <p>Budget: <b>${budget}</b> bytes a turn <span class="code-red-muted">(L${m.level}${stage ? `, evolved ×${stage}` : ''}${badges.length ? `, ${badges.length} badge${badges.length > 1 ? 's' : ''}` : ''})</span></p>
         <p class="code-red-muted">Its own moves are ${esc(family(type))}.</p>`,
-      MEMORY: `<p>Remembers how to read: ${chips(Object.keys(readers), 'is-learned')}</p><p class="code-red-muted">Each format it has hit once, it remembers how it read it. Any other, it reads by instinct from the description.</p>
+      MEMORY: `<p>Long-term memory: <b>${libBytes}</b> of ${cap} bytes ${chips(libShown.map(h => h.name), 'is-learned')}</p>${libShown.length ? `<pre><code>${esc(helpersSource(libShown))}</code></pre>` : ''}<p class="code-red-muted">Code it wrote and chose to keep. In battle it keeps my… helpers for the rest of the fight; when the battle ends it rewrites what it keeps to fit, and can forget. Anything else it reads by instinct.</p>
         <p>${last.length ? `Last ${last.length} turns: ${hits} hit, ${last.length - hits} miss` : 'No code written yet.'}</p>
         <h5>Recent code (${recent.length})</h5>
         ${recent.length ? recent.map(t => `<details class="code-red-eeg-turn" data-verdict="${t.verdict}"><summary><b>${esc(t.move)}</b> → ${esc(t.target)} · ${t.verdict === 'hit' ? 'hit' : `missed (${esc(t.reason ?? 'crashed')})`}${t.notch ? ` · ${t.notch < 0 ? 'shaken' : 'steady'} ${t.notch}` : ''} <small>${when(t.at)}</small></summary><pre><code>${esc(t.code)}</code></pre></details>`).join('') : '<p class="code-red-muted">Nothing written yet: battle, then come back.</p>'}`,

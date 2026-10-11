@@ -231,3 +231,17 @@ test('doubt: the chance it uses its own pick is ½ × how much worse your call i
   const eff = typeChart(rom, 0)
   assert.equal(eff(10, [12, 12]), 2); assert.equal(eff(11, [10, 3]), 0.5); assert.equal(eff(0, [1]), 1)
 })
+
+test('memory is code: my… helpers are found at any depth, skipping strings and comments; fitting drops the oldest', async () => {
+  const { extractHelpers, mergeHelpers, fitHelpers, helpersSize, libCap } = await import('../memory.mjs')
+  const code = "// function myNot() {}\nfunction myRead(data) { return data.split('}').map(Number) }\nconst myMax = xs =>\n  Math.max(...xs)\nfunction slice(data) {\n  let myTmp = { a: '{' }\n  return 1\n}"
+  const h = extractHelpers(code)
+  assert.deepEqual(h.map(x => x.name), ['myRead', 'myMax', 'myTmp'])
+  assert.equal(h[1].src, 'const myMax = xs =>\n  Math.max(...xs);')
+  assert.equal(h[2].src, "const myTmp = { a: '{' };")
+  const merged = mergeHelpers(h, [{ name: 'myRead', src: 'const myRead = d => d;' }])
+  assert.deepEqual(merged.map(x => x.name), ['myMax', 'myTmp', 'myRead'])
+  const fit = fitHelpers(merged, 50)
+  assert.ok(helpersSize(fit) <= 50 && fit.at(-1).name === 'myRead')
+  assert.equal(libCap(5), 105); assert.equal(libCap(40), 280)
+})

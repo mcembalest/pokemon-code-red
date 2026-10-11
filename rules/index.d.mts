@@ -82,15 +82,16 @@ export function turnPrompt(args: {
   self: { name: string; level: number; wild?: boolean }
   target: { name: string; level: number; types: string[] }
   move: Move; type: TypeName; know?: Know | null; budget: number; tutorial?: boolean; words?: { data: string; v: string }; hot?: string
+  memory?: { lib?: Helper[]; work?: Helper[] } | null
 }): { system: string; user: string }
-export function contextCost(ctx?: { know?: Know | null; hot?: string }): number
-export function codeBudget(budget: number, ctx?: { know?: Know | null; hot?: string }): number
+export function contextCost(ctx?: { know?: Know | null; hot?: string; memory?: string }): number
+export function codeBudget(budget: number, ctx?: { know?: Know | null; hot?: string; memory?: string }): number
 export function turnData(bytes: number[], type: TypeName, tutorial?: boolean): unknown
 export function definedName(code: string, fn: string): string
-export function answerSource(code: string, move: Move, data: unknown): string
+export function answerSource(code: string, move: Move, data: unknown, prelude?: string): string
 export function precheck(code: string | null | undefined, budget: number): Verdict | null
 export function verdict(move: Move, bytes: number[], run: RunResult): Verdict
-export function judge(args: { move: Move; bytes: number[]; data: unknown; code: string | null; budget: number; runSource: RunSource }): Promise<Verdict>
+export function judge(args: { move: Move; bytes: number[]; data: unknown; code: string | null; budget: number; runSource: RunSource; prelude?: string }): Promise<Verdict>
 export function missText(name: string, reason: MissReason | string): string
 export function readerLine(code: string | null | undefined): string | null
 export function readerSource(line: string, data: unknown): string
@@ -112,3 +113,18 @@ export function misalignment(friendship: number): number
 export function maxDoubt(friendship: number): number
 export function doubtChance<M extends InstinctMove>(o: { chosen: M | null | undefined; moves: M[]; friendship?: number; selfTypes?: string[]; effectiveness?: (moveType: string) => number }): { chance: number; wanted: M | null }
 export function typeChart(rom: Uint8Array, at: number): (moveType: number, defTypes: number[]) => number
+
+// memory.mjs — a Pokémon's memory is code (2026-10-11)
+export interface Helper { name: string; src: string }
+export const MEMORY: { capBase: number; capPerLevel: number; workShare: number }
+export function libCap(level: number): number
+export function workCap(budget: number): number
+export function extractHelpers(code: string | null | undefined): Helper[]
+export function mergeHelpers(old: Helper[], more: Helper[]): Helper[]
+export function helpersSource(helpers: Helper[]): string
+export function helpersSize(helpers: Helper[]): number
+export function fitHelpers(helpers: Helper[], cap: number): Helper[]
+export function helpersFromReaders(readers: Readers | undefined): Helper[]
+export function compileSource(helpers: Helper[]): string
+export function consolidatePrompt(args: { self: { name: string; level: number }; lib: Helper[]; work: Helper[]; cap: number }): { system: string; user: string }
+export function memoryLines(args: { lib?: Helper[]; work?: Helper[] }): string[]

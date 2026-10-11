@@ -30,7 +30,7 @@ if (api) {
 const usage = { input: 0, output: 0 }
 const real: CodeWriter = {
   async write(prompt, onText) {
-    const modelId = prompt.meta.move.payload ? PAYLOAD_MODEL : BATTLE_MODEL
+    const modelId = prompt.meta.move?.payload ? PAYLOAD_MODEL : BATTLE_MODEL
     const r = await writeCode({ models, model: { provider, modelId }, system: prompt.system, user: prompt.user, temperature: prompt.temperature, maxTokens: prompt.maxTokens, onText })
     usage.input += r.usage?.input ?? 0; usage.output += r.usage?.output ?? 0
     return r.text
@@ -52,18 +52,25 @@ const mailbox = {
 let payload: { kind: string; bytes: number[]; palette?: unknown } | null = null
 let record: TurnRecord | null = null
 let badges: string[] = [], called: string | null = null
+let remembered: unknown[] = []
 const battle = new CodeBattle(mailbox as never, names, writer, sandbox, panel, minds, {
   badges: () => badges,
   payload: { deliver(kind: string, bytes: number[], palette?: unknown) { payload = { kind, bytes, palette }; return true } } as never,
   calledMove: () => called,
   onTurn: r => { record = r },
+  onRemember: r => { remembered.push({ attacker: r.attacker, level: r.level, cap: r.cap, ok: r.ok, reason: r.reason, ms: r.ms, before: r.before, carried: r.carried, after: r.after }) },
 })
 
 const out = (o: unknown) => process.stdout.write(JSON.stringify(o) + '\n')
 for await (const line of createInterface({ input: process.stdin })) {
   if (!line.trim()) continue
   const msg = JSON.parse(line)
-  if (msg.op === 'battle_over') { battle.battleOver(); out({ ok: true }); continue }
+  if (msg.op === 'battle_over') {
+    const before = { ...usage }
+    remembered = []
+    await battle.battleOver() // consolidation: one model call per Pokémon that fought
+    out({ ok: true, remembered, usage: { input: usage.input - before.input, output: usage.output - before.output } }); continue
+  }
   badges = msg.badges ?? []; called = msg.called ?? null; payload = null; record = null
   const before = { ...usage }
   const result = await new Promise<{ verdict: string; reason?: string }>(done => { current = { req: msg.req, done }; void battle.poll() })

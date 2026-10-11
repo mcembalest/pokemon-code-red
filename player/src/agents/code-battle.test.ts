@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { GbaMemory, fakeCore } from '../bridge/memory.ts'
 import { CodeMoveMailbox, MOVE_MAGIC } from '../bridge/code-move.ts'
 import { PayloadMailbox } from '../bridge/payload.ts'
-import { CodeBattle, localCodeMemory, mockWriter, type CodeWriter, type Panel, type Sandbox, type TurnInfo, type TurnRecord, type TurnResult } from './code-battle.ts'
+import { CodeBattle, type RememberRecord, localCodeMemory, mockWriter, type CodeWriter, type Panel, type Sandbox, type TurnInfo, type TurnRecord, type TurnResult } from './code-battle.ts'
 
 const AT = 0x0203f4d0
 const sandbox: Sandbox = { async run(source) { try { return { ok: true, value: new Function(source)() } } catch (e) { return { ok: false, error: String(e) } } } }
@@ -103,18 +103,52 @@ test('a retry after one failure still plays the code', async () => {
   assert.equal(g.reply().verdict, 1)
 })
 
-test('learning: a verified reader from its own hit is remembered by that Pokémon only; no Pokédex readers', async () => {
+test('memory is code: my… helpers it defines stay for the battle, then it consolidates; another Pokémon starts fresh', async () => {
   const g = game(), { panel, log } = fakePanel(), mem = store()
-  const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem)
+  const records: TurnRecord[] = [], remembered: RememberRecord[] = []
+  const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem, { onTurn: r => records.push(r), onRemember: r => remembered.push(r) })
   await b.poll(); g.request({ pid: 111 }); await b.poll()
-  assert.equal(log.begin[0]!.know, null, 'the first time: instinct')
-  assert.deepEqual(Object.keys(mem.readers(111)), ['WATER'])
-  assert.deepEqual(mem.readers(999), {}, 'another Pokémon starts fresh')
+  assert.equal(log.begin[0]!.know, null, 'no readers handed out')
+  assert.equal(log.begin[0]!.memoryCost, 0, 'carries nothing yet')
+  assert.deepEqual(records[0]!.kept, ['myReadWater'], 'it kept the helper it wrote')
   g.request({ pid: 111 }); await b.poll()
-  assert.equal(log.begin[1]!.know, 'memory')
-  b.battleOver()
+  assert.ok(log.begin[1]!.memoryCost > 20, 'working memory costs bytes')
+  assert.deepEqual(records[1]!.carried, ['myReadWater']); assert.equal(records[1]!.usedMemory, true); assert.equal(log.end[1]!.verdict, 'hit')
+  assert.deepEqual(mem.lib(111), [], 'nothing long-term until the battle ends')
+  await b.battleOver()
+  assert.deepEqual(mem.lib(111).map(h => h.name), ['myReadWater'], 'consolidated into long-term memory')
+  assert.equal(remembered[0]!.ok, true); assert.equal(remembered[0]!.cap, 80 + 5 * 5)
   g.request({ pid: 999 }); await b.poll()
-  assert.equal(log.begin[2]!.know, null, 'nothing shared through a Pokédex (owner, 2026-10-11)')
+  assert.equal(log.begin[2]!.memoryCost, 0, 'nothing shared between Pokémon')
+  g.request({ pid: 111 }); await b.poll()
+  assert.deepEqual(records[3]!.carried, ['myReadWater'], 'long-term memory rides into the next battle')
+})
+
+test('consolidation can lose things: what does not compile or fit is gone; a failed call keeps the old memory', async () => {
+  const g = game(), { panel } = fakePanel(), mem = store()
+  mem.setLib(111, [{ name: 'myOld', src: 'const myOld = 1;' }])
+  let reply = '```js\nfunction myGood(d){return d}\nfunction myBad(d){ return (( }\nconst myHuge = "' + 'x'.repeat(200) + '";\n```'
+  const writer: CodeWriter = { async write(p, onText) { return p.meta.remember ? reply : mockWriter({ missEvery: 99, delay: instant }).write(p, onText) } }
+  const b = new CodeBattle(g.mailbox, names, writer, sandbox, panel, mem)
+  await b.poll(); g.request({ pid: 111 }); await b.poll()
+  await b.battleOver()
+  assert.deepEqual(mem.lib(111).map(h => h.name), ['myGood'], 'the old helper was dropped, the broken one and the oversized one too')
+  const failing: CodeWriter = { async write(p, onText) { if (p.meta.remember) throw new Error('offline'); return mockWriter({ missEvery: 99, delay: instant }).write(p, onText) } }
+  const c = new CodeBattle(g.mailbox, names, failing, sandbox, panel, mem)
+  await c.poll(); g.request({ pid: 111 }); await c.poll()
+  await c.battleOver()
+  assert.deepEqual(mem.lib(111).map(h => h.name), ['myGood'], 'no answer: memory unchanged')
+  reply = 'no code at all'
+})
+
+test('an old save: readers learned under the old rule become long-term helpers', async () => {
+  const g = game(), { panel } = fakePanel(), mem = store()
+  const records: TurnRecord[] = []
+  mem.setReaders(111, { WATER: "const nums = data.split('\\n').map(Number)" })
+  const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem, { onTurn: r => records.push(r) })
+  await b.poll(); g.request({ pid: 111 }); await b.poll()
+  assert.deepEqual(records[0]!.carried, ['myReadWater'])
+  assert.deepEqual(mem.readers(111), {})
 })
 
 test('foes write on pure instinct: wild, trainers, the rival and leaders alike', async () => {
@@ -197,7 +231,7 @@ test('status moves hit the code: Growl on the attacker shakes it (smaller budget
   const r = g.mailbox.snapshot.bind(g.mailbox); g.request({ stages: -3 }); assert.equal(r()!.attackerStages, -3, 'signed byte read')
 })
 
-test('one context budget: the reader it uses and its hot memory cost bytes; the code must fit in the rest', async () => {
+test('one context budget: the memory it carries and your note cost bytes; the code must fit in the rest', async () => {
   const g = game(), { panel, log } = fakePanel(), mem = store()
   const seen: string[] = []
   const spy: CodeWriter = { async write(p, onText) { seen.push(p.user); return mockWriter({ missEvery: 99, delay: instant }).write(p, onText) } }
@@ -207,10 +241,11 @@ test('one context budget: the reader it uses and its hot memory cost bytes; the 
   assert.equal(log.begin[0]!.memoryCost, 'always use const; never use var'.length)
   assert.match(seen[0]!, /- Your notes: always use const; never use var/)
   assert.match(seen[0]!, new RegExp(`at most ${350 - 31} characters`))
-  // a learned reader now costs on use: next turn the WATER reader is charged too
+  assert.match(seen[0]!, /name starting with my/)
+  // the helper it kept costs bytes on the next turn, and the prompt shows it
   g.request({ pid: 111 }); await b.poll()
-  assert.ok(log.begin[1]!.memoryCost > 31, 'reader + notes')
-  assert.equal(log.begin[1]!.know, 'memory')
+  assert.ok(log.begin[1]!.memoryCost > 31 + 20, 'helper + notes')
+  assert.match(seen[1]!, /Your memory \(already defined, call them by name\):\nfunction myReadWater\(/)
 })
 
 test('a long note can push correct code over budget: that is the trade-off', async () => {

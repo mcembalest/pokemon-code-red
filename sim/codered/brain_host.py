@@ -25,6 +25,7 @@ class BrainHost:
         self.payload = PayloadHost(g)
         self.moves = CodeMoveHost(g, self.decide, delay=2)
         self.turns: list[dict] = []
+        self.memories: list[dict] = []
         self._in_battle = False
         if log:
             log.parent.mkdir(parents=True, exist_ok=True)
@@ -71,7 +72,13 @@ class BrainHost:
         self.moves.service()
         now = self.g.in_battle()
         if self._in_battle and not now:
-            self._ask({'op': 'battle_over'})
+            res = self._ask({'op': 'battle_over'})  # your Pokémon consolidate their memory (model calls) before play goes on
+            for m in res.get('remembered') or []:
+                rec = {**m, 'side': 'remember', 'map': self.g.map(), 'frame': self.g.frame, 'usage': res.get('usage') if m is res['remembered'][0] else None}
+                self.memories.append(rec)
+                if self.log:
+                    with self.log.with_name('memory.jsonl').open('a') as f:
+                        f.write(json.dumps(rec) + '\n')
         self._in_battle = now
 
     def attach(self) -> None:
