@@ -38,8 +38,10 @@ export interface TurnInfo {
   makes?: PayloadKind
   /** Your Pokémon doubted your call and used its own pick (this move); `called` = the move you called. */
   doubt?: { called: string | null }
+  /** Helpers it recalls this turn (rules/memory.mjs recall): its memory, by name. */
+  recalls?: string[]
 }
-export interface TurnResult { verdict: Verdict; reason?: MissReason; text: string; detail?: string }
+export interface TurnResult { verdict: Verdict; reason?: MissReason; text: string; detail?: string; /** Helpers it kept for the rest of the battle after this turn. */ kept?: string[] }
 export interface Panel {
   begin(info: TurnInfo): void
   text(side: 0 | 1, delta: string): void
@@ -54,6 +56,9 @@ export interface CodeMemory {
   /** Long-term memory (2026-10-11): helpers it kept between battles, rewritten by itself when a battle ends. */
   lib(personality: number): Helper[]
   setLib(personality: number, helpers: Helper[]): void
+  /** What happened the last time it consolidated (the PokÉEG shows what it kept and what it let go). */
+  lastSleep?(personality: number): Sleep | null
+  setLastSleep?(personality: number, sleep: Sleep): void
   /** Hot memory: the note the trainer typed for this Pokémon (goes into every prompt, costs bytes). */
   hot(personality: number): string
   setHot(personality: number, text: string): void
@@ -88,6 +93,9 @@ export interface TurnRecord {
   /** Helpers it kept for the rest of the battle after this turn. */
   kept?: string[]
 }
+
+/** The last consolidation, as the PokÉEG shows it. */
+export interface Sleep { at: number; cap: number; kept: string[]; dropped: string[]; ok: boolean }
 
 /** A Pokémon consolidated its memory when a battle ended: what it carried, and what it kept. */
 export interface RememberRecord { attacker: string; level: number; cap: number; before: Helper[]; carried: Helper[]; after: Helper[]; ok: boolean; reason?: string; ms: number }
@@ -162,6 +170,7 @@ export class CodeBattle {
     const ok = found.length ? await this.compiles(found) : []
     const after = fitHelpers(ok, cap) // may lose things (owner, 2026-10-11)
     this.memory.setLib(pid, after)
+    this.memory.setLastSleep?.(pid, { at: Date.now(), cap, kept: after.map(h => h.name), dropped: carried.filter(h => !after.some(a => a.name === h.name)).map(h => h.name), ok: true })
     record(after, true)
   }
 
@@ -214,7 +223,7 @@ export class CodeBattle {
     const memoryCost = contextCost({ know, hot }) // + the helpers its code calls, known once it has written it
     const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, know, budget, tutorial, hot, memory: remembers ? { lib, work } : null })
 
-    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}), ...(doubt ? { doubt } : {}) })
+    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}), ...(doubt ? { doubt } : {}), ...(carried.length ? { recalls: carried } : {}) })
     let text: string | null = null, tries = 0
     while (text === null && tries < 2) {
       tries++
@@ -256,7 +265,7 @@ export class CodeBattle {
     const reason = v.reason as MissReason | undefined
     const made = v.payload
     if (v.hit && made) this.options.payload?.deliver(made.kind, made.bytes, made.palette) // before the reply: the game plays it as it takes the hit
-    await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s code hit!` : missText(attacker, reason ?? 'crashed'), ...(v.got ? { detail: `returned ${v.got}, needed ${v.want}` } : v.error ? { detail: v.error } : {}) })
+    await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s code hit!` : missText(attacker, reason ?? 'crashed'), ...(v.got ? { detail: `returned ${v.got}, needed ${v.want}` } : v.error ? { detail: v.error } : {}), ...(kept && kept.some(k => !carried.includes(k)) ? { kept: kept.filter(k => !carried.includes(k)) } : {}) })
     this.mailbox.reply(req, verdict, reason ?? 'crashed')
     if (side === 0) this.memory.remember?.(req.attackerPersonality, { at: Date.now(), move: move.name, type, target, verdict, ...(reason ? { reason } : {}), notch, budget, code: (code ?? '').slice(0, 1200) })
     this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}), ...(v.hit && made ? { payload: made.kind } : {}), ...(doubt ? { doubted: doubt.called ?? '?' } : {}), ...(remembers ? { memory: memoryCost + charged.length, carried, usedMemory, ...(kept ? { kept } : {}) } : {}) })
@@ -265,8 +274,8 @@ export class CodeBattle {
 
 /** Code memory in the page's local storage (per browser; moves with cloud saves later). */
 export function localCodeMemory(storage: Pick<Storage, 'getItem' | 'setItem'> | null, key = 'code-red-code-memory-v1'): CodeMemory {
-  type State = { mons: Record<string, Readers>; lib: Record<string, Helper[]>; hot: Record<string, string>; seen: string[]; recent: Record<string, CodeTurn[]> }
-  let state: State = { mons: {}, lib: {}, hot: {}, seen: [], recent: {} }
+  type State = { mons: Record<string, Readers>; lib: Record<string, Helper[]>; sleep: Record<string, Sleep>; hot: Record<string, string>; seen: string[]; recent: Record<string, CodeTurn[]> }
+  let state: State = { mons: {}, lib: {}, sleep: {}, hot: {}, seen: [], recent: {} }
   try { const raw = storage?.getItem(key); if (raw) state = { ...state, ...JSON.parse(raw) as Partial<State> } } catch { /* fresh */ }
   const save = () => { try { storage?.setItem(key, JSON.stringify(state)) } catch { /* in memory only */ } }
   const add = (list: string[], more: string[]) => { for (const t of more) if (!list.includes(t)) list.push(t); save() }
@@ -275,6 +284,8 @@ export function localCodeMemory(storage: Pick<Storage, 'getItem' | 'setItem'> | 
     setReaders: (pid, readers) => { state.mons[String(pid)] = readers; save() },
     lib: pid => (state.lib[String(pid)] ?? []).map(h => ({ ...h })),
     setLib: (pid, helpers) => { state.lib[String(pid)] = helpers.map(h => ({ name: h.name, src: h.src })); save() },
+    lastSleep: pid => state.sleep[String(pid)] ?? null,
+    setLastSleep: (pid, sleep) => { state.sleep[String(pid)] = sleep; save() },
     hot: pid => state.hot[String(pid)] ?? '',
     setHot: (pid, text) => { state.hot[String(pid)] = text; save() },
     seen: () => [...state.seen],
@@ -284,7 +295,7 @@ export function localCodeMemory(storage: Pick<Storage, 'getItem' | 'setItem'> | 
     export: () => JSON.parse(JSON.stringify(state)) as unknown,
     import: incoming => {
       const next = (incoming && typeof incoming === 'object' ? incoming : {}) as Partial<State>
-      state = { mons: next.mons ?? {}, lib: next.lib ?? {}, hot: next.hot ?? {}, seen: Array.isArray(next.seen) ? next.seen : [], recent: next.recent ?? {} }
+      state = { mons: next.mons ?? {}, lib: next.lib ?? {}, sleep: next.sleep ?? {}, hot: next.hot ?? {}, seen: Array.isArray(next.seen) ? next.seen : [], recent: next.recent ?? {} }
       save()
     },
   }
