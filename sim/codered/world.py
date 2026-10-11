@@ -39,6 +39,7 @@ class MapInfo:
     blocks: tuple      # metatile u16 per cell, row-major
     warps: tuple       # (x, y, dest_map, dest_warp_id)
     attrs: tuple = ()  # metatile attributes (u32) per cell; src/fieldmap.c sMetatileAttrMasks
+    obstacles: frozenset = frozenset()  # cut trees and strength boulders (object events the collision map doesn't know)
 
     def encounter_type(self, x: int, y: int) -> int:
         """1 = land (tall grass), 2 = water; bits 24-26."""
@@ -56,7 +57,15 @@ class MapInfo:
         return self.LEDGES.get(self.attrs[y * self.width + x] & 0x1FF)
 
     def passable(self, x: int, y: int) -> bool:
-        return 0 <= x < self.width and 0 <= y < self.height and not (self.blocks[y * self.width + x] & COLLISION_MASK)
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return False
+        if (x, y) in CLEARED.get(self.name, set()):  # a tree cut, a door opened by a script
+            return True
+        return not (self.blocks[y * self.width + x] & COLLISION_MASK) and (x, y) not in self.obstacles
+
+
+# Obstacles the player has cleared this run (a tree cut, a boulder pushed): map name -> cells, now passable.
+CLEARED: dict[str, set] = {}
 
 
 @lru_cache(maxsize=None)
@@ -95,7 +104,8 @@ def map_info(name: str) -> MapInfo:
         mid = block & 0x3FF
         table, k = (primary, mid) if mid < 640 else (secondary, mid - 640)  # NUM_METATILES_IN_PRIMARY
         return table[k] if k < len(table) else 0
-    return MapInfo(name, g, n, layout['width'], layout['height'], blocks, warps, tuple(attr(b) for b in blocks))
+    obstacles = frozenset((o['x'], o['y']) for o in data.get('object_events', []) if o.get('graphics_id') in ('OBJ_EVENT_GFX_CUT_TREE', 'OBJ_EVENT_GFX_ROCK'))
+    return MapInfo(name, g, n, layout['width'], layout['height'], blocks, warps, tuple(attr(b) for b in blocks), obstacles)
 
 
 def map_name(group: int, num: int) -> str | None:
@@ -318,6 +328,26 @@ class World(Game):
         w0, w1 = words[a * 3], words[a * 3 + 1]
         return [w0 & 0xFFFF, w0 >> 16, w1 & 0xFFFF, w1 >> 16]
 
+    def set_party_move(self, i: int, slot: int, move: int, pp: int) -> None:
+        """Write a move into party slot i's move slot (0-3): decrypt the substructs, set the move and its PP, fix the
+        checksum, re-encrypt. A sim shortcut for teaching an HM (the TM-case menus are long to drive)."""
+        base = self.sym('gPlayerParty') + i * MON_SIZE
+        personality, ot = self.u32(base), self.u32(base + 4)
+        key = personality ^ ot
+        data = bytearray(self.read(base + 0x20, 48))
+        words = [int.from_bytes(data[k:k + 4], 'little') ^ key for k in range(0, 48, 4)]
+        order = ['GAEM', 'GAME', 'GEAM', 'GEMA', 'GMAE', 'GMEA', 'AGEM', 'AGME', 'AEGM', 'AEMG', 'AMGE', 'AMEG',
+                 'EGAM', 'EGMA', 'EAGM', 'EAMG', 'EMGA', 'EMAG', 'MGAE', 'MGEA', 'MAGE', 'MAEG', 'MEGA', 'MEAG'][personality % 24]
+        a = order.index('A') * 3
+        wm, wp = a + slot // 2, a + 2
+        words[wm] = (words[wm] & ~(0xFFFF << (16 * (slot % 2)))) | (move << (16 * (slot % 2)))
+        words[wp] = (words[wp] & ~(0xFF << (8 * slot))) | (pp << (8 * slot))
+        plain = b''.join(w.to_bytes(4, 'little') for w in words)
+        checksum = sum(int.from_bytes(plain[k:k + 2], 'little') for k in range(0, 48, 2)) & 0xFFFF
+        self.w16(base + 0x1C, checksum)
+        self.write(base + 0x20, b''.join((w ^ key).to_bytes(4, 'little') for w in words))
+        # the party struct's cached PP (struct Pokemon has none beyond the box data) - nothing else to fix
+
     def battlers(self) -> list[dict]:
         base = self.sym('gBattleMons')
         return [{'hp': self.u16(base + i * BMON_SIZE + BMON_HP), 'max_hp': self.u16(base + i * BMON_SIZE + BMON_MAXHP),
@@ -359,6 +389,16 @@ class World(Game):
             if flags & 1 and not flags >> 16 & 1:  # active, not the player
                 out.add((self.s16(o + self.OBJ_COORDS) - 7, self.s16(o + self.OBJ_COORDS + 2) - 7))
         return out
+
+    def npc_at(self, graphics_id: int) -> tuple[int, int] | None:
+        """Where the first active NPC with this sprite stands right now (NPCs walk; map.json has only where they start)."""
+        base = self.sym('gObjectEvents')
+        for i in range(16):
+            o = base + i * self.OBJ_SIZE
+            flags = self.u32(o)
+            if flags & 1 and not flags >> 16 & 1 and self.u8(o + 5) == graphics_id:
+                return (self.s16(o + self.OBJ_COORDS) - 7, self.s16(o + self.OBJ_COORDS + 2) - 7)
+        return None
 
     @cached_property
     def _bumped(self) -> set:

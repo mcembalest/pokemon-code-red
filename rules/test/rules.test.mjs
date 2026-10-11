@@ -16,8 +16,8 @@ test('rules are browser-safe: no node: imports', () => {
   for (const f of readdirSync(dir).filter(f => f.endsWith('.mjs'))) assert.doesNotMatch(readFileSync(new URL(f, dir), 'utf8'), /from ['"]node:/, f)
 })
 
-test('moves: 104, unique function names, answers never null, FireRed stats attached', () => {
-  assert.equal(MOVES.length, 104)
+test('moves: 122, unique function names, answers never null, FireRed stats attached', () => {
+  assert.equal(MOVES.length, 122)
   assert.equal(new Set(MOVES.map(m => m.fn)).size, MOVES.length)
   const r = rng(1)
   for (let k = 0; k < 50; k++) {
@@ -279,4 +279,9 @@ test('memory: it recalls the reader for this turn’s format and its other helpe
   assert.doesNotMatch(memoryLines({ lib: hs, type: 'BUG' }).join('\n'), /myReadPoison/)
   const r = await runBlock(checkSource([{ name: 'myReadData', src: 'function myReadData(d){return d}' }]), [])
   assert.deepEqual(r.value, { myReadData: false })
+})
+
+test("FireRed's six-letter type names map to their formats", async () => {
+  const { formatOf } = await import('../turn.mjs')
+  assert.equal(formatOf('ELECTR'), 'ELECTRIC'); assert.equal(formatOf('PSYCHC'), 'PSYCHIC'); assert.equal(formatOf('FIRE'), 'FIRE'); assert.equal(formatOf('???'), 'NORMAL')
 })

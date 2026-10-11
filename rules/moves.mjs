@@ -1,4 +1,4 @@
-// Code Red moves before Misty. One source of truth for names, specs and answers.
+// Code Red moves before Lt. Surge. One source of truth for names, specs and answers.
 // The spine (owner, 2026-10-08): every Pokémon is a system, its type is the kind of system; a move is a program of the
 // move's type run against the target's system. So every move's code belongs to its type's family (rules/families):
 // Normal = file operations · Fire = writes · Water = flow · Grass = grow and gather · Electric = peaks · Ice = freeze ·
@@ -81,14 +81,28 @@ const TABLE = [
   ['Scary Face', 'FREEZE', 'how many numbers are over 150', b => b.filter(x => x > 150).length],
   ['Splash', 'SPLASH', 'nothing: return without a value', () => undefined],
   ['Yawn', 'TIMEOUT', 'the last number', b => b.at(-1)],
+  // to Lt. Surge (2026-10-11; names are mine, flagged): what the route from Cerulean to Vermilion uses
+  ['Cut', 'CUT', 'the numbers without the first 2', b => b.slice(2)],
+  ['Constrict', 'CLIP', 'the first 4 numbers', b => b.slice(0, 4)],
+  ['Odor Sleuth', 'SNIFF', 'how many numbers are over 100', b => b.filter(x => x > 100).length],
+  ['Pay Day', 'PAYOUT', 'the first number times 10', b => b[0] * 10],
+  ['Protect', 'FIREWALL', 'a list holding only the last number', b => [b.at(-1)]],
+  ['Roar', 'ROTATE', 'the numbers rotated by two: the first two moved to the end', b => [...b.slice(2), ...b.slice(0, 2)]],
+  ['Stomp', 'STOMP', 'the last 3 numbers, last to first', b => b.slice(-3).reverse()],
+  ['Take Down', 'SHUTDOWN', 'the first number minus the last', b => b[0] - b.at(-1)],
+  ['Vice Grip', 'CLAMP', 'the smallest and the largest number, as a list of two', b => [min(b), max(b)]],
   // FIRE — writes
   ['Ember', 'BURNDISC', 'every number plus 1', b => b.map(x => x + 1)],
+  ['Fire Spin', 'HOTLOOP', 'every number plus its index (the first +0, the second +1…)', b => b.map((x, i) => x + i)],
+  ['Flamethrower', 'OVERWRITE', 'every number replaced by the first number, except the first, which becomes the last', b => b.map((_, i) => (i === 0 ? b.at(-1) : b[0]))],
   // WATER — flow
   ['Water Gun', 'FLUSH', 'an empty list', () => []],
   ['Water Pulse', 'FILTER', 'the numbers that are 50 or more (the ones under 50 dropped)', b => b.filter(x => x >= 50)],
   ['Withdraw', 'BUFFER', 'the last 3 numbers', b => b.slice(-3)],
   ['Bubble', 'DRIP', 'every second number starting from the second one: the numbers at positions 1, 3, 5… counting from 0', b => b.filter((_, i) => i % 2 === 1)],
   ['Water Sport', 'THROTTLE', 'the numbers that are 100 or less, in their order', b => b.filter(x => x <= 100)],
+  ['Bubble Beam', 'STREAM', 'the numbers from the start up to (not including) the first one over 100; all of them if none is', b => { const i = b.findIndex(x => x > 100); return i < 0 ? [...b] : b.slice(0, i) }],
+  ['Rain Dance', 'DRAIN PIPE', 'the numbers with the smallest one removed (the first smallest, if tied)', b => { const i = b.indexOf(min(b)); return b.filter((_, j) => j !== i) }],
   // GRASS — grow and gather
   ['Vine Whip', 'CRAWL', 'the numbers at even indexes (0, 2, 4…)', b => b.filter((_, i) => i % 2 === 0)],
   ['Sleep Powder', 'SLEEP', 'the average number, rounded down', b => Math.floor(sum(b) / b.length)],
@@ -102,6 +116,8 @@ const TABLE = [
   ['Spark', 'SPARK', 'a spark, as a list of 4097 numbers: the first is how many numbers the foe had; then 4 frames: a jagged lightning bolt from the top row to the bottom row, white-hot (15) in the middle and dimmer at its edges, a different bolt in each frame', PAYLOAD.spark],
   ['Thunder Shock', 'SURGE', 'the largest number plus 1', b => max(b) + 1],
   ['Charge', 'CHARGE', 'the largest number times 2', b => max(b) * 2],
+  ['Thunderbolt', 'SPIKE', 'the two largest numbers, largest first', b => asc(b).reverse().slice(0, 2)],
+  ['Shock Wave', 'SHORT', 'the largest number minus the smallest', b => max(b) - min(b)],
   // ICE — freeze
   ['Icicle Spear', 'SNAPSHOT', 'a copy of the numbers, unchanged', b => [...b]],
   ['Aurora Beam', 'FREEZER', 'the 3 smallest numbers, smallest first', b => asc(b).slice(0, 3)],
@@ -122,6 +138,7 @@ const TABLE = [
   ['Sand Attack', 'SANDBOX', 'each number capped at 100 (numbers over 100 become 100)', b => b.map(x => Math.min(x, 100))],
   ['Magnitude', 'RNG', 'the sum of the numbers mod 10', b => sum(b) % 10],
   ['Mud Sport', 'GROUND', 'each number capped at 128 (numbers over 128 become 128)', b => b.map(x => Math.min(x, 128))],
+  ['Mud Shot', 'FLOOR', 'each number rounded down to a multiple of 10 (47 → 40)', b => b.map(x => Math.floor(x / 10) * 10)],
   // FLYING — distribute
   ['Peck', 'FETCH', 'the numbers as a JSON string, like [42,13,140]', b => JSON.stringify(b)],
   ['Wing Attack', 'UPLOAD', "the numbers joined into one string with '-' between them", b => b.join('-')],
@@ -144,11 +161,13 @@ const TABLE = [
   ['Rollout', 'ROLLOUT', 'the running totals (first number, first two summed, first three…)', b => b.map((_, i) => sum(b.slice(0, i + 1)))],
   // GHOST — peek at what is hidden
   ['Astonish', 'POPUP', 'the numbers except the first and the last (the ones hidden in the middle)', b => b.slice(1, -1)],
+  ['Confuse Ray', 'PEEK', 'the number hidden at index 2 (the third one)', b => b[2]],
   // DRAGON — absolute
   ['Dragon Rage', 'MELTDOWN', 'the length of the list times 10', b => b.length * 10],
   // DARK — pick by credential
   ['Bite', 'PHISH', 'the second-to-last number', b => b.at(-2)],
   ['Pursuit', 'TRACE', 'the index of the first number over 100 (-1 if none)', b => b.findIndex(x => x > 100)],
+  ['Faint Attack', 'BACKDOOR', 'the number at index (last number % number of numbers)', b => b[b.at(-1) % b.length]],
   // STEEL — cipher
   ['Metal Claw', 'HASH', 'the sum of the numbers mod 256', b => sum(b) % 256],
   ['Metal Sound', 'JAMMER', 'every number XOR 255', b => b.map(x => x ^ 255)],

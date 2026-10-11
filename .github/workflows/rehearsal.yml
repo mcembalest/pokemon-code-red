@@ -54,7 +54,7 @@ jobs:
           SEEDS=$(jq -r '(.seeds // [.seed // 0]) | map(tostring) | join(" ")' rehearsal.json)
           for S in $SEEDS; do
             mkdir -p build/sim/rehearsal/seed$S
-            (timeout 45m python3 sim/rehearse.py --seed "$S" --out build/sim/rehearsal/seed$S > build/sim/rehearsal/seed$S/log.txt 2>&1 || echo "::warning title=sim seed $S::did not reach Misty") &
+            (timeout 70m python3 sim/rehearse.py --seed "$S" --out build/sim/rehearsal/seed$S > build/sim/rehearsal/seed$S/log.txt 2>&1 || echo "::warning title=sim seed $S::did not reach Misty") &
           done
           wait
           for S in $SEEDS; do
