@@ -112,7 +112,7 @@ test('memory is code: my… helpers it defines stay for the battle, then it cons
   assert.equal(log.begin[0]!.memoryCost, 0, 'carries nothing yet')
   assert.deepEqual(records[0]!.kept, ['myReadWater'], 'it kept the helper it wrote')
   g.request({ pid: 111 }); await b.poll()
-  assert.equal(log.begin[1]!.memoryCost, 0, 'carrying is free')
+  assert.equal(log.begin[1]!.memoryCost, '- Last turn: SLICE on WATER data hit.'.length, 'carrying helpers is free; the last-turn line costs its bytes')
   assert.ok(records[1]!.memory! > 20, 'calling a helper costs its size')
   assert.deepEqual(records[1]!.carried, ['myReadWater']); assert.equal(records[1]!.usedMemory, true); assert.equal(log.end[1]!.verdict, 'hit')
   assert.deepEqual(mem.lib(111), [], 'nothing long-term until the battle ends')
@@ -244,7 +244,8 @@ test('one context budget: your note costs bytes, a helper costs when called; the
   assert.match(seen[0]!, new RegExp(`at most ${350 - 31} characters`))
   // the helper it kept costs bytes on the next turn, and the prompt shows it
   g.request({ pid: 111 }); await b.poll()
-  assert.equal(log.begin[1]!.memoryCost, 31, 'carrying is free; the note always costs')
+  assert.equal(log.begin[1]!.memoryCost, 31 + '- Last turn: SLICE on WATER data hit.'.length, 'the note and the last-turn line cost; carrying helpers is free')
+  assert.match(seen[1]!, /- Last turn: SLICE on WATER data hit\./)
   assert.match(seen[1]!, /Helpers you carry \(already defined: call them, don't write them again; each one you call costs its size from your budget\):\nfunction myReadWater\(/)
   assert.match(seen[0]!, /You carry no WATER reader yet\. If this block defines a working function myReadWater\(data\)/)
   assert.doesNotMatch(seen[1]!, /You carry no WATER reader/, 'no offer once it carries one')
@@ -307,4 +308,18 @@ test('a right reader under a wrong answer is still kept; a non-reader helper onl
   assert.equal(records[0]!.verdict, 'miss'); assert.deepEqual(records[0]!.kept, ['myReadWater'], 'the reader checked out; myJunk did not count under a miss')
   g.request({ pid: 111 }); await b.poll()
   assert.equal(records[1]!.verdict, 'hit'); assert.deepEqual(records[1]!.kept, ['myReadWater', 'myMax'])
+})
+
+test('working memory of the last turn: a miss comes back as a line with what went wrong; gone when the battle ends', async () => {
+  const g = game(), { panel } = fakePanel(), mem = store()
+  const seen: string[] = []
+  const spy: CodeWriter = { async write(p, onText) { seen.push(p.user); return mockWriter({ missEvery: 1, delay: instant }).write(p, onText) } } // every turn off by one
+  const b = new CodeBattle(g.mailbox, names, spy, sandbox, panel, mem)
+  await b.poll(); g.request({ pid: 111 }); await b.poll()
+  assert.doesNotMatch(seen[0]!, /Last turn/)
+  g.request({ pid: 111 }); await b.poll()
+  assert.match(seen[1]!, /- Last turn: SLICE on WATER data missed \(returned \[[\d,]+\], needed \[[\d,]+\]\)\. Do it differently\./)
+  await b.battleOver()
+  g.request({ pid: 111 }); await b.poll()
+  assert.doesNotMatch(seen[2]!, /Last turn/, 'working memory dies with the battle')
 })

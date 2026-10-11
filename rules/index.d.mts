@@ -82,7 +82,7 @@ export function turnPrompt(args: {
   self: { name: string; level: number; wild?: boolean }
   target: { name: string; level: number; types: string[] }
   move: Move; type: TypeName; know?: Know | null; budget: number; tutorial?: boolean; words?: { data: string; v: string }; hot?: string
-  memory?: { lib?: Helper[]; work?: Helper[] } | null
+  memory?: { lib?: Helper[]; work?: Helper[]; last?: LastTurn | null } | null
 }): { system: string; user: string }
 export function contextCost(ctx?: { know?: Know | null; hot?: string; memory?: string }): number
 export function codeBudget(budget: number, ctx?: { know?: Know | null; hot?: string; memory?: string }): number
@@ -130,5 +130,7 @@ export function readerType(name: string): TypeName | null
 export function recall(helpers: Helper[], type: string): Helper[]
 export function checkSource(helpers: Helper[], turn?: { type: string; data: unknown; bytes: number[] } | null): string
 export function consolidatePrompt(args: { self: { name: string; level: number }; lib: Helper[]; work: Helper[]; cap: number; stats?: Record<string, { used: number; hits: number }> }): { system: string; user: string }
-export function memoryLines(args: { lib?: Helper[]; work?: Helper[]; type?: string }): string[]
+export interface LastTurn { move: string; type: string; verdict: string; reason?: string; got?: string; want?: string; error?: string }
+export function lastTurnLine(last: LastTurn | null | undefined): string
+export function memoryLines(args: { lib?: Helper[]; work?: Helper[]; type?: string; last?: LastTurn | null }): string[]
 export function withoutCarried(code: string | null, carried: Helper[]): string | null

@@ -8,7 +8,7 @@
 import {
   BADGES, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, notchOf,
   rng, stageOf, targetBytes, tokenCapFor, turnData, turnPrompt, turnType,
-  type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged, type Helper,
+  type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged, type Helper, type LastTurn, lastTurnLine,
   checkSource, consolidatePrompt, readerType, recall, extractHelpers, withoutCarried, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
@@ -113,7 +113,7 @@ export interface CodeBattleOptions {
 }
 
 /** Working memory of one Pokémon this battle: its helpers, and how each did (shown to it when it consolidates). */
-type Work = { name: string; level: number; helpers: Helper[]; stats: Record<string, { used: number; hits: number }> }
+type Work = { name: string; level: number; helpers: Helper[]; stats: Record<string, { used: number; hits: number }>; last?: LastTurn }
 
 /** The end-of-battle consolidation is not a move; mock writers see this in meta.move. */
 const REMEMBER = { name: 'REMEMBER', fn: 'remember', spec: '', shape: 'no key', ref: () => null } as unknown as Move
@@ -214,14 +214,15 @@ export class CodeBattle {
     const remembers = side === 0 && !tutorial
     const pid = req.attackerPersonality
     const lib = remembers ? this.lib(pid) : [], work = remembers ? (this.work.get(pid)?.helpers ?? []) : []
+    const last = remembers ? this.work.get(pid)?.last ?? null : null
     const prelude = helpersSource(recall(mergeHelpers(lib, work), type)) // what it recalls this turn (rules/memory.mjs)
     const carried = recall(mergeHelpers(lib, work), type).map(h => h.name)
     const hot = side === 0 ? this.memory.hot(req.attackerPersonality).trim() : ''
     const doubt = side === 0 && req.calledSlot ? { called: this.options.calledMove?.(req) ?? null } : null
     const notch = notchOf(req.attackerStages)
     const budget = budgetAt(req.attackerLevel, { stage, badges, notch })
-    const memoryCost = contextCost({ know, hot }) // + the helpers its code calls, known once it has written it
-    const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, know, budget, tutorial, hot, memory: remembers ? { lib, work } : null })
+    const memoryCost = contextCost({ know, hot, memory: lastTurnLine(last) }) // + the helpers its code calls, known once it has written it
+    const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, know, budget, tutorial, hot, memory: remembers ? { lib, work, last } : null })
 
     this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}), ...(doubt ? { doubt } : {}), ...(carried.length ? { recalls: carried } : {}) })
     let text: string | null = null, tries = 0
@@ -241,7 +242,7 @@ export class CodeBattle {
     // Re-writing a helper it already carries costs nothing: it is defined already. Calling one costs its size.
     const judged = remembers ? withoutCarried(code, mergeHelpers(lib, work)) : code
     const used = judged ? carried.filter(n => new RegExp(`(?<!(?:function|const|let|var)\\s+)\\b${n}\\b`).test(judged)) : []
-    const charged = helpersSource(mergeHelpers(lib, work).filter(h => used.includes(h.name)))
+    const charged = lastTurnLine(last) + helpersSource(mergeHelpers(lib, work).filter(h => used.includes(h.name)))
     const v: Judged = await judge({ move, bytes, data, code: judged, budget: codeBudget(budget, { know, hot, memory: charged }), runSource, prelude })
     // Working memory: the my… helpers its code defined, kept for the battle if they check out. A reader is checked on
     // its own (it must read this format right), so a right reader under a wrong answer is still kept; other helpers
@@ -260,7 +261,11 @@ export class CodeBattle {
     if (remembers && !this.work.has(pid)) this.work.set(pid, { name: attacker, level: req.attackerLevel, helpers: [], stats: {} })
     else if (remembers) this.work.get(pid)!.level = req.attackerLevel
     const usedMemory = used.length > 0
-    if (remembers) { const st = this.work.get(pid)!.stats; for (const n of used) { const e = (st[n] ??= { used: 0, hits: 0 }); e.used++; if (v.hit) e.hits++ } }
+    if (remembers) {
+      const w = this.work.get(pid)!
+      for (const n of used) { const e = (w.stats[n] ??= { used: 0, hits: 0 }); e.used++; if (v.hit) e.hits++ }
+      w.last = { move: move.name, type, verdict: v.hit ? 'hit' : 'miss', ...(v.reason ? { reason: v.reason } : {}), ...(v.got !== undefined ? { got: String(v.got), want: String(v.want) } : {}), ...(v.error ? { error: String(v.error).slice(0, 80) } : {}) }
+    }
     const verdict: Verdict = v.hit ? 'hit' : 'miss'
     const reason = v.reason as MissReason | undefined
     const made = v.payload

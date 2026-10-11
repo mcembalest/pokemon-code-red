@@ -162,15 +162,26 @@ export function consolidatePrompt({ self, lib, work, cap, stats = {} }) {
  *  myReadFlying on BUG data and crashed). */
 export const recall = (helpers, type) => helpers.filter(h => { const t = readerType(h.name); return t ? t === type : true })
 
+/** The last turn, as working memory remembers it: one line it carries into its next prompt (costs its bytes).
+ *  v6 measured: a calm (low-temperature) Pokémon wrote the same wrong reader 236 turns running with no word of it. */
+export function lastTurnLine(last) {
+  if (!last) return ''
+  const what = `${last.move} on ${last.type === 'NORMAL' ? 'plain' : last.type} data`
+  if (last.verdict === 'hit') return `- Last turn: ${what} hit.`
+  const why = last.reason === 'wrong answer' && last.got !== undefined ? `returned ${last.got}, needed ${last.want}` : last.reason === 'crashed' && last.error ? `crashed: ${last.error}` : last.reason ?? 'missed'
+  return `- Last turn: ${what} missed (${why}). Do it differently.`
+}
+
 /** What the prompt tells a Pokémon about its memory this turn. The offer to keep a reader shows only while it has none
  *  for this format, and never for plain-list data (NORMAL: nothing to read; v4 measured the offer pulling it into
  *  JSON.parse on plain lists). */
-export function memoryLines({ lib = [], work = [], type = '' }) {
+export function memoryLines({ lib = [], work = [], type = '', last = null }) {
   const all = recall(mergeHelpers(lib, work), type)
   const fmt = type && type !== 'NORMAL' && Object.hasOwn(FORMATS, type) ? type : null
   const hasReader = fmt && all.some(h => readerType(h.name) === fmt)
   const name = fmt ? `myRead${fmt[0]}${fmt.slice(1).toLowerCase()}` : ''
   return [
+    ...(last ? [lastTurnLine(last)] : []),
     ...(all.length ? [`- Helpers you carry (already defined: call them, don't write them again; each one you call costs its size from your budget):\n${helpersSource(all)}`] : []),
     ...(fmt && !hasReader ? [`- You carry no ${fmt} reader yet. If this block defines a working function ${name}(data) above your move's function (your own code, not a stub) and reads the data with it, you keep ${name} for the rest of this battle.`] : []),
   ]
