@@ -105,6 +105,28 @@ export const helpersFromReaders = readers => Object.entries(readers ?? {}).map((
   return { name, src: `function ${name}(data){${String(line).replace(/^const\s+bytes\b/, 'const nums')};return nums}` }
 })
 
+import { EXAMPLE_BYTES, FORMATS, example } from './formats.mjs'
+
+/** The format a reading helper is named for: myReadPoison → POISON (null for any other helper). */
+export function readerType(name) {
+  const m = /^myRead([A-Z][a-z]+)/.exec(name)
+  const t = m ? m[1].toUpperCase() : null
+  return t && Object.hasOwn(FORMATS, t) && t !== 'NORMAL' ? t : null
+}
+
+/** Source that checks helpers before they are kept (2026-10-11, v4: unchecked memory kept wrong readers and sank the
+ *  run): every helper must compile; a reading helper (myRead<Format>) must read its format's example right, and this
+ *  turn's data too when it is that format. Returns { name: true | false }. */
+export function checkSource(helpers, turn = null) {
+  const lines = helpers.map(h => {
+    const t = readerType(h.name)
+    if (!t) return `ok.${h.name} = typeof ${h.name} !== 'undefined'`
+    const cases = [[example(t), EXAMPLE_BYTES], ...(turn && turn.type === t ? [[turn.data, turn.bytes]] : [])]
+    return `try { ok.${h.name} = typeof ${h.name} === 'function' && ${cases.map(([d, want]) => `JSON.stringify(${h.name}(${JSON.stringify(d)})) === ${JSON.stringify(JSON.stringify(want))}`).join(' && ')} } catch (e) { ok.${h.name} = false }`
+  })
+  return `${helpersSource(helpers)}\nconst ok = {}\n${lines.join('\n')}\nreturn ok`
+}
+
 /** Source that checks helpers compile on their own: returns the names that are functions or values. */
 export const compileSource = helpers => `${helpersSource(helpers)}\nreturn [${helpers.map(h => `typeof ${h.name} !== 'undefined' && '${h.name}'`).join(',')}].filter(Boolean)`
 

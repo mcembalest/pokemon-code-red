@@ -9,7 +9,7 @@ import {
   BADGES, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, notchOf,
   rng, stageOf, targetBytes, tokenCapFor, turnData, turnPrompt, turnType,
   type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged, type Helper,
-  compileSource, consolidatePrompt, extractHelpers, withoutCarried, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
+  checkSource, consolidatePrompt, extractHelpers, withoutCarried, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
 import type { PayloadMailbox, PayloadKind } from '../bridge/payload.ts'
@@ -165,13 +165,14 @@ export class CodeBattle {
     record(after, true)
   }
 
-  /** The helpers that compile and define what they name (the rest are dropped). */
-  private async compiles(helpers: Helper[]): Promise<Helper[]> {
-    const run = await this.sandbox.run(compileSource(helpers), '{}')
-    if (run.ok && Array.isArray(run.value)) return helpers.filter(h => (run.value as string[]).includes(h.name))
-    if (helpers.length === 1) return []
-    const out: Helper[] = [] // one bad helper: try each on its own
-    for (const h of helpers) { const r = await this.sandbox.run(compileSource([h]), '{}'); if (r.ok && Array.isArray(r.value) && r.value.length) out.push(h) }
+  /** The helpers that pass the check (rules/memory.mjs checkSource): compile, and a reading helper reads right. */
+  private async compiles(helpers: Helper[], turn: { type: string; data: unknown; bytes: number[] } | null = null): Promise<Helper[]> {
+    if (!helpers.length) return []
+    const passed = (r: RunResult) => (r.ok && r.value && typeof r.value === 'object' ? r.value as Record<string, boolean> : null)
+    const all = passed(await this.sandbox.run(checkSource(helpers, turn), '{}'))
+    if (all) return helpers.filter(h => all[h.name] === true)
+    const out: Helper[] = [] // one bad helper broke the lot: check each on its own
+    for (const h of helpers) { const r = passed(await this.sandbox.run(checkSource([h], turn), '{}')); if (r?.[h.name] === true) out.push(h) }
     return out
   }
 
@@ -233,10 +234,10 @@ export class CodeBattle {
     const used = judged ? carried.filter(n => new RegExp(`(?<!(?:function|const|let|var)\\s+)\\b${n}\\b`).test(judged)) : []
     const charged = helpersSource(mergeHelpers(lib, work).filter(h => used.includes(h.name)))
     const v: Judged = await judge({ move, bytes, data, code: judged, budget: codeBudget(budget, { know, hot, memory: charged }), runSource, prelude })
-    // Working memory: the my… helpers its code defined, from code that ran (a hit, or a wrong answer), kept for the battle.
+    // Working memory: the my… helpers its code defined in a hit, kept for the battle if they check out.
     let kept: string[] | undefined
-    if (remembers && code && (v.hit || v.reason === 'wrong answer')) {
-      const fresh = await this.compiles(extractHelpers(code))
+    if (remembers && code && v.hit) {
+      const fresh = await this.compiles(extractHelpers(code), { type, data, bytes })
       if (fresh.length) {
         const helpers = fitHelpers(mergeHelpers(work, fresh), workCap(budget))
         const w = this.work.get(pid)

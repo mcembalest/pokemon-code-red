@@ -255,3 +255,18 @@ test('memory: re-writing a carried helper costs nothing; consolidation sees how 
   assert.match(p.user, /\/\/ myReadPoison: used 6×, 5 hits\nfunction myReadPoison/)
   assert.match(p.user, /at most 115 characters/)
 })
+
+test('memory: a reading helper is kept only if it reads its format right', async () => {
+  const { checkSource, readerType } = await import('../memory.mjs')
+  const { runBlock } = await import('../../kernel/code.mjs')
+  assert.equal(readerType('myReadPoison'), 'POISON'); assert.equal(readerType('myMax'), null); assert.equal(readerType('myReadNormal'), null)
+  const helpers = [
+    { name: 'myReadPoison', src: "function myReadPoison(d){return d.split('x').filter(Boolean).map(Number)}" },
+    { name: 'myReadBug', src: "function myReadBug(d){return d.split(' ').map(Number)}" }, // wrong: BUG data is a list
+    { name: 'myMax', src: 'const myMax = xs => Math.max(...xs);' },
+  ]
+  const r = await runBlock(checkSource(helpers, { type: 'POISON', data: 'x10x20x', bytes: [10, 20] }), [])
+  assert.deepEqual(r.value, { myReadPoison: true, myReadBug: false, myMax: true })
+  const wrongToday = await runBlock(checkSource(helpers.slice(0, 1), { type: 'POISON', data: 'x10x20x', bytes: [10, 21] }), [])
+  assert.deepEqual(wrongToday.value, { myReadPoison: false })
+})
