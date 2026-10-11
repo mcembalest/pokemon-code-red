@@ -325,3 +325,19 @@ test('cors: allowed origins only', async () => {
   assert.equal(pre.status, 204);
   assert.match(pre.headers.get('access-control-allow-headers'), /authorization/);
 });
+
+test('workers AI route: Qwen is fetched whole and re-streamed (its gateway stream loses number tokens)', async () => {
+  const r = await call('/admin/api/invites', { token: ADMIN, body: { count: 1, max_uses: 1, note: 'qwen' } });
+  const { codes } = await r.json();
+  const joined = await (await call('/v1/join', { body: { invite: codes[0], name: 'Misty', username: 'misty_q', password: 'starmie-123' } })).json();
+  const Q = '@cf/qwen/qwen2.5-coder-32b-instruct';
+  const res = await call('/v1/ai/chat/completions', { token: joined.token, body: { model: Q, messages: [{ role: 'user', content: 'use ERROR!' }], stream: true } });
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /event-stream/);
+  assert.equal(mockCalls.at(-1).body.stream, undefined); // asked upstream for a whole answer
+  const text = await res.text();
+  const chunks = text.split('\n').filter((l) => l.startsWith('data: {')).map((l) => JSON.parse(l.slice(6)));
+  assert.equal(chunks.map((c) => c.choices[0].delta.content ?? '').join(''), 'return 1');
+  assert.equal(chunks.at(-1).choices[0].finish_reason, 'stop');
+  assert.match(text, /data: \[DONE\]/);
+});

@@ -35,6 +35,7 @@ export interface Env {
   AI_DAILY_TOKENS: string;   // per player, rolling 24 h
   AI_GATEWAY: string;        // AI Gateway id the binding routes through
   AI_UPSTREAM_URL?: string;  // tests only: OpenAI-compatible base URL used instead of the binding
+  AI_NO_STREAM?: string;     // comma list of models fetched whole even when the player streams (their streams lose tokens)
 }
 
 type Player = { id: string; name: string; username?: string | null; created_at: number; last_seen: number; active_session?: string | null };
@@ -405,6 +406,11 @@ async function ai(req: Request, env: Env, player: Player, ctx: Ctx): Promise<Res
   const asked = Number(input.max_completion_tokens ?? input.max_tokens) || cap;
   const upstream: Record<string, unknown> = { model, max_tokens: Math.min(asked, cap) };
   for (const k of AI_FIELDS) if (input[k] !== undefined) upstream[k] = input[k];
+  // Through AI Gateway, Qwen's streamed number tokens arrive as empty "stop" chunks: the digits are gone (dress
+  // rehearsal 2026-10-10: ERROR's code came out `let p=;for(let i=;i<;…`). Its plain responses are whole, so ask for one
+  // and hand the player the same text as a short stream.
+  const unstreamed = !!upstream.stream && (env.AI_NO_STREAM ?? '@cf/qwen/qwen2.5-coder-32b-instruct').split(',').map((x) => x.trim()).includes(model);
+  if (unstreamed) delete upstream.stream;
   if (upstream.stream) upstream.stream_options = { include_usage: true };
   const reqText = JSON.stringify(upstream);
 
@@ -422,6 +428,11 @@ async function ai(req: Request, env: Env, player: Player, ctx: Ctx): Promise<Res
     ).bind(player.id, t0, model, await sha256(reqText), reqText.slice(0, 100_000), resText.slice(0, 100_000), r.status, usage.input, usage.output, Date.now() - t0).run();
   };
   const type = r.headers.get('content-type') || 'application/json';
+  if (unstreamed && r.ok) {
+    const resText = await r.text();
+    await record(resText);
+    return new Response(asStream(resText), { status: 200, headers: { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store' } });
+  }
   if (!r.ok || !upstream.stream || !r.body) {
     const resText = await r.text();
     await record(resText);
@@ -433,6 +444,19 @@ async function ai(req: Request, env: Env, player: Player, ctx: Ctx): Promise<Res
   if (ctx) ctx.waitUntil(done);
   // Always label a stream as one: the browser's parser only repairs Workers AI's numeric tokens in an event stream.
   return new Response(toPlayer, { status: 200, headers: { 'content-type': type.includes('event-stream') ? type : 'text/event-stream; charset=utf-8', 'cache-control': 'no-store' } });
+}
+
+/** An OpenAI chat completion as a short SSE stream: the whole text in one chunk, then the finish with its usage. */
+function asStream(body: string): string {
+  let c: { id?: string; model?: string; created?: number; choices?: { message?: { content?: unknown }; finish_reason?: string }[]; usage?: unknown } = {};
+  try { c = JSON.parse(body); } catch { /* an empty answer */ }
+  const base = { id: c.id ?? 'unstreamed', object: 'chat.completion.chunk', created: c.created ?? Math.floor(Date.now() / 1000), model: c.model ?? '' };
+  const content = c.choices?.[0]?.message?.content;
+  const text = typeof content === 'string' ? content : content == null ? '' : JSON.stringify(content);
+  const chunk = (o: unknown) => `data: ${JSON.stringify(o)}\n\n`;
+  return chunk({ ...base, choices: [{ index: 0, delta: { role: 'assistant', content: text } }] })
+    + chunk({ ...base, choices: [{ index: 0, delta: {}, finish_reason: c.choices?.[0]?.finish_reason ?? 'stop' }], ...(c.usage ? { usage: c.usage } : {}) })
+    + 'data: [DONE]\n\n';
 }
 
 /** Token usage from an OpenAI-style JSON body or SSE stream (last chunk carrying `usage`). */
