@@ -20,7 +20,7 @@ export interface CodePanel extends Panel {
 const describe = (i: TurnInfo) => {
   const who = i.side === 1 ? `${i.wild ? 'Wild' : 'Foe'} ${i.attacker}` : i.attacker
   const data = i.tutorial ? 'a plain list' : `${i.type} data`
-  const knows = i.know === 'dex' ? ' · Pokédex reader' : i.know === 'memory' ? ' · remembers this type' : ''
+  const knows = i.know === 'memory' ? ' · remembers this type' : ''
   const doubt = i.doubt ? ` · doubted your ${i.doubt.called ?? 'call'}` : ''
   const mood = i.notch < 0 ? ` · shaken ${i.notch}` : i.notch > 0 ? ` · steady +${i.notch}` : ''
   const makes = i.makes === 'sound' ? ' · makes a sound' : i.makes === 'image' ? ' · draws a picture' : ''

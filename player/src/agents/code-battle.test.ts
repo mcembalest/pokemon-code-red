@@ -103,32 +103,31 @@ test('a retry after one failure still plays the code', async () => {
   assert.equal(g.reply().verdict, 1)
 })
 
-test('learning: a verified reader is remembered by that Pokémon; the Pokédex fills after the battle', async () => {
+test('learning: a verified reader from its own hit is remembered by that Pokémon only; no Pokédex readers', async () => {
   const g = game(), { panel, log } = fakePanel(), mem = store()
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem)
   await b.poll(); g.request({ pid: 111 }); await b.poll()
+  assert.equal(log.begin[0]!.know, null, 'the first time: instinct')
   assert.deepEqual(Object.keys(mem.readers(111)), ['WATER'])
   assert.deepEqual(mem.readers(999), {}, 'another Pokémon starts fresh')
   g.request({ pid: 111 }); await b.poll()
   assert.equal(log.begin[1]!.know, 'memory')
-  assert.deepEqual(mem.seen(), [], 'not in the Pokédex during the battle')
   b.battleOver()
-  assert.deepEqual(mem.seen(), ['WATER'])
   g.request({ pid: 999 }); await b.poll()
-  assert.equal(log.begin[2]!.know, 'dex', 'the Pokédex is shared by the party')
+  assert.equal(log.begin[2]!.know, null, 'nothing shared through a Pokédex (owner, 2026-10-11)')
 })
 
-test('foes: wild ones know no readers; leaders and the rival read every format; ordinary trainers about half', async () => {
+test('foes write on pure instinct: wild, trainers, the rival and leaders alike', async () => {
   const g = game(), { panel, log } = fakePanel(), mem = store()
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem)
   await b.poll()
   g.request({ side: 1, attacker: 16, flags: 0 }); await b.poll()                 // wild PIDGEY
   assert.equal(log.begin[0]!.know, null); assert.equal(log.begin[0]!.wild, true)
   g.request({ side: 1, attacker: 7, flags: 0x8, cls: 81 }); await b.poll()       // the rival's SQUIRTLE
-  assert.equal(log.begin[1]!.know, 'dex')
-  const knows = new Set<string | null>()
-  for (let pid = 1; pid <= 12; pid++) { g.request({ side: 1, attacker: 7, flags: 0x8, cls: 2, pid: pid * 104729 }); await b.poll(); knows.add(log.begin.at(-1)!.know) }
-  assert.ok(knows.has('dex') && knows.has(null), 'an ordinary trainer reads some formats and not others')
+  assert.equal(log.begin[1]!.know, null)
+  g.request({ side: 1, attacker: 7, flags: 0x8, cls: 84 }); await b.poll()       // a gym leader
+  assert.equal(log.begin[2]!.know, null)
+  assert.deepEqual(mem.readers(0), {}, 'foes never learn')
 })
 
 test('the first battle is a tutorial: a plain list, no format', async () => {
@@ -142,11 +141,11 @@ test('the first battle is a tutorial: a plain list, no format', async () => {
   assert.equal(g.reply().verdict, 1)
 })
 
-test('badges teach: Boulder gives ROCK + GROUND readers, Cascade +50 bytes; evolution raises the budget', async () => {
+test('badges: Cascade +50 bytes, Boulder no readers any more; evolution raises the budget', async () => {
   const g = game(), { panel, log } = fakePanel()
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, store(), { badges: () => ['BOULDER', 'CASCADE'] })
   await b.poll(); g.request({ target: 74, types: [5, 4], attacker: 5, level: 16 }); await b.poll()
-  assert.equal(log.begin[0]!.know, 'dex')
+  assert.equal(log.begin[0]!.know, null)
   assert.equal(log.begin[0]!.budget, 300 + 160 + 100 + 50)
 })
 

@@ -19,7 +19,7 @@ concurrency:
 jobs:
   rehearse:
     runs-on: ubuntu-24.04
-    timeout-minutes: 170
+    timeout-minutes: 200
     env:
       CODERED_RUN: rehearsal
     steps:
@@ -50,12 +50,22 @@ jobs:
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          mkdir -p build/sim/rehearsal; SEED=$(jq -r ".seed // 0" rehearsal.json)
-          timeout 110m python3 sim/rehearse.py --seed "$SEED" > build/sim/rehearsal/log.txt 2>&1 || echo "::warning title=sim::did not reach Misty"
-          tail -n 60 build/sim/rehearsal/log.txt
-          jq -c '{ok, error, wall_seconds, code_turns, your_hit_rate, foe_hit_rate, tokens, model_wait_seconds, wait_median, wait_p90}' build/sim/rehearsal/summary.json | sed 's/^/::notice title=sim::/' || true
+          # rehearsal.json: "seed": N, or "seeds": [N, M, …] to run several in parallel (one process each)
+          SEEDS=$(jq -r '(.seeds // [.seed // 0]) | map(tostring) | join(" ")' rehearsal.json)
+          for S in $SEEDS; do
+            mkdir -p build/sim/rehearsal/seed$S
+            (timeout 140m python3 sim/rehearse.py --seed "$S" --out build/sim/rehearsal/seed$S > build/sim/rehearsal/seed$S/log.txt 2>&1 || echo "::warning title=sim seed $S::did not reach Misty") &
+          done
+          wait
+          for S in $SEEDS; do
+            tail -n 15 build/sim/rehearsal/seed$S/log.txt
+            jq -c --arg s "$S" '{seed: $s, ok, error, wall_seconds, code_turns, your_hit_rate, foe_hit_rate, tokens, wait_median, wait_p90}' build/sim/rehearsal/seed$S/summary.json | sed 's/^/::notice title=sim::/' || true
+          done
+          # the first seed's gym states feed the live half
+          F=$(echo $SEEDS | cut -d' ' -f1); cp build/sim/rehearsal/seed$F/*.raw build/sim/rehearsal/ 2>/dev/null || true
       - name: Mint a one-use invite
         id: invite
+        if: hashFiles('rehearsal.json') != '' && !contains(github.event.head_commit.message, '[sim only]')
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -69,6 +79,7 @@ jobs:
           npx wrangler d1 execute code-red --remote --command "INSERT INTO invites (code, note, max_uses, uses, created_at, revoked) VALUES ('$CODE', 'dress rehearsal (CI)', 1, 0, $NOW, 0)" > d1.out 2>&1 || { echo "::error title=d1::$(tail -c 800 d1.out | tr '\n' ' ' | sed "s/$CODE/RED-…/g")"; exit 1; }
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
       - name: Half 2 — a new friend on the live site
+        if: steps.invite.outputs.code != ''
         env:
           INVITE: ${{ steps.invite.outputs.code }}
           SITE: https://maxcembalest.com/pokemon-code-red
@@ -92,8 +103,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           S=${GITHUB_SHA::7}; mkdir -p pub
-          for f in build/sim/rehearsal/summary.json build/sim/rehearsal/turns.jsonl build/sim/rehearsal/log.txt build/rehearsal/live.json; do [ -f "$f" ] && cp "$f" "pub/$S-$(basename $f)"; done
+          for d in build/sim/rehearsal/seed*; do [ -d "$d" ] || continue; n=$(basename $d); for f in summary.json turns.jsonl log.txt; do [ -f "$d/$f" ] && cp "$d/$f" "pub/$S-$n-$f"; done; [ -f "$d/fail.png" ] && cp "$d/fail.png" "pub/$S-$n-fail.png"; done
+          [ -f build/rehearsal/live.json ] && cp build/rehearsal/live.json "pub/$S-live.json"
           for f in 01-join 03-rom-chooser 04-booted 05-starter-card 06-rival-end 07-pokeeg 08-pokeeg-bond 10-saved; do [ -f "build/rehearsal/$f.png" ] && cp "build/rehearsal/$f.png" "pub/$S-$f.png"; done
-          for f in build/rehearsal/gym-*-end.png build/sim/rehearsal/fail.png; do [ -f "$f" ] && cp "$f" "pub/$S-$(basename $f)"; done
+          for f in build/rehearsal/gym-*-end.png; do [ -f "$f" ] && cp "$f" "pub/$S-$(basename $f)"; done
           gh release view rehearsal >/dev/null 2>&1 || gh release create rehearsal --prerelease --title "Dress rehearsal" --notes "Outputs of .github/workflows/rehearsal.yml. Safe to delete."
           gh release upload rehearsal pub/* --clobber

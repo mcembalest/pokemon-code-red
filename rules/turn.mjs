@@ -36,8 +36,10 @@ export const turnType = (r, types) => types[Math.floor(r() * types.length)]
 // ---------- what the attacker knows ----------
 
 /**
- * How the attacker can read this type, if it knows: the party's Pokédex first (shared; includes badge readers),
- * then its own memory (readers learned from verified hits). dex = list of types; readers = { TYPE: line }.
+ * How the attacker can read this type, if it remembers (owner, 2026-10-11: no readers handed out — no Pokédex
+ * readers, no badge readers, nothing for foes; a Pokémon reads a format by instinct from its description, or from
+ * memory: the reading line of its own past hit on that format, verified). readers = { TYPE: line }.
+ * dex is kept for the model labs' old runs; the game passes none.
  */
 export function knowFor(type, { dex = [], readers = {} } = {}) {
   if (dex.includes(type)) return { from: 'dex', line: HINTS[type] }
@@ -178,7 +180,7 @@ export function learn(readers, type, line, slots = Infinity) {
 /** Learn from a hit, if the hit's reader checks out. Pokédex types are not memorized. Returns new readers. */
 export async function learnFromHit({ readers, type, code, data, bytes, slots = Infinity, dex = [], runSource }) {
   const line = readerLine(code)
-  if (!line || dex.includes(type)) return readers
+  if (!line || dex.includes(type)) return readers // dex: labs only (the game passes none)
   return readsRight(await runSource(readerSource(line, data)), bytes) ? learn(readers, type, line, slots) : readers
 }
 

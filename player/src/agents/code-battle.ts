@@ -3,11 +3,11 @@
 // the game hears hit / miss / vanilla. Both sides. The rules are shared with the simulator (rules/).
 //   turn pace (owner, 2026-10-08): your code → your move → foe's code → foe's move (the ROM asks in that order)
 //   foes: focus + budget from level; knowledge by tier (owner, 2026-10-08): wild none, trainers half the formats, leaders and the rival all
-//   memory: each Pokémon keeps its own readers; the Pokédex (types seen in past battles + badge readers) is shared
+//   memory: each Pokémon remembers how it read a format from its own past hits (no Pokédex or badge readers, 2026-10-11)
 //   model or network failure: retry once, then plain FireRed (accuracy roll)
 import {
-  BADGES, FORMATS, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, foeDex, formatOf, judge, knowFor, learnFromHit, missText, notchOf, partyDex,
-  rng, stageOf, targetBytes, tierOf, tokenCapFor, turnData, turnPrompt, turnType,
+  BADGES, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, notchOf,
+  rng, stageOf, targetBytes, tokenCapFor, turnData, turnPrompt, turnType,
   type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
@@ -135,8 +135,8 @@ export class CodeBattle {
     const badges = side === 0 ? (this.options.badges?.() ?? []).filter(b => b in BADGES) : []
     const stage = stageOf(attacker)
     const readers = side === 0 ? this.memory.readers(req.attackerPersonality) : {}
-    const dex = side === 0 ? partyDex({ seen: this.memory.seen(), badges }) : foeDex(tierOf(req.trainerClass, wild), req.attackerPersonality, Object.keys(FORMATS))
-    const know = tutorial ? null : knowFor(type, { dex, readers })
+    // No readers handed out (owner, 2026-10-11): yours reads by instinct or from its own past hits; foes by instinct alone.
+    const know = tutorial || side === 1 ? null : knowFor(type, { readers })
     const hot = side === 0 ? this.memory.hot(req.attackerPersonality).trim() : ''
     const doubt = side === 0 && req.calledSlot ? { called: this.options.calledMove?.(req) ?? null } : null
     const notch = notchOf(req.attackerStages)
@@ -161,7 +161,7 @@ export class CodeBattle {
     const runSource = (source: string) => this.sandbox.run(source, '{}')
     const v: Judged = await judge({ move, bytes, data, code, budget: codeBudget(budget, { know, hot }), runSource })
     if (v.hit && side === 0 && !tutorial && code) {
-      const next = await learnFromHit({ readers, type, code, data, bytes, dex, runSource })
+      const next = await learnFromHit({ readers, type, code, data, bytes, runSource })
       if (next !== readers) this.memory.setReaders(req.attackerPersonality, next)
     }
     const verdict: Verdict = v.hit ? 'hit' : 'miss'

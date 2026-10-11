@@ -45,10 +45,13 @@ def summarize(turns: list[dict], legs: list[dict], result: dict, wall: float) ->
 
 
 def main():
+    global OUT
     ap = argparse.ArgumentParser()
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--mock', action='store_true')
+    ap.add_argument('--out', default=str(OUT), help='where turns.jsonl / summary.json go (one dir per parallel run)')
     args = ap.parse_args()
+    OUT = Path(args.out)
     OUT.mkdir(parents=True, exist_ok=True)
     g = World()
     host = BrainHost(g, OUT / 'turns.jsonl', mock=args.mock)

@@ -5,7 +5,7 @@
 //   0 u32 magic 'CRE1'  4 u16 version  6 u8 state (0 idle, 1 request, 2 reply, 4 cancelled)  7 u8 op (1 mind, 2 edit hot)
 //   8 u32 requestId  12 u32 epoch  16 u32 personality  20 u16 species  22 u8 level  23 u8 open (the screen is up)
 //  24 u8 readers  25 u8 dex  26 u16 budget  28 u8 focus×100  29 u8 nHistory  30 u8 history[10]  40 u8 format[24]  64 u8 hot[100]
-// 164 u8 readersText[48] ("Water, Rock")  212 u8 dexText[48]  — game text, EOS-terminated; hot may hold one newline (two lines)
+// 164 u8 readersText[48] ("Water, Rock")  212 u8 dexText[48] (unused since 2026-10-11: no Pokédex readers)  — game text, EOS-terminated; hot may hold one newline (two lines)
 // 260 u8 unused (was doubtMax; the game works it out from friendship now)
 import type { GbaMemory } from './memory.ts'
 

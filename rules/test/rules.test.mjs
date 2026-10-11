@@ -121,7 +121,7 @@ test('learning: only verified readers; most recent kept within slots; Pokédex t
   assert.deepEqual(readers, { GRASS: 'g', WATER: 'w2' }, 'refresh moves it to the end')
 })
 
-test('growth: focus calms, budget and slots grow, evolution jumps, badges teach', () => {
+test('growth: focus calms, budget and slots grow, evolution jumps', () => {
   assert.equal(focusAt(5), 0.8)
   assert.ok(Math.abs(focusAt(15) - 0.5) < 1e-9)
   assert.equal(focusAt(40), 0.3)
@@ -131,7 +131,7 @@ test('growth: focus calms, budget and slots grow, evolution jumps, badges teach'
   assert.equal(slotsAt(5), 2)
   assert.equal(slotsAt(14), 5)
   assert.equal(slotsAt(16, { stage: 1 }), 8)
-  assert.deepEqual(partyDex({ seen: ['WATER'], badges: ['BOULDER'] }).sort(), ['GROUND', 'ROCK', 'WATER'])
+  assert.deepEqual(partyDex({ seen: ['WATER'], badges: ['BOULDER'] }), ['WATER']) // badges teach no readers since 2026-10-11 (partyDex: labs only)
   assert.deepEqual(BADGES.CASCADE, { budget: 50 })
 })
 

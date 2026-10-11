@@ -1,4 +1,4 @@
 {
- "seed": 2,
- "note": "Run 3: seed 2; D1 id resolved like the deploy job."
+ "seeds": [0, 1],
+ "note": "No readers (owner, 2026-10-11): yours read by instinct or its own past hits; foes pure instinct. Sim half only."
 }
