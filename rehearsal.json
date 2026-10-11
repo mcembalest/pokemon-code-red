@@ -1,4 +1,4 @@
 {
  "seeds": [0, 1],
- "note": "Memory is code v3: helpers cost only when called (v2 charged all carried bytes up front: stalemates). Sim half only, 45 min per seed."
+ "note": "Memory is code v3: helpers cost only when called (v2 charged all carried bytes up front: stalemates). Sim half only, 45 min per seed (run again: not queued behind the stalled v2)."
 }

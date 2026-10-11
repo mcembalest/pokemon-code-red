@@ -14,7 +14,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: rehearsal
+  group: rehearsal-${{ github.sha }} # one per commit: a slow run must not hold the next experiment back
   cancel-in-progress: false
 jobs:
   rehearse:
