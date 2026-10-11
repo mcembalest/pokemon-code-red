@@ -103,12 +103,12 @@ export function formatOf(romType: string): TypeName
 export function stageOf(species: string): number
 
 // ---- doubt (rules/doubt.mjs)
-export const DOUBT: { badgesToTrust: number; cap: number }
+export const DOUBT: { maxFriendship: number; cap: number }
 export interface InstinctMove { id?: number; name?: string; power: number; accuracy?: number; type: string }
 export interface InstinctCtx { selfTypes?: string[]; effectiveness?: (moveType: string) => number }
 export function instinctScore(move: InstinctMove | null | undefined, ctx?: InstinctCtx): number
 export function instinct<M extends InstinctMove>(moves: M[], ctx?: InstinctCtx): M | null
-export function misalignment(badges: string[]): number
-export function maxDoubt(badges: string[]): number
-export function doubtChance<M extends InstinctMove>(o: { chosen: M | null | undefined; moves: M[]; badges?: string[]; selfTypes?: string[]; effectiveness?: (moveType: string) => number }): { chance: number; wanted: M | null }
+export function misalignment(friendship: number): number
+export function maxDoubt(friendship: number): number
+export function doubtChance<M extends InstinctMove>(o: { chosen: M | null | undefined; moves: M[]; friendship?: number; selfTypes?: string[]; effectiveness?: (moveType: string) => number }): { chance: number; wanted: M | null }
 export function typeChart(rom: Uint8Array, at: number): (moveType: number, defTypes: number[]) => number

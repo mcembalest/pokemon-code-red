@@ -8,10 +8,10 @@ Menu entries live in patch 003 (PC menu, bedroom PC); this patch is the screen i
 No host → the mind lines say so; the list still works.
 diff --git a/src/code_red_eeg.c b/src/code_red_eeg.c
 new file mode 100644
-index 00000000..9c74299a
+index 00000000..b5c7aced
 --- /dev/null
 +++ b/src/code_red_eeg.c
-@@ -0,0 +1,702 @@
+@@ -0,0 +1,709 @@
 +// Code Red: the PokÉEG, in the game (owner, 2026-10-09). From the PC: every Pokémon the player
 +// owns (party, then the boxes), and for the one under the cursor a look inside its mind.
 +// The game knows the Pokémon; the page knows the mind (readers, hot memory, code history live in the
@@ -68,7 +68,7 @@ index 00000000..9c74299a
 +    /*0x40*/ u8 hot[100];      // game text, EOS-terminated: hot memory (may hold one newline: two lines)
 +    /*0xA4*/ u8 readersText[48]; // game text: the formats it learned to read ("Water, Rock"), or empty
 +    /*0xD4*/ u8 dexText[48];     // game text: the Pokédex's formats, or empty
-+    /*0x104*/ u8 doubtMax;       // 0-50: the most it doubts a call, % (badges; rules/doubt.mjs maxDoubt)
++    /*0x104*/ u8 unused104;      // was doubtMax (badges); the game now works it out from friendship itself
 +    /*0x105*/ u8 pad2[3];
 +};
 +STATIC_ASSERT(sizeof(struct CodeRedEeg) == 264, CodeRedEegSize);
@@ -80,7 +80,7 @@ index 00000000..9c74299a
 +#define EEG_EDIT_FRAMES 18000  // 5 minutes to type on the page
 +#define NAME_BYTES 12
 +
-+struct EegEntry { u32 personality; u16 species; u8 level; u8 box; u8 slot; }; // box 0xFF = party
++struct EegEntry { u32 personality; u16 species; u8 level; u8 box; u8 slot; u8 friendship; }; // box 0xFF = party
 +
 +struct EegState {
 +    MainCallback savedCallback;
@@ -96,6 +96,7 @@ index 00000000..9c74299a
 +    u32 shownId;
 +    u8 tab;       // 0 SYSTEM, 1 READERS, 2 CODE, 3 NOTE
 +    bool8 haveMind; // the page answered for the Pokémon under the cursor
++    u16 current;    // the entry under the cursor
 +};
 +enum { TAB_SYSTEM, TAB_READERS, TAB_CODE, TAB_NOTE, TAB_INSTINCT, TAB_COUNT };
 +static EWRAM_DATA struct EegState *sEeg = NULL;
@@ -182,6 +183,7 @@ index 00000000..9c74299a
 +    e->species = GetBoxMonData(mon, MON_DATA_SPECIES);
 +    e->level = level ? level : GetLevelFromBoxMonExp(mon);
 +    e->box = box; e->slot = slot;
++    e->friendship = GetBoxMonData(mon, MON_DATA_FRIENDSHIP);
 +    name = &sEeg->names[sEeg->count * NAME_BYTES];
 +    GetBoxMonData(mon, MON_DATA_NICKNAME, name);
 +    name[POKEMON_NAME_LENGTH] = EOS;
@@ -302,18 +304,22 @@ index 00000000..9c74299a
 +            StringAppend(s, sText_MissN);
 +        }
 +        break;
-+    case TAB_INSTINCT: // System 1: yours uses your call unless its instinct overrules a weak one (fewer badges, more often)
++    case TAB_INSTINCT: // System 1: yours uses your call unless its instinct overrules a weak one (less friendship, more often)
++    {
++        // rules/doubt.mjs maxDoubt: 50% × (255 − friendship) / 255, rounded
++        u8 doubtMax = (50 * (MAX_FRIENDSHIP - sEeg->entries[sEeg->current].friendship) + MAX_FRIENDSHIP / 2) / MAX_FRIENDSHIP;
 +        s = StringCopy(gStringVar4, sText_Instinct);
 +        *s++ = CHAR_NEWLINE;
-+        if (gCodeRedEeg->doubtMax == 0)
++        if (doubtMax == 0)
 +        {
 +            StringCopy(s, sText_NeverDoubts);
 +            break;
 +        }
 +        s = StringCopy(s, sText_Doubts);
-+        s = ConvertIntToDecimalStringN(s, gCodeRedEeg->doubtMax > 100 ? 100 : gCodeRedEeg->doubtMax, STR_CONV_MODE_LEFT_ALIGN, 3);
++        s = ConvertIntToDecimalStringN(s, doubtMax, STR_CONV_MODE_LEFT_ALIGN, 3);
 +        StringCopy(s, sText_Percent);
 +        break;
++    }
 +    default: // the note itself (the page wraps it onto two lines), or how to write one
 +        if (gCodeRedEeg->hot[0] == EOS)
 +            StringCopy(gStringVar4, sText_NoNote);
@@ -388,6 +394,7 @@ index 00000000..9c74299a
 +    }
 +    else
 +    {
++        sEeg->current = index;
 +        Eeg_PrintTabs();
 +        Eeg_PrintBody(sText_Asking);
 +        Eeg_Ask(1, &sEeg->entries[index]);
