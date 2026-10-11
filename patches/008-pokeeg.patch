@@ -1,28 +1,33 @@
-Code Red: the PokÉEG in the game (owner, 2026-10-09). A PC screen listing every Pokémon
-the player owns (party, then the boxes) and, for the one under the cursor, a look inside
-its mind: its type's system, readers learned, Pokédex readers, byte budget, focus, the
-last ten turns (hit/miss) and its hot memory. The game asks the page through a mailbox
-(struct CodeRedEeg, 264 B, heap-allocated while the screen is open; the static symbol gCodeRedEeg
-is a pointer to it, NULL when closed) one Pokémon at a time; hot memory is typed on the page.
+Code Red: the PokÉEG in the game (owner, 2026-10-09; brain scan 2026-10-10). A PC screen listing
+every Pokémon the player owns (party, then the boxes) and, for the one under the cursor, a brain scan
+built only from what it already is: five lobes (one per stat its nature touches; the raised one glows,
+the lowered one dims), twelve electrodes (its IVs), four scrolling channels (BOND = friendship,
+WIRING = IVs, TRAINING = EVs, MEMORY = its last ten turns of code), and seven tabs of text
+(NATURE, WIRING, TRAINING, BOND, CODE, MEMORY, NOTE). Nature, IVs, EVs and friendship are read
+here; its code memory comes from the page through a mailbox (struct CodeRedEeg, 264 B,
+heap-allocated while the screen is open; the static symbol gCodeRedEeg is a pointer to it, NULL
+when closed), one Pokémon at a time; hot memory is typed on the page. Display only.
 Menu entries live in patch 003 (PC menu, bedroom PC); this patch is the screen itself.
-No host → the mind lines say so; the list still works.
+No host → the game's own tabs still work; CODE/MEMORY/NOTE say to open the page.
 diff --git a/src/code_red_eeg.c b/src/code_red_eeg.c
 new file mode 100644
-index 00000000..b5c7aced
+index 00000000..069572aa
 --- /dev/null
 +++ b/src/code_red_eeg.c
-@@ -0,0 +1,709 @@
-+// Code Red: the PokÉEG, in the game (owner, 2026-10-09). From the PC: every Pokémon the player
-+// owns (party, then the boxes), and for the one under the cursor a look inside its mind.
-+// The game knows the Pokémon; the page knows the mind (readers, hot memory, code history live in the
-+// cloud save). So this screen asks the page through a mailbox, one Pokémon at a time, and draws what
-+// comes back. Hot memory is typed on the page (a note can be 200 characters; the naming screen can't).
-+// No host → the mind lines stay blank; the screen still works as a list.
+@@ -0,0 +1,1076 @@
++// Code Red: the PokÉEG, in the game (owner, 2026-10-09; brain scan 2026-10-10). From the PC: every Pokémon the
++// player owns (party, then the boxes), and for the one under the cursor a brain scan built only from what it already
++// is (owner, 2026-10-10: "weave together existing concepts", display only, nothing new like "focus"):
++//   the brain: five lobes, one per stat its nature can touch. The raised stat's lobe glows, the lowered one dims.
++//   the electrodes: its IVs (two per stat, brighter for better wiring).
++//   four channels: BOND (friendship: steadier and stronger as it grows), WIRING (IVs), TRAINING (EVs),
++//   MEMORY (its last ten turns of code: a spike for a hit, a sag for a miss).
++// Nature, IVs, EVs and friendship are read from the Pokémon here; its memory (readers, hot memory, code history)
++// lives in the cloud save, so the screen asks the page through a mailbox, one Pokémon at a time. Hot memory is typed
++// on the page (a note can be 200 characters; the naming screen can't). No host → the game's own tabs still work.
 +#include "global.h"
 +#include "gflib.h"
 +#include "data.h"
-+#include "decompress.h"
-+#include "graphics.h"
 +#include "help_system.h"
 +#include "list_menu.h"
 +#include "menu.h"
@@ -32,15 +37,15 @@ index 00000000..b5c7aced
 +#include "overworld.h"
 +#include "pokemon.h"
 +#include "pokemon_storage_system.h"
++#include "pokemon_summary_screen.h"
 +#include "scanline_effect.h"
 +#include "script.h"
 +#include "string_util.h"
 +#include "strings.h"
 +#include "task.h"
-+#include "text_window.h"
-+#include "battle_main.h"
++#include "trig.h"
 +#include "field_weather.h"
-+#include "constants/field_weather.h"
++#include "battle_main.h"
 +#include "constants/songs.h"
 +
 +// Fixed 264-byte transport, heap-allocated while the screen is open (EWRAM has ~1 KB of static
@@ -48,7 +53,7 @@ index 00000000..b5c7aced
 +// reply fields; the game writes the request fields.
 +struct CodeRedEeg {
 +    /*0x00*/ u32 magic;        // 'CRE1'
-+    /*0x04*/ u16 version;      // 1
++    /*0x04*/ u16 version;      // 3
 +    /*0x06*/ u8 state;         // 0 idle, 1 request, 2 reply, 4 cancelled (game)
 +    /*0x07*/ u8 op;            // 1 mind summary, 2 edit hot memory
 +    /*0x08*/ u32 requestId;
@@ -61,14 +66,14 @@ index 00000000..b5c7aced
 +    /*0x18*/ u8 readers;       // readers this Pokémon learned
 +    /*0x19*/ u8 dex;           // Pokédex readers (shared)
 +    /*0x1A*/ u16 budget;       // byte budget at its level
-+    /*0x1C*/ u8 focus;         // ×100
++    /*0x1C*/ u8 focus;         // ×100 (not shown: the scan shows only what the games already have)
 +    /*0x1D*/ u8 nHistory;      // ≤ 10
 +    /*0x1E*/ u8 history[10];   // 1 hit, 0 miss, oldest first
 +    /*0x28*/ u8 format[24];    // game text, EOS-terminated: how its data arrives ("write log")
 +    /*0x40*/ u8 hot[100];      // game text, EOS-terminated: hot memory (may hold one newline: two lines)
 +    /*0xA4*/ u8 readersText[48]; // game text: the formats it learned to read ("Water, Rock"), or empty
 +    /*0xD4*/ u8 dexText[48];     // game text: the Pokédex's formats, or empty
-+    /*0x104*/ u8 unused104;      // was doubtMax (badges); the game now works it out from friendship itself
++    /*0x104*/ u8 unused104;      // was doubtMax (badges); the game works it out from friendship itself
 +    /*0x105*/ u8 pad2[3];
 +};
 +STATIC_ASSERT(sizeof(struct CodeRedEeg) == 264, CodeRedEegSize);
@@ -79,6 +84,9 @@ index 00000000..b5c7aced
 +#define EEG_WAIT_FRAMES 300
 +#define EEG_EDIT_FRAMES 18000  // 5 minutes to type on the page
 +#define NAME_BYTES 12
++#define NUM_STATS_SHOWN 6      // HP, ATTACK, DEFENSE, SPEED, SP. ATK, SP. DEF (FireRed's own order)
++#define WAVE_LEN 128           // one loop of a channel; the screen shows 84 samples of it, scrolling
++#define CHANNELS 4
 +
 +struct EegEntry { u32 personality; u16 species; u8 level; u8 box; u8 slot; u8 friendship; }; // box 0xFF = party
 +
@@ -94,52 +102,112 @@ index 00000000..b5c7aced
 +    u8 gfxStep;
 +    u16 waited;
 +    u32 shownId;
-+    u8 tab;       // 0 SYSTEM, 1 READERS, 2 CODE, 3 NOTE
-+    bool8 haveMind; // the page answered for the Pokémon under the cursor
-+    u16 current;    // the entry under the cursor
++    u8 tab;
++    bool8 haveMind;   // the page answered for the Pokémon under the cursor
++    u16 current;      // the entry under the cursor (0xFFFF = EXIT)
++    u16 phase;        // the scan's clock (frames)
++    u8 nature;
++    u8 ivs[NUM_STATS_SHOWN];
++    u8 evs[NUM_STATS_SHOWN];
++    u8 friendship;
++    s8 wave[CHANNELS][WAVE_LEN];
 +};
-+enum { TAB_SYSTEM, TAB_READERS, TAB_CODE, TAB_NOTE, TAB_INSTINCT, TAB_COUNT };
++enum { TAB_NATURE, TAB_WIRING, TAB_TRAINING, TAB_BOND, TAB_CODE, TAB_MEMORY, TAB_NOTE, TAB_COUNT };
++enum { CH_BOND, CH_WIRING, CH_TRAINING, CH_MEMORY };
 +static EWRAM_DATA struct EegState *sEeg = NULL;
-+static EWRAM_DATA u8 *sEegBg1Tilemap = NULL;
 +
-+static const struct BgTemplate sBgTemplates[2] = {
++static const struct BgTemplate sBgTemplates[1] = {
 +    { .bg = 0, .charBaseIndex = 0, .mapBaseIndex = 31, .priority = 0 },
-+    { .bg = 1, .charBaseIndex = 3, .mapBaseIndex = 30, .priority = 1 },
 +};
-+enum { WIN_LIST, WIN_MIND, WIN_TITLE, WIN_MSG, WIN_COUNT };
++// 30 × 20 tiles: the title along the top; the list, the brain and the channels in the middle; the tabs below.
++enum { WIN_TITLE, WIN_LIST, WIN_HEAD, WIN_TRACE, WIN_MIND, WIN_COUNT };
++#define PAL_TEXT 15 // text + channels
++#define PAL_HEAD 14 // the brain: lobes pulse by palette
 +static const struct WindowTemplate sWindowTemplates[] = {
-+    [WIN_LIST]  = { .bg = 0, .tilemapLeft = 7, .tilemapTop = 1, .width = 19, .height = 12, .paletteNum = 15, .baseBlock = 0x02bf },
-+    [WIN_MIND]  = { .bg = 0, .tilemapLeft = 5, .tilemapTop = 14, .width = 25, .height = 6, .paletteNum = 13, .baseBlock = 0x0229 },
-+    [WIN_TITLE] = { .bg = 0, .tilemapLeft = 1, .tilemapTop = 1, .width = 5, .height = 4, .paletteNum = 15, .baseBlock = 0x0215 },
-+    [WIN_MSG]   = { .bg = 0, .tilemapLeft = 2, .tilemapTop = 15, .width = 26, .height = 4, .paletteNum = 11, .baseBlock = 0x016f },
++    [WIN_TITLE] = { .bg = 0, .tilemapLeft = 0,  .tilemapTop = 0,  .width = 30, .height = 2,  .paletteNum = PAL_TEXT, .baseBlock = 1 },
++    [WIN_LIST]  = { .bg = 0, .tilemapLeft = 0,  .tilemapTop = 2,  .width = 9,  .height = 11, .paletteNum = PAL_TEXT, .baseBlock = 61 },
++    [WIN_HEAD]  = { .bg = 0, .tilemapLeft = 9,  .tilemapTop = 2,  .width = 10, .height = 11, .paletteNum = PAL_HEAD, .baseBlock = 160 },
++    [WIN_TRACE] = { .bg = 0, .tilemapLeft = 19, .tilemapTop = 2,  .width = 11, .height = 11, .paletteNum = PAL_TEXT, .baseBlock = 270 },
++    [WIN_MIND]  = { .bg = 0, .tilemapLeft = 0,  .tilemapTop = 13, .width = 30, .height = 7,  .paletteNum = PAL_TEXT, .baseBlock = 391 },
 +    DUMMY_WIN_TEMPLATE
 +};
-+static const u8 sTextColors[][3] = {
-+    {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_WHITE, TEXT_COLOR_DARK_GRAY},
-+    {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_LIGHT_GRAY},
-+    {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_LIGHT_GRAY, TEXT_COLOR_DARK_GRAY},
-+    {TEXT_COLOR_TRANSPARENT, TEXT_DYNAMIC_COLOR_1, TEXT_COLOR_DARK_GRAY}, // on the blue mind window
++#define TRACE_X 2
++#define TRACE_W 84
++#define CH_H 22
++
++// PAL_TEXT: 0 clear, 1 panel, 2 text, 3 text shadow, 4 dim line, 5 label, 6-9 channels, 10 bright
++enum { C_CLEAR, C_PANEL, C_TEXT, C_SHADOW, C_DIM, C_LABEL, C_MEMORY, C_TRAINING, C_WIRING, C_BOND, C_BRIGHT };
++static const u16 sTextPal[16] = {
++    RGB(1, 2, 4), RGB(2, 4, 6), RGB(27, 29, 26), RGB(2, 4, 6), RGB(6, 10, 10), RGB(15, 19, 19),
++    RGB(11, 28, 14), RGB(30, 20, 8), RGB(11, 23, 30), RGB(30, 11, 15), RGB(31, 27, 12),
 +};
-+#define MIND_COLOR 3
++// PAL_HEAD: 0 clear, 1 panel, 2 skull, 3/4 electrodes dim/mid, 5-14 lobe core+halo (animated), 15 electrode bright
++enum { H_CLEAR, H_PANEL, H_SKULL, H_ELEC_DIM, H_ELEC_MID, H_LOBE0, H_ELEC_BRIGHT = 15 };
++static const u16 sHeadPal[16] = {
++    RGB(1, 2, 4), RGB(2, 4, 6), RGB(6, 10, 10), RGB(6, 10, 10), RGB(15, 19, 19),
++    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, RGB(31, 27, 12),
++};
++// The five lobes, one per stat a nature touches (FireRed's order: ATTACK, DEFENSE, SPEED, SP. ATK, SP. DEF).
++// Physical on the left, special on the right, SPEED at the back.
++static const struct { s8 x, y; u8 r, g, b; } sLobes[NUM_STATS_SHOWN - 1] = {
++    { -12, -15, 31, 13, 7 },  // ATTACK: frontal, left
++    { -13,   3, 29, 23, 9 },  // DEFENSE: parietal, left
++    {   0,  19, 15, 29, 12 }, // SPEED: occipital
++    {  12, -15, 10, 19, 31 }, // SP. ATK: frontal, right
++    {  13,   3, 9, 27, 25 },  // SP. DEF: parietal, right
++};
++// Twelve electrodes on the skull (radius 35, every 30° from the nose); IV k lights k and k + 6.
++static const s8 sElectrodes[12][2] = {
++    { 0, -35 }, { 18, -30 }, { 30, -18 }, { 35, 0 }, { 30, 18 }, { 18, 30 },
++    { 0, 35 }, { -18, 30 }, { -30, 18 }, { -35, 0 }, { -30, -18 }, { -18, -30 },
++};
++#define HEAD_CX 40
++#define HEAD_CY 45
++#define SKULL_R 35
++
++static const u8 sTextColors[][3] = {
++    { C_CLEAR, C_TEXT, C_SHADOW },
++    { C_CLEAR, C_LABEL, C_SHADOW },
++    { C_PANEL, C_TEXT, C_SHADOW },  // on the scan panel
++    { C_PANEL, C_LABEL, C_SHADOW },
++};
++enum { TC_TEXT, TC_LABEL, TC_PANEL_TEXT, TC_PANEL_LABEL };
 +
 +static const u8 sText_Title[] = _("PokÉEG");
 +static const u8 sText_Exit[] = _("EXIT");
-+static const u8 sText_Party[] = _("P");
-+static const u8 sText_Box[] = _("B");
++static const u8 sText_Party[] = _("PARTY");
++static const u8 sText_Box[] = _("BOX ");
++static const u8 sText_Lv[] = _("  L");
 +static const u8 sText_Asking[] = _("Reading its mind…");
-+static const u8 sText_NoHost[] = _("Its mind is on the page: open\nCode Red in the browser.");
++static const u8 sText_NoHost[] = _("Its memory is on the page: open\nCode Red in the browser.");
 +static const u8 sText_ExitDesc[] = _("Back to the PC.");
-+static const u8 sText_TabSystem[] = _("SYSTEM");
-+static const u8 sText_TabReaders[] = _("READERS");
++static const u8 sText_TabNature[] = _("NATURE");
++static const u8 sText_TabWiring[] = _("WIRING");
++static const u8 sText_TabTraining[] = _("TRAINING");
++static const u8 sText_TabBond[] = _("BOND");
 +static const u8 sText_TabCode[] = _("CODE");
++static const u8 sText_TabMemory[] = _("MEMORY");
 +static const u8 sText_TabNote[] = _("NOTE");
-+static const u8 sText_TabInstinct[] = _("INSTINCT");
-+static const u8 *const sTabNames[TAB_COUNT] = { sText_TabSystem, sText_TabReaders, sText_TabCode, sText_TabNote, sText_TabInstinct };
++static const u8 *const sTabNames[TAB_COUNT] = { sText_TabNature, sText_TabWiring, sText_TabTraining, sText_TabBond, sText_TabCode, sText_TabMemory, sText_TabNote };
++static const u8 *const sChannelNames[CHANNELS] = { sText_TabBond, sText_TabWiring, sText_TabTraining, sText_TabMemory };
++static const u8 sChannelTab[CHANNELS] = { TAB_BOND, TAB_WIRING, TAB_TRAINING, TAB_MEMORY };
++static const u8 sText_Left[] = _("{LEFT_ARROW} ");
++static const u8 sText_Right[] = _(" {RIGHT_ARROW}");
++static const u8 sText_NatureN[] = _(" nature");
++static const u8 sText_Raises[] = _("Raises ");
++static const u8 sText_Lowers[] = _("Lowers ");
++static const u8 sText_ItsLobeGlows[] = _(": its lobe glows.");
++static const u8 sText_ItsLobeDims[] = _(": its lobe dims.");
++static const u8 sText_Balanced[] = _("Raises and lowers nothing:\nevery lobe glows alike.");
++static const u8 sText_WiringHead[] = _("Wiring (IVs), set at birth:");
++static const u8 sText_TrainingHead[] = _("Training (EVs): ");
++static const u8 sText_Of510[] = _(" of 510");
++static const u8 sText_Friendship[] = _("Friendship: ");
++static const u8 sText_Of255[] = _(" of 255");
 +static const u8 sText_Instinct[] = _("Instinct: whatever hits hardest.");
 +static const u8 sText_Doubts[] = _("Doubts your calls: up to ");
 +static const u8 sText_Percent[] = _("%");
 +static const u8 sText_NeverDoubts[] = _("Never doubts your calls.");
-+static const u8 sText_LR[] = _("{LEFT_ARROW}{RIGHT_ARROW}");
 +static const u8 sText_System[] = _(" system");
 +static const u8 sText_Arrives[] = _("Data arrives as: ");
 +static const u8 sText_Learned[] = _("Learned: ");
@@ -155,6 +223,16 @@ index 00000000..b5c7aced
 +static const u8 sText_NoNote[] = _("No note yet.\nPress A to write one.");
 +static const u8 sText_ChangeNote[] = _("\nPress A to change it.");
 +static const u8 sText_EditHot[] = _("Type its note on the page.\nB here cancels.");
++static const u8 sText_StatHp[] = _("HP");
++static const u8 sText_StatAtk[] = _("ATTACK");
++static const u8 sText_StatDef[] = _("DEFENSE");
++static const u8 sText_StatSpe[] = _("SPEED");
++static const u8 sText_StatSpA[] = _("SP. ATK");
++static const u8 sText_StatSpD[] = _("SP. DEF");
++static const u8 *const sStatNames[NUM_STATS_SHOWN] = { sText_StatHp, sText_StatAtk, sText_StatDef, sText_StatSpe, sText_StatSpA, sText_StatSpD };
++// A nature's stats in FireRed's order (ATTACK, DEFENSE, SPEED, SP. ATK, SP. DEF) → sStatNames (after HP)
++#define NATURE_UP(n) ((n) / 5)
++#define NATURE_DOWN(n) ((n) % 5)
 +
 +static void Eeg_RunSetup(void);
 +static bool8 Eeg_DoGfxSetup(void);
@@ -162,15 +240,248 @@ index 00000000..b5c7aced
 +static void Task_EegEditHot(u8 taskId);
 +static void Task_EegTurnOff(u8 taskId);
 +static void Eeg_MoveCursor(s32 index, bool8 onInit, struct ListMenu *list);
-+static void Eeg_PrintItem(u8 windowId, u32 index, u8 y);
 +static void Eeg_Free(void);
++static void Eeg_PrintMind(void);
 +
 +static void Eeg_Print(u8 windowId, u8 fontId, const u8 *str, u8 x, u8 y, u8 colorIdx)
 +{
 +    AddTextPrinterParameterized4(windowId, fontId, x, y, 0, 0, sTextColors[colorIdx], 0, str);
 +}
 +
++// ---------------------------------------------------------------- pixels
++
++static void Eeg_Pixel(u8 windowId, s32 x, s32 y, u8 color)
++{
++    u8 *p;
++    u32 w = gWindows[windowId].window.width;
++    if (x < 0 || y < 0 || x >= (s32)(w * 8) || y >= gWindows[windowId].window.height * 8)
++        return;
++    p = gWindows[windowId].tileData + ((y >> 3) * w + (x >> 3)) * 32 + (y & 7) * 4 + ((x & 7) >> 1);
++    *p = (x & 1) ? ((*p & 0x0F) | (color << 4)) : ((*p & 0xF0) | color);
++}
++
++// Rows y0 … y1 − 1 across the whole window, one u32 (a tile's row of 8 pixels) at a time: FillWindowPixelRect goes
++// pixel by pixel, too slow for 60 redraws a second.
++static void Eeg_FillRows(u8 windowId, u32 y0, u32 y1, u8 color)
++{
++    u32 w = gWindows[windowId].window.width, fill = color * 0x11111111, y, t;
++    u32 *rows = (u32 *)gWindows[windowId].tileData;
++    for (y = y0; y < y1; y++)
++        for (t = 0; t < w; t++)
++            rows[((y >> 3) * w + t) * 8 + (y & 7)] = fill;
++}
++
++static void Eeg_Square(u8 windowId, s32 x, s32 y, u8 color) // 3 × 3 around (x, y)
++{
++    s32 i, j;
++    for (j = -1; j <= 1; j++)
++        for (i = -1; i <= 1; i++)
++            Eeg_Pixel(windowId, x + i, y + j, color);
++}
++
++// ---------------------------------------------------------------- the brain
++
++// Two hemispheres either side of a one-pixel fissure.
++static bool8 InBrain(s32 x, s32 y)
++{
++    s32 hx = x > 0 ? 14 : -14;
++    if (x == 0)
++        return FALSE;
++    // ((x − hx) / 14.5)² + (y / 27)² ≤ 1, times 4 · 14.5² · 27²
++    return 4 * (x - hx) * (x - hx) * 729 + y * y * 841 <= 841 * 729;
++}
++
++// Drawn once: the geometry never changes, only the lobes' colors (palette) and the electrodes.
++static void Eeg_DrawBrain(void)
++{
++    s32 x, y, i, d, best, lobe, ox, oy, err;
++    FillWindowPixelBuffer(WIN_HEAD, PIXEL_FILL(H_PANEL));
++    for (y = -29; y <= 29; y++)
++        for (x = -31; x <= 31; x++)
++        {
++            u8 color, core, halo;
++            if (!InBrain(x, y))
++                continue;
++            best = 0x7FFFFFFF; lobe = 0;
++            for (i = 0; i < NUM_STATS_SHOWN - 1; i++)
++            {
++                // ((x − lx) / 1.1)² + (y − ly)², times 121
++                d = (x - sLobes[i].x) * (x - sLobes[i].x) * 100 + (y - sLobes[i].y) * (y - sLobes[i].y) * 121;
++                if (d < best) { best = d; lobe = i; }
++            }
++            core = H_LOBE0 + lobe * 2; halo = core + 1;
++            if (best < 3660)              // 5.5²
++                color = core;
++            else if (best < 7744)         // 8²
++                color = ((x + y) & 1) ? halo : core;
++            else if (best < 14641)        // 11²
++                color = halo;
++            else
++                color = ((x + y) & 1) ? H_PANEL : halo;
++            Eeg_Pixel(WIN_HEAD, HEAD_CX + x, HEAD_CY + y, color);
++        }
++    // folds over the glow, and the fissure
++    for (y = -27; y <= 27; y += 4)
++        for (x = -30; x <= 30; x++)
++        {
++            s32 v = gSineTable[(x * 37 + y * 41) & 0xFF], yy = y + (v * 3 + (v >= 0 ? 256 : -256)) / 512;
++            if (((x * 7 + y * 13) & 7) && InBrain(x, yy))
++                Eeg_Pixel(WIN_HEAD, HEAD_CX + x, HEAD_CY + yy, H_PANEL);
++        }
++    for (y = -28; y <= 28; y++)
++        Eeg_Pixel(WIN_HEAD, HEAD_CX, HEAD_CY + y, H_PANEL);
++    // the skull (midpoint circle), the nose, the ears
++    ox = SKULL_R; oy = 0; err = 1 - SKULL_R;
++    while (ox >= oy)
++    {
++        Eeg_Pixel(WIN_HEAD, HEAD_CX + ox, HEAD_CY + oy, H_SKULL); Eeg_Pixel(WIN_HEAD, HEAD_CX - ox, HEAD_CY + oy, H_SKULL);
++        Eeg_Pixel(WIN_HEAD, HEAD_CX + ox, HEAD_CY - oy, H_SKULL); Eeg_Pixel(WIN_HEAD, HEAD_CX - ox, HEAD_CY - oy, H_SKULL);
++        Eeg_Pixel(WIN_HEAD, HEAD_CX + oy, HEAD_CY + ox, H_SKULL); Eeg_Pixel(WIN_HEAD, HEAD_CX - oy, HEAD_CY + ox, H_SKULL);
++        Eeg_Pixel(WIN_HEAD, HEAD_CX + oy, HEAD_CY - ox, H_SKULL); Eeg_Pixel(WIN_HEAD, HEAD_CX - oy, HEAD_CY - ox, H_SKULL);
++        oy++;
++        if (err < 0) err += 2 * oy + 1;
++        else { ox--; err += 2 * (oy - ox) + 1; }
++    }
++    for (i = -3; i <= 3; i++)
++        Eeg_Pixel(WIN_HEAD, HEAD_CX + i, HEAD_CY - SKULL_R - 3 + (i < 0 ? -i : i), H_SKULL);
++    for (i = -4; i <= 4; i++)
++    {
++        Eeg_Pixel(WIN_HEAD, HEAD_CX - SKULL_R - 2 + (i < 0 ? -i : i) / 2, HEAD_CY + i, H_SKULL);
++        Eeg_Pixel(WIN_HEAD, HEAD_CX + SKULL_R + 2 - (i < 0 ? -i : i) / 2, HEAD_CY + i, H_SKULL);
++    }
++}
++
++static void Eeg_DrawElectrodes(bool8 shown)
++{
++    u8 k, iv, color;
++    for (k = 0; k < 12; k++)
++    {
++        iv = shown ? sEeg->ivs[k % NUM_STATS_SHOWN] : 0;
++        color = iv >= 26 ? H_ELEC_BRIGHT : iv >= 16 ? H_ELEC_MID : H_ELEC_DIM;
++        Eeg_Square(WIN_HEAD, HEAD_CX + sElectrodes[k][0], HEAD_CY + sElectrodes[k][1], color);
++    }
++    CopyWindowToVram(WIN_HEAD, COPYWIN_GFX);
++}
++
++// The lobes breathe: each lobe's two colors follow a slow sine. Its nature's raised stat glows bright, the
++// lowered one stays dim, the rest in between. Nothing under the cursor (EXIT): all dim.
++static void Eeg_PulseLobes(void)
++{
++    u16 colors[10];
++    u8 i, up = NATURE_UP(sEeg->nature), down = NATURE_DOWN(sEeg->nature);
++    for (i = 0; i < NUM_STATS_SHOWN - 1; i++)
++    {
++        s32 lo, hi, k, s = gSineTable[((sEeg->phase * 2) + i * 53) & 0xFF]; // −256 … 256
++        if (sEeg->current == 0xFFFF) { lo = 40; hi = 70; }
++        else if (up != down && i == up) { lo = 205; hi = 256; }
++        else if (up != down && i == down) { lo = 38; hi = 77; }
++        else { lo = 115; hi = 180; }
++        k = lo + (hi - lo) * (s + 256) / 512; // /256
++        colors[i * 2] = RGB(sLobes[i].r * k / 256, sLobes[i].g * k / 256, sLobes[i].b * k / 256);
++        colors[i * 2 + 1] = RGB(sLobes[i].r * k / 512, sLobes[i].g * k / 512, sLobes[i].b * k / 512);
++    }
++    LoadPalette(colors, BG_PLTT_ID(PAL_HEAD) + H_LOBE0, sizeof(colors));
++    // the skull lights up while the NATURE tab is open
++    colors[0] = sEeg->tab == TAB_NATURE && sEeg->current != 0xFFFF ? RGB(15, 19, 19) : RGB(6, 10, 10);
++    LoadPalette(colors, BG_PLTT_ID(PAL_HEAD) + H_SKULL, sizeof(u16));
++}
++
++// ---------------------------------------------------------------- the channels
++
++static u32 sNoise;
++static s32 Noise(s32 amp) // −amp … amp, seeded by the Pokémon (the game's own RNG is left alone)
++{
++    sNoise = sNoise * 1103515245 + 12345;
++    return amp ? (s32)((sNoise >> 16) % (2 * amp + 1)) - amp : 0;
++}
++
++static s8 ClampTrace(s32 v) { return v > 5 ? 5 : v < -5 ? -5 : v; } // ±5 around the baseline: rows 11 … 21 of a channel (the label sits above)
++
++static void Eeg_WaveMemory(void)
++{
++    static const s8 sHit[] = { 0, 0, -1, 7, -3, 1, 0 }, sMiss[] = { 0, 0, 0, -2, -3, -2, 0 };
++    u32 i;
++    sNoise = sEeg->entries[sEeg->current].personality ^ 0x5EED;
++    for (i = 0; i < WAVE_LEN; i++)
++    {
++        u32 slot = i * 10 / WAVE_LEN, local = i - slot * WAVE_LEN / 10;
++        s32 v = 0;
++        if (sEeg->haveMind && slot < gCodeRedEeg->nHistory && local < sizeof(sHit))
++            v = gCodeRedEeg->history[slot] ? sHit[local] : sMiss[local];
++        sEeg->wave[CH_MEMORY][i] = ClampTrace(v + ((i & 3) == 0 ? Noise(sEeg->haveMind ? 0 : 1) : 0));
++    }
++}
++
++// Each channel is one loop of 128 samples, made from the Pokémon's own numbers:
++//   BOND: a slow wave, taller and steadier with friendship (low friendship: small and jittery).
++//   WIRING: six tones, one per IV, each as loud as the IV is high.
++//   TRAINING: six bursts, one per stat, each as tall as its EVs (none yet: a faint buzz).
++static void Eeg_Waves(void)
++{
++    static const u8 sTones[NUM_STATS_SHOWN] = { 2, 3, 5, 7, 11, 13 };
++    u32 i, k;
++    sNoise = sEeg->entries[sEeg->current].personality;
++    for (i = 0; i < WAVE_LEN; i++)
++    {
++        s32 amp = 2 + sEeg->friendship * 5 / 255, jitter = (255 - sEeg->friendship) * 4 / 255, sum = 0;
++        u32 block, local, env, evAmp;
++        sEeg->wave[CH_BOND][i] = ClampTrace(Sin(i * 8 & 0xFF, amp) + Noise(jitter));
++        for (k = 0; k < NUM_STATS_SHOWN; k++)
++            sum += gSineTable[(i * sTones[k] * 2 + k * 40) & 0xFF] * sEeg->ivs[k];
++        sEeg->wave[CH_WIRING][i] = ClampTrace(sum * 22 / (31 * 256 * 10));
++        block = i * NUM_STATS_SHOWN / WAVE_LEN;
++        local = i * NUM_STATS_SHOWN - block * WAVE_LEN; // 0 … 127 within the block
++        env = gSineTable[(local / 2) & 0xFF];          // half a sine: 0 → 256 → 0
++        evAmp = sEeg->evs[block] * 8 * 256 / 255;
++        if (evAmp < 320) evAmp = 320; // untrained: a faint buzz
++        sEeg->wave[CH_TRAINING][i] = ClampTrace((s32)(evAmp * env / 65536) * ((i >> 1) & 1 ? 1 : -1));
++    }
++    Eeg_WaveMemory();
++}
++
++static void Eeg_DrawLabels(void)
++{
++    u8 c;
++    for (c = 0; c < CHANNELS; c++)
++    {
++        Eeg_FillRows(WIN_TRACE, c * CH_H, c * CH_H + 10, C_PANEL);
++        Eeg_Print(WIN_TRACE, FONT_SMALL, sChannelNames[c], TRACE_X, c * CH_H, sEeg->tab == sChannelTab[c] ? TC_PANEL_TEXT : TC_PANEL_LABEL);
++    }
++}
++
++static void Eeg_DrawTraces(void)
++{
++    static const u8 sColors[CHANNELS] = { C_BOND, C_WIRING, C_TRAINING, C_MEMORY };
++    u8 c;
++    s32 x, y, prev, base, yy, lo, hi;
++    for (c = 0; c < CHANNELS; c++)
++    {
++        base = c * CH_H + 16;
++        Eeg_FillRows(WIN_TRACE, c * CH_H + 10, c * CH_H + CH_H, C_PANEL);
++        for (x = 3 - ((sEeg->phase / 2) & 3); x < TRACE_W; x += 4)
++            Eeg_Pixel(WIN_TRACE, TRACE_X + x, base, C_DIM);
++        if (sEeg->current == 0xFFFF)
++            continue; // EXIT: no signal
++        prev = 0x7FFF;
++        for (x = 0; x < TRACE_W; x++)
++        {
++            y = base - sEeg->wave[c][(x + sEeg->phase / 2) & (WAVE_LEN - 1)];
++            if (prev == 0x7FFF) prev = y;
++            lo = prev < y ? prev : y; hi = prev < y ? y : prev;
++            for (yy = lo; yy <= hi; yy++)
++                Eeg_Pixel(WIN_TRACE, TRACE_X + x, yy, sColors[c]);
++            prev = y;
++        }
++    }
++    CopyWindowToVram(WIN_TRACE, COPYWIN_GFX);
++}
++
 +// ---------------------------------------------------------------- the list: party, then boxes
++
++static struct BoxPokemon *Eeg_Mon(const struct EegEntry *e)
++{
++    return e->box == 0xFF ? &gPlayerParty[e->slot].box : GetBoxedMonPtr(e->box, e->slot);
++}
 +
 +static void Eeg_AddEntry(struct BoxPokemon *mon, u8 box, u8 slot, u8 level)
 +{
@@ -203,7 +514,21 @@ index 00000000..b5c7aced
 +            Eeg_AddEntry(GetBoxedMonPtr(b, s), b, s, 0);
 +    sEeg->items[sEeg->count].label = sText_Exit;
 +    sEeg->items[sEeg->count].index = LIST_CANCEL;
-+    sEeg->maxShowed = sEeg->count + 1 < 6 ? sEeg->count + 1 : 6;
++    sEeg->maxShowed = sEeg->count + 1 < 5 ? sEeg->count + 1 : 5;
++}
++
++// What the game itself knows: nature, IVs, EVs, friendship.
++static void Eeg_ReadMon(const struct EegEntry *e)
++{
++    struct BoxPokemon *mon = Eeg_Mon(e);
++    u8 i;
++    sEeg->nature = e->personality % NUM_NATURES;
++    sEeg->friendship = e->friendship;
++    for (i = 0; i < NUM_STATS_SHOWN; i++)
++    {
++        sEeg->ivs[i] = GetBoxMonData(mon, MON_DATA_HP_IV + i);
++        sEeg->evs[i] = GetBoxMonData(mon, MON_DATA_HP_EV + i);
++    }
 +}
 +
 +// ---------------------------------------------------------------- the mailbox
@@ -223,21 +548,48 @@ index 00000000..b5c7aced
 +    sEeg->waited = 0;
 +}
 +
-+static void Eeg_PrintTabs(void)
++// The title: PokÉEG, then the Pokémon under the cursor and where it lives.
++static void Eeg_PrintTitle(void)
 +{
-+    u8 x = 2, i;
-+    for (i = 0; i < TAB_COUNT; i++)
++    u8 *s;
++    const struct EegEntry *e;
++    FillWindowPixelBuffer(WIN_TITLE, PIXEL_FILL(C_CLEAR));
++    Eeg_Print(WIN_TITLE, FONT_NORMAL, sText_Title, 4, 1, TC_TEXT);
++    if (sEeg->current != 0xFFFF)
 +    {
-+        Eeg_Print(WIN_MIND, FONT_SMALL, sTabNames[i], x, 0, i == sEeg->tab ? MIND_COLOR : 2);
-+        x += GetStringWidth(FONT_SMALL, sTabNames[i], 0) + 7;
++        e = &sEeg->entries[sEeg->current];
++        s = StringCopy(gStringVar4, &sEeg->names[sEeg->current * NAME_BYTES]);
++        s = StringAppend(s, sText_Lv);
++        s = ConvertIntToDecimalStringN(s, e->level, STR_CONV_MODE_LEFT_ALIGN, 3);
++        *s++ = CHAR_SPACE; *s++ = CHAR_SPACE; *s = EOS;
++        if (e->box == 0xFF)
++            StringAppend(s, sText_Party);
++        else
++        {
++            s = StringAppend(s, sText_Box);
++            ConvertIntToDecimalStringN(s, e->box + 1, STR_CONV_MODE_LEFT_ALIGN, 2);
++        }
++        Eeg_Print(WIN_TITLE, FONT_SMALL, gStringVar4, 236 - GetStringWidth(FONT_SMALL, gStringVar4, 0), 3, TC_LABEL);
 +    }
-+    Eeg_Print(WIN_MIND, FONT_SMALL, sText_LR, 200 - GetStringWidth(FONT_SMALL, sText_LR, 0) - 2, 0, 2);
++    CopyWindowToVram(WIN_TITLE, COPYWIN_GFX);
 +}
 +
-+/** Two lines under the tabs: the message, or the current tab of the mind. */
++// ◀ BOND ▶ and a dot per tab.
++static void Eeg_PrintTabs(void)
++{
++    u8 i, x;
++    u8 *s = StringCopy(gStringVar4, sText_Left);
++    s = StringAppend(s, sTabNames[sEeg->tab]);
++    StringAppend(s, sText_Right);
++    Eeg_Print(WIN_MIND, FONT_SMALL, gStringVar4, 4, 0, TC_TEXT);
++    x = 236 - TAB_COUNT * 6;
++    for (i = 0; i < TAB_COUNT; i++)
++        FillWindowPixelRect(WIN_MIND, PIXEL_FILL(i == sEeg->tab ? C_BRIGHT : C_DIM), x + i * 6, 4, 3, 3);
++}
++
 +static void Eeg_PrintBody(const u8 *text)
 +{
-+    Eeg_Print(WIN_MIND, FONT_NORMAL, text, 2, 13, MIND_COLOR);
++    Eeg_Print(WIN_MIND, FONT_NORMAL, text, 4, 12, TC_TEXT);
 +}
 +
 +/** Copy mailbox text (EOS-terminated, at most max bytes) to s; returns the new end. StringCopyN copies past EOS, so not that. */
@@ -257,38 +609,113 @@ index 00000000..b5c7aced
 +    return Eeg_CopyText(s, text, max);
 +}
 +
++static u8 *Eeg_Num(u8 *s, u32 n) { return ConvertIntToDecimalStringN(s, n, STR_CONV_MODE_LEFT_ALIGN, 3); }
++
++// "HP 31  ATTACK 0  DEFENSE 15 \n SPEED 7  SP. ATK 20  SP. DEF 30"
++static u8 *Eeg_StatLines(u8 *s, const u8 *values)
++{
++    u8 i;
++    for (i = 0; i < NUM_STATS_SHOWN; i++)
++    {
++        if (i == 3) *s++ = CHAR_NEWLINE;
++        else if (i) { *s++ = CHAR_SPACE; *s++ = CHAR_SPACE; }
++        s = StringCopy(s, sStatNames[i]);
++        *s++ = CHAR_SPACE;
++        s = Eeg_Num(s, values[i]);
++    }
++    return s;
++}
++
 +static void Eeg_PrintMind(void)
 +{
 +    u8 *s = gStringVar4;
-+    u8 i, hits = 0;
-+    FillWindowPixelBuffer(WIN_MIND, 0);
-+    Eeg_PrintTabs();
-+    if (!sEeg->haveMind)
++    u8 i, hits = 0, up, down;
++    u32 total;
++    FillWindowPixelBuffer(WIN_MIND, PIXEL_FILL(C_CLEAR));
++    Eeg_DrawLabels();
++    if (sEeg->current == 0xFFFF)
 +    {
-+        Eeg_PrintBody(sText_NoHost);
++        Eeg_PrintBody(sText_ExitDesc);
++        CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
++        return;
++    }
++    Eeg_PrintTabs();
++    if (sEeg->tab >= TAB_CODE && !sEeg->haveMind)
++    {
++        Eeg_PrintBody(gCodeRedEeg->state == 1 && gCodeRedEeg->op == 1 ? sText_Asking : sText_NoHost);
 +        CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
 +        return;
 +    }
 +    switch (sEeg->tab)
 +    {
-+    case TAB_SYSTEM: // FIRE system \n Data arrives as: write log
++    case TAB_NATURE: // ADAMANT nature \n Raises ATTACK: its lobe glows. \n Lowers SP. ATK: its lobe dims.
++        s = StringCopy(gStringVar4, gNatureNamePointers[sEeg->nature]);
++        s = StringAppend(s, sText_NatureN);
++        *s++ = CHAR_NEWLINE;
++        up = NATURE_UP(sEeg->nature); down = NATURE_DOWN(sEeg->nature);
++        if (up == down)
++        {
++            StringCopy(s, sText_Balanced);
++            break;
++        }
++        s = StringCopy(s, sText_Raises);
++        s = StringAppend(s, sStatNames[1 + up]);
++        s = StringAppend(s, sText_ItsLobeGlows);
++        *s++ = CHAR_NEWLINE;
++        s = StringCopy(s, sText_Lowers);
++        s = StringAppend(s, sStatNames[1 + down]);
++        StringAppend(s, sText_ItsLobeDims);
++        break;
++    case TAB_WIRING:
++        s = StringCopy(gStringVar4, sText_WiringHead);
++        *s++ = CHAR_NEWLINE;
++        Eeg_StatLines(s, sEeg->ivs);
++        break;
++    case TAB_TRAINING:
++        for (total = 0, i = 0; i < NUM_STATS_SHOWN; i++) total += sEeg->evs[i];
++        s = StringCopy(gStringVar4, sText_TrainingHead);
++        s = Eeg_Num(s, total);
++        s = StringAppend(s, sText_Of510);
++        *s++ = CHAR_NEWLINE;
++        Eeg_StatLines(s, sEeg->evs);
++        break;
++    case TAB_BOND: // Friendship: 70 of 255 \n Instinct: whatever hits hardest. \n Doubts your calls: up to 36%
++    {
++        // rules/doubt.mjs maxDoubt: 50% × (255 − friendship) / 255, rounded
++        u8 doubtMax = (50 * (MAX_FRIENDSHIP - sEeg->friendship) + MAX_FRIENDSHIP / 2) / MAX_FRIENDSHIP;
++        s = StringCopy(gStringVar4, sText_Friendship);
++        s = Eeg_Num(s, sEeg->friendship);
++        s = StringAppend(s, sText_Of255);
++        *s++ = CHAR_NEWLINE;
++        s = StringCopy(s, sText_Instinct);
++        *s++ = CHAR_NEWLINE;
++        if (doubtMax == 0)
++        {
++            StringCopy(s, sText_NeverDoubts);
++            break;
++        }
++        s = StringCopy(s, sText_Doubts);
++        s = Eeg_Num(s, doubtMax);
++        StringCopy(s, sText_Percent);
++        break;
++    }
++    case TAB_CODE: // FIRE system \n Data arrives as: write log \n Budget: 350 bytes a turn
 +        s = StringCopy(gStringVar4, gTypeNames[gSpeciesInfo[gCodeRedEeg->species].types[0]]);
 +        s = StringAppend(s, sText_System);
 +        *s++ = CHAR_NEWLINE;
 +        s = StringCopy(s, sText_Arrives);
-+        Eeg_AppendOr(s, gCodeRedEeg->format, sText_NoneYet, 23);
++        s = Eeg_AppendOr(s, gCodeRedEeg->format, sText_NoneYet, 23);
++        *s++ = CHAR_NEWLINE;
++        s = StringCopy(s, sText_Budget);
++        s = ConvertIntToDecimalStringN(s, gCodeRedEeg->budget, STR_CONV_MODE_LEFT_ALIGN, 4);
++        StringAppend(s, sText_BytesATurn);
 +        break;
-+    case TAB_READERS: // Learned: Water, Rock \n Pokédex: Normal, Rock, Ground
++    case TAB_MEMORY: // Learned: Water, Rock \n Pokédex: Normal, Rock \n Last 5 turns: 4 hit, 1 miss
 +        s = StringCopy(gStringVar4, sText_Learned);
 +        s = Eeg_AppendOr(s, gCodeRedEeg->readersText, sText_NoneYet, 47);
 +        *s++ = CHAR_NEWLINE;
 +        s = StringCopy(s, sText_Dex);
-+        Eeg_AppendOr(s, gCodeRedEeg->dexText, sText_NoneYet, 47);
-+        break;
-+    case TAB_CODE: // Budget: 350 bytes a turn \n Last 5 turns: 4 hit, 1 miss
-+        s = StringCopy(gStringVar4, sText_Budget);
-+        s = ConvertIntToDecimalStringN(s, gCodeRedEeg->budget, STR_CONV_MODE_LEFT_ALIGN, 4);
-+        s = StringAppend(s, sText_BytesATurn);
++        s = Eeg_AppendOr(s, gCodeRedEeg->dexText, sText_NoneYet, 47);
 +        *s++ = CHAR_NEWLINE;
 +        if (gCodeRedEeg->nHistory == 0)
 +            StringCopy(s, sText_NoCode);
@@ -304,22 +731,6 @@ index 00000000..b5c7aced
 +            StringAppend(s, sText_MissN);
 +        }
 +        break;
-+    case TAB_INSTINCT: // System 1: yours uses your call unless its instinct overrules a weak one (less friendship, more often)
-+    {
-+        // rules/doubt.mjs maxDoubt: 50% × (255 − friendship) / 255, rounded
-+        u8 doubtMax = (50 * (MAX_FRIENDSHIP - sEeg->entries[sEeg->current].friendship) + MAX_FRIENDSHIP / 2) / MAX_FRIENDSHIP;
-+        s = StringCopy(gStringVar4, sText_Instinct);
-+        *s++ = CHAR_NEWLINE;
-+        if (doubtMax == 0)
-+        {
-+            StringCopy(s, sText_NeverDoubts);
-+            break;
-+        }
-+        s = StringCopy(s, sText_Doubts);
-+        s = ConvertIntToDecimalStringN(s, doubtMax, STR_CONV_MODE_LEFT_ALIGN, 3);
-+        StringCopy(s, sText_Percent);
-+        break;
-+    }
 +    default: // the note itself (the page wraps it onto two lines), or how to write one
 +        if (gCodeRedEeg->hot[0] == EOS)
 +            StringCopy(gStringVar4, sText_NoNote);
@@ -346,6 +757,7 @@ index 00000000..b5c7aced
 +        sEeg->shownId = gCodeRedEeg->requestId;
 +        gCodeRedEeg->state = 0;
 +        sEeg->haveMind = TRUE;
++        Eeg_WaveMemory();
 +        Eeg_PrintMind();
 +    }
 +    else if (gCodeRedEeg->state == 1 && ++sEeg->waited == EEG_WAIT_FRAMES)
@@ -365,18 +777,18 @@ index 00000000..b5c7aced
 +    gMultiuseListMenuTemplate.totalItems = sEeg->count + 1;
 +    gMultiuseListMenuTemplate.windowId = WIN_LIST;
 +    gMultiuseListMenuTemplate.header_X = 0;
-+    gMultiuseListMenuTemplate.item_X = 9;
-+    gMultiuseListMenuTemplate.cursor_X = 1;
-+    gMultiuseListMenuTemplate.lettersSpacing = 1;
++    gMultiuseListMenuTemplate.item_X = 8;
++    gMultiuseListMenuTemplate.cursor_X = 0;
++    gMultiuseListMenuTemplate.lettersSpacing = 0;
 +    gMultiuseListMenuTemplate.itemVerticalPadding = 2;
-+    gMultiuseListMenuTemplate.upText_Y = 2;
++    gMultiuseListMenuTemplate.upText_Y = 4;
 +    gMultiuseListMenuTemplate.maxShowed = sEeg->maxShowed;
 +    gMultiuseListMenuTemplate.fontId = FONT_NORMAL;
-+    gMultiuseListMenuTemplate.cursorPal = 2;
-+    gMultiuseListMenuTemplate.fillValue = 0;
-+    gMultiuseListMenuTemplate.cursorShadowPal = 3;
++    gMultiuseListMenuTemplate.cursorPal = C_TEXT;
++    gMultiuseListMenuTemplate.fillValue = C_CLEAR;
++    gMultiuseListMenuTemplate.cursorShadowPal = C_SHADOW;
 +    gMultiuseListMenuTemplate.moveCursorFunc = Eeg_MoveCursor;
-+    gMultiuseListMenuTemplate.itemPrintFunc = Eeg_PrintItem;
++    gMultiuseListMenuTemplate.itemPrintFunc = NULL;
 +    gMultiuseListMenuTemplate.scrollMultiple = 0;
 +    gMultiuseListMenuTemplate.cursorKind = 0;
 +}
@@ -385,41 +797,23 @@ index 00000000..b5c7aced
 +{
 +    if (onInit != TRUE)
 +        PlaySE(SE_SELECT);
-+    FillWindowPixelBuffer(WIN_MIND, 0);
 +    sEeg->haveMind = FALSE;
 +    if (index == LIST_CANCEL)
 +    {
++        sEeg->current = 0xFFFF;
 +        gCodeRedEeg->personality = 0;
-+        Eeg_PrintBody(sText_ExitDesc);
++        Eeg_DrawElectrodes(FALSE);
 +    }
 +    else
 +    {
 +        sEeg->current = index;
-+        Eeg_PrintTabs();
-+        Eeg_PrintBody(sText_Asking);
++        Eeg_ReadMon(&sEeg->entries[index]);
++        Eeg_Waves();
++        Eeg_DrawElectrodes(TRUE);
 +        Eeg_Ask(1, &sEeg->entries[index]);
 +    }
-+    CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
-+}
-+
-+static void Eeg_PrintItem(u8 windowId, u32 index, u8 y)
-+{
-+    const struct EegEntry *e;
-+    u8 *s;
-+    if (index == LIST_CANCEL)
-+        return;
-+    e = &sEeg->entries[index];
-+    s = StringCopy(gStringVar4, gText_Lv);
-+    ConvertIntToDecimalStringN(s, e->level, STR_CONV_MODE_LEFT_ALIGN, 3);
-+    Eeg_Print(windowId, FONT_SMALL, gStringVar4, 84, y, 2);
-+    if (e->box == 0xFF)
-+        StringCopy(gStringVar4, sText_Party);
-+    else
-+    {
-+        s = StringCopy(gStringVar4, sText_Box);
-+        ConvertIntToDecimalStringN(s, e->box + 1, STR_CONV_MODE_LEFT_ALIGN, 2);
-+    }
-+    Eeg_Print(windowId, FONT_SMALL, gStringVar4, 122, y, 2);
++    Eeg_PrintTitle();
++    Eeg_PrintMind();
 +}
 +
 +// ---------------------------------------------------------------- screen setup / teardown
@@ -450,6 +844,7 @@ index 00000000..b5c7aced
 +    sEeg->savedCallback = callback;
 +    sEeg->arrows = 0xFF;
 +    sEeg->shownId = 0xFFFFFFFF;
++    sEeg->current = 0xFFFF;
 +    SetMainCallback2(Eeg_RunSetup);
 +}
 +
@@ -464,63 +859,38 @@ index 00000000..b5c7aced
 +    }
 +}
 +
-+static bool8 Eeg_InitBgs(void)
++static void Eeg_InitBgs(void)
 +{
 +    ResetAllBgsCoordinatesAndBgCntRegs();
-+    sEegBg1Tilemap = Alloc(0x800);
-+    if (sEegBg1Tilemap == NULL)
-+        return FALSE;
-+    memset(sEegBg1Tilemap, 0, 0x800);
 +    ResetBgsAndClearDma3BusyFlags(0);
 +    InitBgsFromTemplates(0, sBgTemplates, NELEMS(sBgTemplates));
-+    SetBgTilemapBuffer(1, sEegBg1Tilemap);
-+    ScheduleBgCopyTilemapToVram(1);
 +    SetGpuReg(REG_OFFSET_DISPCNT, DISPCNT_OBJ_1D_MAP | DISPCNT_OBJ_ON);
 +    SetGpuReg(REG_OFFSET_BLDCNT, 0);
 +    ShowBg(0);
-+    ShowBg(1);
-+    return TRUE;
-+}
-+
-+static bool8 Eeg_LoadGraphics(void)
-+{
-+    switch (sEeg->gfxStep)
-+    {
-+    case 0:
-+        ResetTempTileDataBuffers();
-+        DecompressAndCopyTileDataToVram(1, gItemPcTiles, 0, 0, 0);
-+        sEeg->gfxStep++;
-+        break;
-+    case 1:
-+        if (FreeTempTileDataBuffersIfPossible() != TRUE)
-+        {
-+            LZDecompressWram(gItemPcTilemap, sEegBg1Tilemap);
-+            sEeg->gfxStep++;
-+        }
-+        break;
-+    default:
-+        LoadCompressedPalette(gItemPcBgPals, BG_PLTT_ID(0), 3 * PLTT_SIZE_4BPP);
-+        sEeg->gfxStep = 0;
-+        return TRUE;
-+    }
-+    return FALSE;
++    HideBg(1);
++    HideBg(2);
++    HideBg(3);
 +}
 +
 +static void Eeg_InitWindows(void)
 +{
 +    u8 i;
++    static const u16 sBackdrop = RGB(1, 2, 4);
 +    InitWindows(sWindowTemplates);
 +    DeactivateAllTextPrinters();
-+    LoadUserWindowGfx(0, 0x3C0, BG_PLTT_ID(14));
-+    LoadStdWindowGfx(0, 0x3A3, BG_PLTT_ID(12));
-+    LoadMenuMessageWindowGfx(0, 0x3AC, BG_PLTT_ID(11));
-+    LoadPalette(GetTextWindowPalette(2), BG_PLTT_ID(13), PLTT_SIZE_4BPP);
-+    LoadPalette(gStandardMenuPalette, BG_PLTT_ID(15), PLTT_SIZE_4BPP);
-+    for (i = 0; i < 3; i++)
++    LoadPalette(&sBackdrop, BG_PLTT_ID(0), sizeof(u16));
++    LoadPalette(sTextPal, BG_PLTT_ID(PAL_TEXT), PLTT_SIZE_4BPP);
++    LoadPalette(sHeadPal, BG_PLTT_ID(PAL_HEAD), PLTT_SIZE_4BPP);
++    for (i = 0; i < WIN_COUNT; i++)
 +    {
-+        FillWindowPixelBuffer(i, 0x00);
++        FillWindowPixelBuffer(i, PIXEL_FILL(C_CLEAR));
 +        PutWindowTilemap(i);
 +    }
++    FillWindowPixelBuffer(WIN_TRACE, PIXEL_FILL(C_PANEL));
++    Eeg_DrawBrain();
++    Eeg_PulseLobes();
++    for (i = 0; i < WIN_COUNT; i++)
++        CopyWindowToVram(i, COPYWIN_GFX);
 +    ScheduleBgCopyTilemapToVram(0);
 +}
 +
@@ -544,46 +914,36 @@ index 00000000..b5c7aced
 +        gMain.state++;
 +        break;
 +    case 2:
-+        if (Eeg_InitBgs())
-+            gMain.state++;
-+        else
-+        {
-+            Eeg_Free();
-+            SetMainCallback2(sEeg->savedCallback);
-+            return TRUE;
-+        }
-+        break;
-+    case 3:
-+        if (Eeg_LoadGraphics() == TRUE)
-+            gMain.state++;
-+        break;
-+    case 4:
-+        Eeg_InitWindows();
++        Eeg_InitBgs();
 +        gMain.state++;
 +        break;
-+    case 5:
++    case 3:
 +        sEeg->entries = Alloc(sizeof(struct EegEntry) * n);
 +        sEeg->items = Alloc(sizeof(struct ListMenuItem) * n);
 +        sEeg->names = Alloc(NAME_BYTES * n);
 +        if (sEeg->entries == NULL || sEeg->items == NULL || sEeg->names == NULL)
 +        {
++            MainCallback back = sEeg->savedCallback;
 +            Eeg_Free();
-+            SetMainCallback2(sEeg->savedCallback);
++            SetMainCallback2(back);
 +            return TRUE;
 +        }
 +        Eeg_BuildList();
 +        Eeg_BuildTemplate();
 +        gMain.state++;
 +        break;
-+    case 6:
-+        Eeg_Print(WIN_TITLE, FONT_SMALL, sText_Title, 0, 1, 0);
++    case 4:
++        Eeg_InitWindows();
++        gMain.state++;
++        break;
++    case 5:
 +        taskId = CreateTask(Task_EegMain, 0);
 +        gTasks[taskId].data[0] = ListMenuInit(&gMultiuseListMenuTemplate, 0, 0);
 +        if (sEeg->count + 1 > sEeg->maxShowed)
-+            sEeg->arrows = AddScrollIndicatorArrowPairParameterized(2, 128, 8, 104, sEeg->count + 1 - sEeg->maxShowed, 110, 110, &sEeg->scroll);
++            sEeg->arrows = AddScrollIndicatorArrowPairParameterized(2, 36, 18, 102, sEeg->count + 1 - sEeg->maxShowed, 110, 110, &sEeg->scroll);
 +        gMain.state++;
 +        break;
-+    case 7:
++    case 6:
 +        HelpSystem_Disable(); // L/R switch tabs here
 +        BlendPalettes(PALETTES_ALL, 16, RGB_BLACK);
 +        BeginNormalPaletteFade(PALETTES_ALL, 0, 16, 0, RGB_BLACK);
@@ -614,20 +974,30 @@ index 00000000..b5c7aced
 +        Free(sEeg);
 +        sEeg = NULL;
 +    }
-+    if (sEegBg1Tilemap) { Free(sEegBg1Tilemap); sEegBg1Tilemap = NULL; }
 +    FreeAllWindowBuffers();
 +}
 +
 +// ---------------------------------------------------------------- tasks
++
++// Every frame the lobes breathe; every other frame the channels scroll one sample.
++static void Eeg_Animate(void)
++{
++    sEeg->phase++;
++    if ((sEeg->phase & 1) == 0)
++        Eeg_DrawTraces();
++    if (!gPaletteFade.active) // a fade owns the palettes
++        Eeg_PulseLobes();
++}
 +
 +static void Task_EegMain(u8 taskId)
 +{
 +    s16 *data = gTasks[taskId].data;
 +    s32 input;
 +    Eeg_PollMind();
++    Eeg_Animate();
 +    if (gPaletteFade.active)
 +        return;
-+    if (JOY_NEW(DPAD_LEFT | DPAD_RIGHT | L_BUTTON | R_BUTTON) && gCodeRedEeg->personality != 0)
++    if (JOY_NEW(DPAD_LEFT | DPAD_RIGHT | L_BUTTON | R_BUTTON) && sEeg->current != 0xFFFF)
 +    {
 +        PlaySE(SE_SELECT);
 +        sEeg->tab = (sEeg->tab + (JOY_NEW(DPAD_RIGHT | R_BUTTON) ? 1 : TAB_COUNT - 1)) % TAB_COUNT;
@@ -654,7 +1024,7 @@ index 00000000..b5c7aced
 +            Eeg_PrintMind();
 +            break;
 +        }
-+        FillWindowPixelBuffer(WIN_MIND, 0);
++        FillWindowPixelBuffer(WIN_MIND, PIXEL_FILL(C_CLEAR));
 +        Eeg_PrintTabs();
 +        Eeg_PrintBody(sText_EditHot);
 +        CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
@@ -668,6 +1038,7 @@ index 00000000..b5c7aced
 +{
 +    s16 *data = gTasks[taskId].data;
 +    bool8 done = FALSE;
++    Eeg_Animate();
 +    if (JOY_NEW(B_BUTTON))
 +    {
 +        gCodeRedEeg->state = 4;
@@ -681,17 +1052,16 @@ index 00000000..b5c7aced
 +    PlaySE(SE_SELECT);
 +    // Show the mind again, with whatever note the page kept.
 +    sEeg->shownId = 0xFFFFFFFF;
-+    FillWindowPixelBuffer(WIN_MIND, 0);
-+    Eeg_PrintTabs();
-+    Eeg_PrintBody(sText_Asking);
-+    CopyWindowToVram(WIN_MIND, COPYWIN_GFX);
++    sEeg->haveMind = FALSE;
 +    Eeg_Ask(1, &sEeg->entries[data[1]]);
++    Eeg_PrintMind();
 +    gTasks[taskId].func = Task_EegMain;
 +}
 +
 +static void Task_EegTurnOff(u8 taskId)
 +{
 +    s16 *data = gTasks[taskId].data;
++    Eeg_Animate();
 +    if (!gPaletteFade.active)
 +    {
 +        DestroyListMenuTask(data[0], &sEeg->scroll, &sEeg->row);

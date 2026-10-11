@@ -100,6 +100,16 @@
 .code-red-eeg-turn[data-verdict="miss"] summary { color: #ff7a82; }
 .code-red-eeg-turn summary small { color: #9aa7b3; }
 .code-red-eeg .code-red-muted { color: #9aa7b3; }
+/* the brain scan: the in-game picture, scaled up crisp, Game Boy palette */
+.code-red-eeg-scan { position: relative; max-width: 504px; aspect-ratio: 168 / 88; margin: .4rem 0 .5rem; border: 2px solid #1c2a33; border-radius: 4px; background: #101820; }
+.code-red-eeg-scan canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+.code-red-eeg-scan span { position: absolute; transform: translateY(1px); font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .08em; color: #7a9898; pointer-events: none; }
+.code-red-eeg-scan span.is-on { color: #dce8d4; }
+.code-red-eeg-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin: .2rem 0 .4rem; }
+.code-red-eeg-tabs button { padding: .2rem .45rem; border: 0; border-radius: 3px; background: #141c24; color: #7a9898; font: 700 11px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .06em; cursor: pointer; }
+.code-red-eeg-tabs button[aria-selected="true"] { background: #f8d860; color: #0a1018; }
+.code-red-eeg-tab { min-height: 5.5rem; padding: .3rem .6rem; background: #0a1018; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+.code-red-eeg-stats { display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
 @media (max-width: 600px) { .code-red-eeg-body { grid-template-columns: 1fr; } .code-red-eeg-list { border-right: 0; border-bottom: 1px solid #1c232b; max-height: 10rem; } }
 /* the in-game PokÉEG's note editor, over the game */
 .code-red-hot-editor { position: absolute; inset: auto 8% 12%; z-index: 20; padding: .8rem 1rem; border-radius: 10px; background: #101418; color: #d8dee4; font: 14px/1.45 system-ui, sans-serif; box-shadow: 0 8px 30px rgba(0,0,0,.5); display: grid; gap: .4rem; }

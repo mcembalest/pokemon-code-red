@@ -79,10 +79,15 @@ def main():
         print('owned:', [(m['where'], m['name'], m['level'], m['types']) for m in owned], flush=True)
         assert owned and owned[0]['name'] == 'CHARMANDER' and owned[0]['types'] == ['FIRE'], owned
         mind = page.text_content('.code-red-eeg-mind')
-        assert 'FIRE system' in mind and 'System 2' in mind and 'byte budget' in mind, mind[:300]
+        assert 'FIRE system' in mind and 'Friendship:' in mind and 'nature' in mind and 'bytes a turn' in mind, mind[:300]
+        page.wait_for_function('document.querySelector(".code-red-eeg-scan canvas")')
+        page.click('.code-red-eeg [data-tab="BOND"]')
+        assert 'Doubts your calls' in page.text_content('.code-red-eeg [data-panel="BOND"]')
+        page.locator('.code-red-eeg-mind').screenshot(path=str(OUT / 'pokeeg-scan.png'))
         print('mind:', ' '.join(mind.split())[:240], flush=True)
 
         # 2. Pin hot memory: the cost shows in bytes and the note is kept in the mind store.
+        page.click('.code-red-eeg [data-tab="NOTE"]')
         page.fill('.code-red-eeg [data-hot]', 'return a plain number')
         assert '21 chars = 21 bytes' in page.text_content('.code-red-eeg-hot small')
         page.click('.code-red-eeg [data-save-hot]')
@@ -97,6 +102,7 @@ def main():
         page.evaluate('gm.functions.toggleFastForward(0)')
         page.wait_for_timeout(2500)  # the panel refreshes every 2 s
         page.click('.code-red-eeg-list [data-pid]')
+        page.click('.code-red-eeg [data-tab="MEMORY"]')
         page.wait_for_selector('.code-red-eeg-turn', timeout=5000)
         turn = page.text_content('.code-red-eeg-turn summary')
         print('recent:', ' '.join(turn.split()), flush=True)
