@@ -19,6 +19,13 @@ export interface OwnedMon {
   species: number; name: string; nickname: string
   level: number
   types: string[]
+  /** FireRed's friendship, 0–255 (a starter begins at 70): how much it listens to your calls (rules/doubt.mjs). */
+  friendship: number
+  /** personality % 25 (FireRed's nature order: HARDY, LONELY, …). */
+  nature: number
+  /** HP, Attack, Defense, Speed, Sp. Atk, Sp. Def. IVs 0–31, EVs 0–255. */
+  ivs: number[]
+  evs: number[]
 }
 
 export class OwnedReader {
@@ -75,10 +82,16 @@ export class OwnedReader {
     const w1 = (m.u32(base + SECURE + g + 4) ^ key) >>> 0
     const species = w0 & 0xFFFF
     if (!species) return null
+    const word = (sub: string, i: number) => (m.u32(base + SECURE + ORDER[personality % 24]!.indexOf(sub) * 12 + i * 4) ^ key) >>> 0
+    const friendship = (word('G', 2) >>> 8) & 0xFF
+    const e0 = word('E', 0), e1 = word('E', 1)
+    const evs = [e0 & 0xFF, e0 >>> 8 & 0xFF, e0 >>> 16 & 0xFF, e0 >>> 24, e1 & 0xFF, e1 >>> 8 & 0xFF]
+    const iv = word('M', 1)
+    const ivs = [0, 5, 10, 15, 20, 25].map(b => iv >>> b & 31)
     const nick = new Uint8Array(NICKNAME_LEN)
     for (let i = 0; i < NICKNAME_LEN; i++) nick[i] = m.u8(base + NICKNAME + i)
     const types = this.typesOf(species)
-    return { where, box, slot, personality, species, name: this.romText('gSpeciesNames', species, SPECIES_NAME), nickname: decodeText(nick), level: partyLevel ?? this.levelFor(species, w1), types }
+    return { where, box, slot, personality, species, name: this.romText('gSpeciesNames', species, SPECIES_NAME), nickname: decodeText(nick), level: partyLevel ?? this.levelFor(species, w1), types, friendship, nature: personality % 25, ivs, evs }
   }
 
   party(): OwnedMon[] {

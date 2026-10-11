@@ -30,7 +30,7 @@ const w8 = (a: number, v: number) => ram.set(a, v & 255)
 const w32 = (a: number, v: number) => { for (let i = 0; i < 4; i++) w8(a + i, v >>> (8 * i)) }
 const ORDER = ['GAEM', 'GAME', 'GEAM', 'GEMA', 'GMAE', 'GMEA', 'AGEM', 'AGME', 'AEGM', 'AEMG', 'AMGE', 'AMEG',
   'EGAM', 'EGMA', 'EAGM', 'EAMG', 'EMGA', 'EMAG', 'MGAE', 'MGEA', 'MAGE', 'MAEG', 'MEGA', 'MEAG']
-function boxMon(base: number, o: { personality: number; otId: number; species: number; exp: number; nick: string; egg?: boolean }) {
+function boxMon(base: number, o: { personality: number; otId: number; species: number; exp: number; nick: string; egg?: boolean; friendship?: number; evs?: number[]; ivs?: number[] }) {
   w32(base, o.personality); w32(base + 4, o.otId)
   const nick = enc(o.nick); for (let i = 0; i < 10; i++) w8(base + 8 + i, nick[i] ?? 0xFF)
   w8(base + 19, 2 | (o.egg ? 4 : 0))
@@ -38,6 +38,12 @@ function boxMon(base: number, o: { personality: number; otId: number; species: n
   const g = ORDER[o.personality % 24]!.indexOf('G') * 12
   w32(base + 32 + g, (o.species ^ key) >>> 0)
   w32(base + 32 + g + 4, (o.exp ^ key) >>> 0)
+  w32(base + 32 + g + 8, (((o.friendship ?? 0) << 8) ^ key) >>> 0)
+  const e = ORDER[o.personality % 24]!.indexOf('E') * 12, mi = ORDER[o.personality % 24]!.indexOf('M') * 12
+  const ev = o.evs ?? [0, 0, 0, 0, 0, 0]
+  w32(base + 32 + e, ((ev[0]! | ev[1]! << 8 | ev[2]! << 16 | ev[3]! << 24) ^ key) >>> 0)
+  w32(base + 32 + e + 4, ((ev[4]! | ev[5]! << 8) ^ key) >>> 0)
+  w32(base + 32 + mi + 4, ((o.ivs ?? [0, 0, 0, 0, 0, 0]).reduce((w, v, i) => w | v << (5 * i), 0) ^ key) >>> 0)
 }
 const symbols = Object.fromEntries([
   ...Object.entries(SYM).map(([k, v]) => [k, { address: ROM + v }]),
@@ -60,6 +66,15 @@ test('party + boxes: species, nickname, types, level (party from the struct, box
     ['box', 0, 3, 'CHARMANDER', 'Ember', 27, 'FIRE', 0xDEADBEEF],
     ['box', 13, 29, 'SQUIRTLE', 'LAST', 5, 'WATER/FLYING', 1],
   ])
+})
+
+test('friendship, nature, IVs and EVs come out of the encrypted substructs', () => {
+  w8(COUNT, 1)
+  const p = 0x01020304 // % 24 = 4: GMAE · % 25 = nature 4 (NAUGHTY)
+  boxMon(PARTY, { personality: p, otId: 0x5A5A5A5A, species: 4, exp: 999, nick: 'FLAME', friendship: 70, evs: [1, 2, 3, 4, 5, 252], ivs: [31, 0, 15, 7, 20, 30] }); w8(PARTY + 0x54, 12)
+  const [m] = new OwnedReader(mem, rom, symbols).party()
+  assert.equal(m!.friendship, 70); assert.equal(m!.nature, p % 25)
+  assert.deepEqual(m!.evs, [1, 2, 3, 4, 5, 252]); assert.deepEqual(m!.ivs, [31, 0, 15, 7, 20, 30])
 })
 
 test('no storage pointer yet (title screen) → no boxes; level caps at 100', () => {

@@ -158,10 +158,10 @@ index bb66a014..e5677588 100644
      {
 diff --git a/src/code_red_battle.c b/src/code_red_battle.c
 new file mode 100644
-index 00000000..6b331732
+index 00000000..39ff4b22
 --- /dev/null
 +++ b/src/code_red_battle.c
-@@ -0,0 +1,244 @@
+@@ -0,0 +1,236 @@
 +#include "global.h"
 +#include "battle.h"
 +#include "battle_scripts.h"
@@ -326,8 +326,8 @@ index 00000000..6b331732
 +
 +// Doubt (owner, 2026-10-10). Only wild Pokémon pick their own moves; yours uses the move you call, unless its
 +// instinct (System 1: the move that hits hardest now) disagrees. Then, with chance
-+//     ½ × (1 − your call's score / its pick's score) × (8 − badges) / 8
-+// it uses its own pick instead ("X doubted your call!"). The same rule in every battle, gyms included; it costs only
++//     ½ × (1 − your call's score / its pick's score) × (1 − friendship / 255)
++// it uses its own pick instead (owner, 2026-10-10: friendship, not badges, decides how much it listens) ("X doubted your call!"). The same rule in every battle, gyms included; it costs only
 +// the move. Score = power × accuracy × type effectiveness × STAB (1.5), the same as rules/doubt.mjs instinctScore.
 +static u32 TypeMultiplier(u8 moveType, u8 type1, u8 type2) // ×100
 +{
@@ -356,29 +356,19 @@ index 00000000..6b331732
 +    return score;
 +}
 +
-+static u8 BadgeCount(void)
-+{
-+    u8 n = 0, i;
-+    for (i = 0; i < NUM_BADGES; i++)
-+        if (FlagGet(FLAG_BADGE01_GET + i))
-+            n++;
-+    return n;
-+}
-+
 +// From IsMonDisobedient (player side, before FireRed's traded-Pokémon check). TRUE = it uses its own pick: the
 +// battle script is set to BattleScript_CodeRedDoubted, which prints the doubt and jumps to gCalledMove.
 +bool8 CodeRedDoubts(void)
 +{
 +    struct BattlePokemon *a = &gBattleMons[gBattlerAttacker], *t = &gBattleMons[gBattlerTarget];
-+    u8 unusable, badges, i, best = MAX_MON_MOVES;
++    u8 unusable, i, best = MAX_MON_MOVES;
 +    u32 mine, top = 0, chance;
 +
 +    if (gBattleTypeFlags & (BATTLE_TYPE_LINK | BATTLE_TYPE_POKEDUDE | BATTLE_TYPE_SAFARI | BATTLE_TYPE_OLD_MAN_TUTORIAL))
 +        return FALSE;
 +    if (GetBattlerSide(gBattlerAttacker) != B_SIDE_PLAYER || gCurrMovePos >= MAX_MON_MOVES || a->moves[gCurrMovePos] != gCurrentMove)
 +        return FALSE; // not your call (a called move, Struggle, a locked-in turn)
-+    badges = BadgeCount();
-+    if (badges >= NUM_BADGES)
++    if (a->friendship >= MAX_FRIENDSHIP)
 +        return FALSE;
 +    unusable = CheckMoveLimitations(gBattlerAttacker, 0, MOVE_LIMITATIONS_ALL);
 +    for (i = 0; i < MAX_MON_MOVES; i++)
@@ -394,8 +384,10 @@ index 00000000..6b331732
 +    mine = InstinctScore(gCurrentMove, a, t);
 +    if (mine >= top)
 +        return FALSE;
-+    // chance out of 256: ½ × (top − mine) / top × (8 − badges) / 8
-+    chance = (top - mine) * (NUM_BADGES - badges) * 128 / (top * NUM_BADGES);
++    // chance out of 256: ½ × (top − mine) / top × (255 − friendship) / 255
++    // (two steps: scores reach 150000, and 150000 × 255 × 128 overflows u32)
++    chance = (top - mine) * 256 / top;
++    chance = chance * (MAX_FRIENDSHIP - a->friendship) / (2 * MAX_FRIENDSHIP);
 +    if ((Random() & 0xFF) >= chance)
 +        return FALSE;
 +    sCalledSlot = gCurrMovePos + 1;

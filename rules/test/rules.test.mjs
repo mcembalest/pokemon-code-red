@@ -206,7 +206,7 @@ test('payload moves: the checker judges the character, a hit carries the bytes (
   assert.notEqual(pid, user.replace(/\bA\b/g, 'PIDGEY')); assert.match(pid, /PIDGEY's own voice/)
 })
 
-test('doubt: the chance it uses its own pick is ½ × how much worse your call is × (8 − badges) / 8', () => {
+test('doubt: the chance it uses its own pick is ½ × how much worse your call is × (1 − friendship / 255)', () => {
   const slice = { id: 10, name: 'SLICE', power: 40, accuracy: 100, type: 'NORMAL' }
   const ember = { id: 52, name: 'EMBER', power: 40, accuracy: 100, type: 'FIRE' }
   const error = { id: 45, name: 'ERROR', power: 0, accuracy: 100, type: 'NORMAL' }
@@ -215,16 +215,17 @@ test('doubt: the chance it uses its own pick is ½ × how much worse your call i
   const ctx = { moves, selfTypes: ['FIRE'], effectiveness: vsGrass }
   // Charmander vs a Grass foe: Ember (40 × 2 × 1.5 STAB = 120) is its instinct; Slice scores 40.
   assert.equal(instinct(moves, ctx), ember)
-  const d = doubtChance({ ...ctx, chosen: slice, badges: [] })
+  const d = doubtChance({ ...ctx, chosen: slice, friendship: 0 })
   assert.ok(Math.abs(d.chance - 1 / 3) < 1e-9); assert.equal(d.wanted, ember) // ½ × (1 − 40/120)
-  assert.equal(doubtChance({ ...ctx, chosen: error, badges: [] }).chance, 0.5) // a status move: the cap
-  assert.deepEqual(doubtChance({ ...ctx, chosen: ember, badges: [] }), { chance: 0, wanted: null })
-  // four badges halve it; eight badges end it
-  assert.equal(doubtChance({ ...ctx, chosen: error, badges: ['BOULDER', 'CASCADE', 'THUNDER', 'RAINBOW'] }).chance, 0.25)
-  assert.equal(doubtChance({ ...ctx, chosen: error, badges: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] }).chance, 0)
-  assert.equal(maxDoubt([]), 0.5); assert.equal(maxDoubt(['BOULDER', 'CASCADE']), 0.375)
+  assert.equal(doubtChance({ ...ctx, chosen: error, friendship: 0 }).chance, 0.5) // a status move: the cap
+  assert.deepEqual(doubtChance({ ...ctx, chosen: ember, friendship: 70 }), { chance: 0, wanted: null })
+  // friendship: a starter's 70 → about 36%; halfway halves it; 255 ends it (badges no longer count)
+  assert.ok(Math.abs(doubtChance({ ...ctx, chosen: error, friendship: 70 }).chance - 0.5 * 185 / 255) < 1e-9)
+  assert.ok(Math.abs(doubtChance({ ...ctx, chosen: error, friendship: 127.5 }).chance - 0.25) < 1e-9)
+  assert.equal(doubtChance({ ...ctx, chosen: error, friendship: 255 }).chance, 0)
+  assert.equal(maxDoubt(0), 0.5); assert.equal(Math.round(maxDoubt(70) * 100), 36); assert.equal(maxDoubt(300), 0)
   // only status moves: nothing to disagree with
-  assert.deepEqual(doubtChance({ chosen: error, moves: [error], badges: [] }), { chance: 0, wanted: null })
+  assert.deepEqual(doubtChance({ chosen: error, moves: [error] }), { chance: 0, wanted: null })
   // the type chart reader
   const rom = new Uint8Array([10, 12, 20, 0xFE, 0xFE, 0, 11, 10, 5, 0xFF])
   const eff = typeChart(rom, 0)

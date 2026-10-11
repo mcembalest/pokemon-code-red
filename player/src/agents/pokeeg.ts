@@ -111,7 +111,7 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
       <p class="code-red-eeg-system">A <b>${esc(type)}</b> system: its data arrives as <i>${esc(fmt?.note ?? 'a plain list')}</i>.<br>Its own moves are ${esc(family(type))}.</p>
       <section>
         <h4>System 1 · decision brain</h4>
-        <p>You call its moves; its instinct is <i>whatever hits hardest</i>. When your call looks weaker to it, it may doubt you and use its own pick instead: at most <b>${Math.round(maxDoubt(badges) * 100)}%</b> of the time, for a call it thinks is useless <span class="code-red-muted">(${badges.length} of 8 badges; every badge lowers it, at 8 it never doubts you)</span>.</p>
+        <p>You call its moves; its instinct is <i>whatever hits hardest</i>. When your call looks weaker to it, it may doubt you and use its own pick instead: at most <b>${Math.round(maxDoubt(m.friendship) * 100)}%</b> of the time, for a call it thinks is useless <span class="code-red-muted">(friendship ${m.friendship} of 255: the closer you are, the more it listens; at 255 it never doubts you)</span>.</p>
         <p>Focus ${focus.toFixed(2)} <span class="code-red-muted">(steadier as it levels)</span> · byte budget <b>${budget}</b> <span class="code-red-muted">(L${m.level}${stage ? `, evolved ×${stage}` : ''}${badges.length ? `, ${badges.length} badge${badges.length > 1 ? 's' : ''}` : ''})</span></p>
       </section>
       <section>
