@@ -1,4 +1,4 @@
 {
- "seeds": [0, 1],
- "note": "Memory is code v8 (shipped). Run from a branch to rehearse."
+ "seeds": [0],
+ "note": "Live check after shipping memory v8: the real site with a fresh account (join, ROM, starter, rival, PokÉEG, cloud save, gyms)."
 }
