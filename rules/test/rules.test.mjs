@@ -270,3 +270,13 @@ test('memory: a reading helper is kept only if it reads its format right', async
   const wrongToday = await runBlock(checkSource(helpers.slice(0, 1), { type: 'POISON', data: 'x10x20x', bytes: [10, 21] }), [])
   assert.deepEqual(wrongToday.value, { myReadPoison: false })
 })
+
+test('memory: it recalls the reader for this turn’s format and its other helpers; a reader must name its format', async () => {
+  const { recall, memoryLines, checkSource } = await import('../memory.mjs')
+  const { runBlock } = await import('../../kernel/code.mjs')
+  const hs = [{ name: 'myReadPoison', src: 'function myReadPoison(d){return d}' }, { name: 'myReadBug', src: 'function myReadBug(d){return d}' }, { name: 'myMax', src: 'const myMax = 1;' }]
+  assert.deepEqual(recall(hs, 'BUG').map(h => h.name), ['myReadBug', 'myMax'])
+  assert.doesNotMatch(memoryLines({ lib: hs, type: 'BUG' }).join('\n'), /myReadPoison/)
+  const r = await runBlock(checkSource([{ name: 'myReadData', src: 'function myReadData(d){return d}' }]), [])
+  assert.deepEqual(r.value, { myReadData: false })
+})

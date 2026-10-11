@@ -246,7 +246,8 @@ test('one context budget: your note costs bytes, a helper costs when called; the
   g.request({ pid: 111 }); await b.poll()
   assert.equal(log.begin[1]!.memoryCost, 31, 'carrying is free; the note always costs')
   assert.match(seen[1]!, /Helpers you carry \(already defined: call them, don't write them again; each one you call costs its size from your budget\):\nfunction myReadWater\(/)
-  assert.match(seen[0]!, /name it for this format, e\.g\. function myReadWater\(data\)/)
+  assert.match(seen[0]!, /if you read WATER data in a helper defined outside your function, function myReadWater\(data\)/)
+  assert.doesNotMatch(seen[1]!, /Optional: if you read WATER/, 'no offer once it carries one')
 })
 
 test('a long note can push correct code over budget: that is the trade-off', async () => {

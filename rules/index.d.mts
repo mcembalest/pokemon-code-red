@@ -127,6 +127,7 @@ export function fitHelpers(helpers: Helper[], cap: number): Helper[]
 export function helpersFromReaders(readers: Readers | undefined): Helper[]
 export function compileSource(helpers: Helper[]): string
 export function readerType(name: string): TypeName | null
+export function recall(helpers: Helper[], type: string): Helper[]
 export function checkSource(helpers: Helper[], turn?: { type: string; data: unknown; bytes: number[] } | null): string
 export function consolidatePrompt(args: { self: { name: string; level: number }; lib: Helper[]; work: Helper[]; cap: number; stats?: Record<string, { used: number; hits: number }> }): { system: string; user: string }
 export function memoryLines(args: { lib?: Helper[]; work?: Helper[]; type?: string }): string[]

@@ -120,7 +120,7 @@ export function readerType(name) {
 export function checkSource(helpers, turn = null) {
   const lines = helpers.map(h => {
     const t = readerType(h.name)
-    if (!t) return `ok.${h.name} = typeof ${h.name} !== 'undefined'`
+    if (!t) return /^myRead/.test(h.name) ? `ok.${h.name} = false` : `ok.${h.name} = typeof ${h.name} !== 'undefined'` // a reader must name its format
     const cases = [[example(t), EXAMPLE_BYTES], ...(turn && turn.type === t ? [[turn.data, turn.bytes]] : [])]
     return `try { ok.${h.name} = typeof ${h.name} === 'function' && ${cases.map(([d, want]) => `JSON.stringify(${h.name}(${JSON.stringify(d)})) === ${JSON.stringify(JSON.stringify(want))}`).join(' && ')} } catch (e) { ok.${h.name} = false }`
   })
@@ -156,11 +156,21 @@ export function consolidatePrompt({ self, lib, work, cap, stats = {} }) {
   return { system, user }
 }
 
-/** What the prompt tells a Pokémon about its memory this turn. */
+/** What it recalls this turn: the reading helper for this turn's format (if it has one), and helpers that are not readers.
+ *  Readers for other formats stay in memory but out of mind (v4 measured: shown every reader, the model called
+ *  myReadFlying on BUG data and crashed). */
+export const recall = (helpers, type) => helpers.filter(h => { const t = readerType(h.name); return t ? t === type : true })
+
+/** What the prompt tells a Pokémon about its memory this turn. The offer to keep a reader shows only while it has none
+ *  for this format, and never for plain-list data (NORMAL: nothing to read; v4 measured the offer pulling it into
+ *  JSON.parse on plain lists). */
 export function memoryLines({ lib = [], work = [], type = '' }) {
-  const all = mergeHelpers(lib, work)
+  const all = recall(mergeHelpers(lib, work), type)
+  const fmt = type && type !== 'NORMAL' && Object.hasOwn(FORMATS, type) ? type : null
+  const hasReader = fmt && all.some(h => readerType(h.name) === fmt)
+  const name = fmt ? `myRead${fmt[0]}${fmt.slice(1).toLowerCase()}` : ''
   return [
     ...(all.length ? [`- Helpers you carry (already defined: call them, don't write them again; each one you call costs its size from your budget):\n${helpersSource(all)}`] : []),
-    `- Optional: to keep a helper for the rest of this battle, define it outside your function and name it for this format, e.g. function myRead${type ? type[0] + type.slice(1).toLowerCase() : 'Data'}(data){…}. Keep it short: a helper costs its size every time you call it.`,
+    ...(fmt && !hasReader ? [`- Optional: if you read ${fmt} data in a helper defined outside your function, function ${name}(data){…}, you keep it for the rest of this battle.`] : []),
   ]
 }

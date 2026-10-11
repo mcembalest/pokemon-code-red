@@ -9,7 +9,7 @@ import {
   BADGES, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, notchOf,
   rng, stageOf, targetBytes, tokenCapFor, turnData, turnPrompt, turnType,
   type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged, type Helper,
-  checkSource, consolidatePrompt, extractHelpers, withoutCarried, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
+  checkSource, consolidatePrompt, recall, extractHelpers, withoutCarried, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
 import type { PayloadMailbox, PayloadKind } from '../bridge/payload.ts'
@@ -205,8 +205,8 @@ export class CodeBattle {
     const remembers = side === 0 && !tutorial
     const pid = req.attackerPersonality
     const lib = remembers ? this.lib(pid) : [], work = remembers ? (this.work.get(pid)?.helpers ?? []) : []
-    const prelude = helpersSource(mergeHelpers(lib, work))
-    const carried = mergeHelpers(lib, work).map(h => h.name)
+    const prelude = helpersSource(recall(mergeHelpers(lib, work), type)) // what it recalls this turn (rules/memory.mjs)
+    const carried = recall(mergeHelpers(lib, work), type).map(h => h.name)
     const hot = side === 0 ? this.memory.hot(req.attackerPersonality).trim() : ''
     const doubt = side === 0 && req.calledSlot ? { called: this.options.calledMove?.(req) ?? null } : null
     const notch = notchOf(req.attackerStages)
