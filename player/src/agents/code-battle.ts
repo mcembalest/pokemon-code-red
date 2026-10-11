@@ -9,7 +9,7 @@ import {
   BADGES, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, notchOf,
   rng, stageOf, targetBytes, tokenCapFor, turnData, turnPrompt, turnType,
   type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged, type Helper,
-  compileSource, consolidatePrompt, extractHelpers, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
+  compileSource, consolidatePrompt, extractHelpers, withoutCarried, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
 import type { PayloadMailbox, PayloadKind } from '../bridge/payload.ts'
@@ -104,6 +104,9 @@ export interface CodeBattleOptions {
   onRemember?: (record: RememberRecord) => void
 }
 
+/** Working memory of one Pokémon this battle: its helpers, and how each did (shown to it when it consolidates). */
+type Work = { name: string; level: number; helpers: Helper[]; stats: Record<string, { used: number; hits: number }> }
+
 /** The end-of-battle consolidation is not a move; mock writers see this in meta.move. */
 const REMEMBER = { name: 'REMEMBER', fn: 'remember', spec: '', shape: 'no key', ref: () => null } as unknown as Move
 
@@ -111,7 +114,7 @@ export class CodeBattle {
   private pending = false
   private seenNow = new Set<string>()
   /** Working memory: helpers each of your Pokémon kept this battle (gone when it ends, after consolidation). */
-  private work = new Map<number, { name: string; level: number; helpers: Helper[] }>()
+  private work = new Map<number, Work>()
   private readonly mailbox: CodeMoveMailbox
   private readonly names: Names
   private readonly writer: CodeWriter
@@ -144,10 +147,10 @@ export class CodeBattle {
     for (const [pid, w] of fought) await this.consolidate(pid, w).catch(() => {})
   }
 
-  private async consolidate(pid: number, w: { name: string; level: number; helpers: Helper[] }): Promise<void> {
+  private async consolidate(pid: number, w: Work): Promise<void> {
     const before = this.lib(pid), cap = libCap(w.level), started = Date.now()
     if (!w.helpers.length) return // nothing new this battle: long-term memory stays as it was
-    const prompt = consolidatePrompt({ self: { name: w.name, level: w.level }, lib: before, work: w.helpers, cap })
+    const prompt = consolidatePrompt({ self: { name: w.name, level: w.level }, lib: before, work: w.helpers, cap, stats: w.stats })
     const carried = mergeHelpers(before, w.helpers)
     const record = (after: Helper[], ok: boolean, reason?: string) => this.options.onRemember?.({ attacker: w.name, level: w.level, cap, before, carried, after, ok, ...(reason ? { reason } : {}), ms: Date.now() - started })
     let text: string
@@ -225,20 +228,25 @@ export class CodeBattle {
     }
     const { code } = extractCode(text)
     const runSource = (source: string) => this.sandbox.run(source, '{}')
-    const v: Judged = await judge({ move, bytes, data, code, budget: codeBudget(budget, { know, hot, memory: prelude }), runSource, prelude })
+    // Re-writing a helper it already carries costs nothing: it is defined already.
+    const judged = remembers ? withoutCarried(code, mergeHelpers(lib, work)) : code
+    const v: Judged = await judge({ move, bytes, data, code: judged, budget: codeBudget(budget, { know, hot, memory: prelude }), runSource, prelude })
     // Working memory: the my… helpers its code defined, from code that ran (a hit, or a wrong answer), kept for the battle.
     let kept: string[] | undefined
     if (remembers && code && (v.hit || v.reason === 'wrong answer')) {
       const fresh = await this.compiles(extractHelpers(code))
       if (fresh.length) {
         const helpers = fitHelpers(mergeHelpers(work, fresh), workCap(budget))
-        this.work.set(pid, { name: attacker, level: req.attackerLevel, helpers })
+        const w = this.work.get(pid)
+        this.work.set(pid, { name: attacker, level: req.attackerLevel, helpers, stats: w?.stats ?? {} })
         kept = helpers.map(h => h.name)
       }
     }
-    if (remembers && !this.work.has(pid)) this.work.set(pid, { name: attacker, level: req.attackerLevel, helpers: [] })
+    if (remembers && !this.work.has(pid)) this.work.set(pid, { name: attacker, level: req.attackerLevel, helpers: [], stats: {} })
     else if (remembers) this.work.get(pid)!.level = req.attackerLevel
-    const usedMemory = !!code && carried.some(n => new RegExp(`(?<!(?:function|const|let|var)\\s+)\\b${n}\\b`).test(code))
+    const used = code ? carried.filter(n => new RegExp(`(?<!(?:function|const|let|var)\\s+)\\b${n}\\b`).test(code)) : []
+    const usedMemory = used.length > 0
+    if (remembers) { const st = this.work.get(pid)!.stats; for (const n of used) { const e = (st[n] ??= { used: 0, hits: 0 }); e.used++; if (v.hit) e.hits++ } }
     const verdict: Verdict = v.hit ? 'hit' : 'miss'
     const reason = v.reason as MissReason | undefined
     const made = v.payload
@@ -310,7 +318,7 @@ export function mockWriter(options: { missEvery?: number; chunk?: number; delay?
         : [`  return ${body}`]
       // Memory: a correct reader goes into a my… helper it keeps; once it carries one, it just calls it.
       const helperName = `myRead${type[0]}${type.slice(1).toLowerCase()}`
-      const carries = prompt.user.includes(`function ${helperName}(`)
+      const carries = prompt.user.includes(`function ${helperName}(data) {`) // its own helper, as it wrote it (not the prompt's example)
       const keep = !tutorial && reader !== 'const nums = data' && !carries ? [`function ${helperName}(data) { ${reader}; return nums }`] : []
       const readLine = !tutorial && reader !== 'const nums = data' ? `const nums = ${helperName}(data)` : reader
       const text = ['```js', ...keep, `function ${move.fn}(data) {`, `  ${readLine}`, ...helpers, ...lines, '}', '```'].join('\n')

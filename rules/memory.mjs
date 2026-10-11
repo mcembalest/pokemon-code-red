@@ -10,7 +10,7 @@
 // No parser dependency: a small scanner that skips strings and comments finds the definitions.
 
 /** Long-term memory cap in characters: 105 at level 5, 180 at 20, 280 at 40 (a level-5 Pokémon can keep about one reader). */
-export const MEMORY = { capBase: 80, capPerLevel: 5, workShare: 0.5 }
+export const MEMORY = { capBase: 80, capPerLevel: 5, workShare: 0.25 }
 export const libCap = level => MEMORY.capBase + MEMORY.capPerLevel * Math.max(1, level)
 /** Working memory may take at most this share of the turn's budget; the oldest helpers drop first. */
 export const workCap = budget => Math.floor(budget * MEMORY.workShare)
@@ -106,23 +106,37 @@ export const helpersFromReaders = readers => Object.entries(readers ?? {}).map((
 /** Source that checks helpers compile on their own: returns the names that are functions or values. */
 export const compileSource = helpers => `${helpersSource(helpers)}\nreturn [${helpers.map(h => `typeof ${h.name} !== 'undefined' && '${h.name}'`).join(',')}].filter(Boolean)`
 
-/** The end-of-battle prompt: rewrite your long-term memory to fit. */
-export function consolidatePrompt({ self, lib, work, cap }) {
-  const all = helpersSource(mergeHelpers(lib, work))
+/** Its code, minus exact re-definitions of helpers it already carries (they are defined already: no bytes charged). */
+export function withoutCarried(code, carried) {
+  if (!code || !carried.length) return code
+  const norm = s => s.replace(/\s+/g, '').replace(/;$/, '')
+  const mine = new Map(carried.map(h => [h.name, norm(h.src)]))
+  let out = code
+  for (const h of extractHelpers(code)) if (mine.get(h.name) === norm(h.src)) out = out.replace(h.src.replace(/;$/, ''), '').replace(/^\s*;\s*$/m, '')
+  return out.replace(/\n{3,}/g, '\n\n').trim()
+}
+
+/** A carried helper with how it did this battle, for consolidation: `// used 6×, 5 hits` above it. */
+const annotated = (helpers, stats = {}) => helpers.map(h => (stats[h.name] ? `// ${h.name}: used ${stats[h.name].used}×, ${stats[h.name].hits} hit${stats[h.name].hits === 1 ? '' : 's'}\n` : '') + h.src).join('\n')
+
+/** The end-of-battle prompt: rewrite your long-term memory to fit. stats = { name: { used, hits } } this battle. */
+export function consolidatePrompt({ self, lib, work, cap, stats = {} }) {
+  const all = annotated(mergeHelpers(lib, work), stats)
   const system = [`You are ${self.name}, a level ${self.level} Pokémon. You fight by writing JavaScript.`,
     'Reply with only one JavaScript code block. No words outside it.'].join('\n')
   const user = [`The battle is over. You can keep at most ${cap} characters of helpers for future battles: your long-term memory.`,
     all ? `What you carry now (your long-term memory, then what you kept this battle):\n${all}` : 'You carry nothing yet.',
-    `Write the helpers you want to keep: only functions or consts whose names start with my, at most ${cap} characters in all.`,
+    `Write the helpers you want to keep: only functions or consts whose names start with my, at most ${cap} characters in all (comments count).`,
+    'Each foe type sends its data in its own format: a helper that reads one format is wrong for the others, so name it for its format (myReadPoison).',
     'Every character you keep is a character less for your moves. Keep what will help you read data and fight next time; drop the rest.'].join('\n')
   return { system, user }
 }
 
 /** What the prompt tells a Pokémon about its memory this turn. */
-export function memoryLines({ lib = [], work = [] }) {
+export function memoryLines({ lib = [], work = [], type = '' }) {
   const all = mergeHelpers(lib, work)
   return [
-    ...(all.length ? [`- Your memory (already defined, call them by name):\n${helpersSource(all)}`] : []),
-    '- To keep a helper for the rest of this battle, define it outside your function with a name starting with my (function myRead(data){…}). What you carry costs bytes from your budget.',
+    ...(all.length ? [`- Helpers you carry (already defined: call them, don't write them again):\n${helpersSource(all)}`] : []),
+    `- Optional: to keep a helper for the rest of this battle, define it outside your function and name it for this format, e.g. function myRead${type ? type[0] + type.slice(1).toLowerCase() : 'Data'}(data){…}. Keep it short: what you carry costs bytes from your budget.`,
   ]
 }

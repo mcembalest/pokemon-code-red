@@ -241,11 +241,11 @@ test('one context budget: the memory it carries and your note cost bytes; the co
   assert.equal(log.begin[0]!.memoryCost, 'always use const; never use var'.length)
   assert.match(seen[0]!, /- Your notes: always use const; never use var/)
   assert.match(seen[0]!, new RegExp(`at most ${350 - 31} characters`))
-  assert.match(seen[0]!, /name starting with my/)
   // the helper it kept costs bytes on the next turn, and the prompt shows it
   g.request({ pid: 111 }); await b.poll()
   assert.ok(log.begin[1]!.memoryCost > 31 + 20, 'helper + notes')
-  assert.match(seen[1]!, /Your memory \(already defined, call them by name\):\nfunction myReadWater\(/)
+  assert.match(seen[1]!, /Helpers you carry \(already defined: call them, don't write them again\):\nfunction myReadWater\(/)
+  assert.match(seen[0]!, /name it for this format, e\.g\. function myReadWater\(data\)/)
 })
 
 test('a long note can push correct code over budget: that is the trade-off', async () => {

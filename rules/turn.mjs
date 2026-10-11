@@ -91,7 +91,7 @@ export function turnPrompt({ self, target, move, type, know = null, budget, tuto
     move.payload
       ? `- ${move.fn} returns ${move.spec}. ${HOW[move.payload.kind]}\n- One way to write it in ${self.name}'s own voice, after reading ${words.v} (make it your own: change the numbers, the timing, the shape; any version with that character hits):\n${line(`function ${move.fn}(data){const nums=…;${exampleBody(move.payload, self.name)}}`)}`
       : `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(WORKED)} it returns ${JSON.stringify(move.ref(WORKED))}.`,
-    ...(memory && !tutorial ? memoryLines(memory) : []),
+    ...(memory && !tutorial ? memoryLines({ ...memory, type: type === 'NORMAL' ? '' : type }) : []),
     ...(hot ? [`- Your notes: ${hot}`] : []),
     `- Byte budget: your whole code block must be at most ${codeBudget(budget, ctx)} characters, comments included${contextCost(ctx) ? ` (${budget} minus the ${contextCost(ctx)} your memory takes)` : ''}.`].join('\n')
   return { system, user }

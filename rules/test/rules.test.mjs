@@ -245,3 +245,13 @@ test('memory is code: my… helpers are found at any depth, skipping strings and
   assert.ok(helpersSize(fit) <= 50 && fit.at(-1).name === 'myRead')
   assert.equal(libCap(5), 105); assert.equal(libCap(40), 280)
 })
+
+test('memory: re-writing a carried helper costs nothing; consolidation sees how each helper did', async () => {
+  const { withoutCarried, consolidatePrompt } = await import('../memory.mjs')
+  const carried = [{ name: 'myReadPoison', src: "function myReadPoison(d){return d.split('x').filter(Boolean).map(Number)}" }]
+  assert.equal(withoutCarried("function myReadPoison(d) { return d.split('x').filter(Boolean).map(Number) }\nfunction ping(data){return myReadPoison(data).length}", carried), 'function ping(data){return myReadPoison(data).length}')
+  assert.match(withoutCarried('function myReadPoison(d){return 1}\nfunction ping(d){}', carried), /return 1/, 'a changed helper is new code')
+  const p = consolidatePrompt({ self: { name: 'BULBASAUR', level: 7 }, lib: [], work: carried, cap: 115, stats: { myReadPoison: { used: 6, hits: 5 } } })
+  assert.match(p.user, /\/\/ myReadPoison: used 6×, 5 hits\nfunction myReadPoison/)
+  assert.match(p.user, /at most 115 characters/)
+})
