@@ -1,4 +1,4 @@
 {
  "seeds": [0, 1],
- "note": "Memory is code v7: working memory carries the last turn’s result (a calm Pokémon repeated the same wrong reader 236 turns). Sim half only, 45 min per seed."
+ "note": "Memory is code v8: the last-turn line is short and free (v7 charged 100+ bytes and doubled over-budget misses). Sim half only, 45 min per seed."
 }

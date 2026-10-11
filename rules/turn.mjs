@@ -4,7 +4,7 @@
 // No sandbox here: callers run the sources this module builds (kernel runBlock in Node, the QuickJS runner in the page).
 import { EXAMPLE_BYTES, FORMATS, HINTS, example, show } from './formats.mjs'
 import { HOW, exampleBody, payloadBytes } from './payload.mjs'
-import { lastTurnLine, memoryLines } from './memory.mjs'
+import { memoryLines } from './memory.mjs'
 
 /** The worked example every move description shows: on these numbers it returns ... */
 export const WORKED = [42, 13, 140, 77]
@@ -76,7 +76,7 @@ export const codeBudget = (budget, ctx) => Math.max(40, budget - contextCost(ctx
 export function turnPrompt({ self, target, move, type, know = null, budget, tutorial = false, words = WORDS, hot = '', memory = null }) {
   // memory = { lib, work } (rules/memory.mjs) for your Pokémon; null for foes and the tutorial
   // Helpers cost only when called (rules/memory.mjs): the budget shown is before them. The last-turn line costs its bytes.
-  const ctx = { know, hot, memory: memory && !tutorial ? lastTurnLine(memory.last) : '' }
+  const ctx = { know, hot }
   const system = [`You are ${self.name}, a level ${self.level} Pokémon. You fight by writing JavaScript.`,
     `When ${self.wild ? 'you pick' : 'your trainer calls'} a move, you write the code for it, then stop.`,
     'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.'].join('\n')

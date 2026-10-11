@@ -8,7 +8,7 @@
 import {
   BADGES, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, notchOf,
   rng, stageOf, targetBytes, tokenCapFor, turnData, turnPrompt, turnType,
-  type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged, type Helper, type LastTurn, lastTurnLine,
+  type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged, type Helper, type LastTurn,
   checkSource, consolidatePrompt, readerType, recall, extractHelpers, withoutCarried, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
@@ -221,7 +221,7 @@ export class CodeBattle {
     const doubt = side === 0 && req.calledSlot ? { called: this.options.calledMove?.(req) ?? null } : null
     const notch = notchOf(req.attackerStages)
     const budget = budgetAt(req.attackerLevel, { stage, badges, notch })
-    const memoryCost = contextCost({ know, hot, memory: lastTurnLine(last) }) // + the helpers its code calls, known once it has written it
+    const memoryCost = contextCost({ know, hot }) // + the helpers its code calls, known once it has written it
     const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, know, budget, tutorial, hot, memory: remembers ? { lib, work, last } : null })
 
     this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}), ...(doubt ? { doubt } : {}), ...(carried.length ? { recalls: carried } : {}) })
@@ -242,7 +242,7 @@ export class CodeBattle {
     // Re-writing a helper it already carries costs nothing: it is defined already. Calling one costs its size.
     const judged = remembers ? withoutCarried(code, mergeHelpers(lib, work)) : code
     const used = judged ? carried.filter(n => new RegExp(`(?<!(?:function|const|let|var)\\s+)\\b${n}\\b`).test(judged)) : []
-    const charged = lastTurnLine(last) + helpersSource(mergeHelpers(lib, work).filter(h => used.includes(h.name)))
+    const charged = helpersSource(mergeHelpers(lib, work).filter(h => used.includes(h.name)))
     const v: Judged = await judge({ move, bytes, data, code: judged, budget: codeBudget(budget, { know, hot, memory: charged }), runSource, prelude })
     // Working memory: the my… helpers its code defined, kept for the battle if they check out. A reader is checked on
     // its own (it must read this format right), so a right reader under a wrong answer is still kept; other helpers

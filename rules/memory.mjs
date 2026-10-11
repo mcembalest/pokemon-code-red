@@ -162,13 +162,15 @@ export function consolidatePrompt({ self, lib, work, cap, stats = {} }) {
  *  myReadFlying on BUG data and crashed). */
 export const recall = (helpers, type) => helpers.filter(h => { const t = readerType(h.name); return t ? t === type : true })
 
-/** The last turn, as working memory remembers it: one line it carries into its next prompt (costs its bytes).
+/** The last turn, as working memory remembers it: one short line in its next prompt. Free (it is what just happened
+ *  to it, not bytes it chose to carry: v7 charged it and a shaken level-6 Pokémon had no room left for a payload move).
  *  v6 measured: a calm (low-temperature) Pokémon wrote the same wrong reader 236 turns running with no word of it. */
 export function lastTurnLine(last) {
   if (!last) return ''
+  const clip = (s, n = 24) => (s = String(s), s.length > n ? s.slice(0, n - 1) + '…' : s)
   const what = `${last.move} on ${last.type === 'NORMAL' ? 'plain' : last.type} data`
   if (last.verdict === 'hit') return `- Last turn: ${what} hit.`
-  const why = last.reason === 'wrong answer' && last.got !== undefined ? `returned ${last.got}, needed ${last.want}` : last.reason === 'crashed' && last.error ? `crashed: ${last.error}` : last.reason ?? 'missed'
+  const why = last.reason === 'wrong answer' && last.got !== undefined ? `got ${clip(last.got)}, needed ${clip(last.want)}` : last.reason === 'crashed' && last.error ? `crashed: ${clip(last.error, 40)}` : last.reason ?? 'missed'
   return `- Last turn: ${what} missed (${why}). Do it differently.`
 }
 
