@@ -6,7 +6,9 @@
 //                    carries and rewrites its long-term memory to fit its cap, which grows with level. It may lose
 //                    things (owner: "consolidation can lose things yes"). Only code that compiles is kept.
 //   your note        the text the trainer pins in the PokÉEG (hot memory).
-// Both kinds of helpers are defined before the move's code runs, so it can call them. Foes carry none (pure instinct).
+// Both kinds of helpers are defined before the move's code runs, so it can call them. A helper costs its size only on a
+// turn the code calls it (the one-context-budget rule of 2026-10-08: memory costs when used; carrying everything up front
+// left a level-6 Pokémon too few bytes: v2 measured). Foes carry none (pure instinct).
 // No parser dependency: a small scanner that skips strings and comments finds the definitions.
 
 /** Long-term memory cap in characters: 105 at level 5, 180 at 20, 280 at 40 (a level-5 Pokémon can keep about one reader). */
@@ -136,7 +138,7 @@ export function consolidatePrompt({ self, lib, work, cap, stats = {} }) {
 export function memoryLines({ lib = [], work = [], type = '' }) {
   const all = mergeHelpers(lib, work)
   return [
-    ...(all.length ? [`- Helpers you carry (already defined: call them, don't write them again):\n${helpersSource(all)}`] : []),
-    `- Optional: to keep a helper for the rest of this battle, define it outside your function and name it for this format, e.g. function myRead${type ? type[0] + type.slice(1).toLowerCase() : 'Data'}(data){…}. Keep it short: what you carry costs bytes from your budget.`,
+    ...(all.length ? [`- Helpers you carry (already defined: call them, don't write them again; each one you call costs its size from your budget):\n${helpersSource(all)}`] : []),
+    `- Optional: to keep a helper for the rest of this battle, define it outside your function and name it for this format, e.g. function myRead${type ? type[0] + type.slice(1).toLowerCase() : 'Data'}(data){…}. Keep it short: a helper costs its size every time you call it.`,
   ]
 }

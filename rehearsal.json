@@ -1,4 +1,4 @@
 {
  "seeds": [0, 1],
- "note": "Memory is code v2: helpers named per format, re-writing carried helpers costs nothing, working memory ≤ ¼ budget, consolidation sees per-helper stats. Sim half only."
+ "note": "Memory is code v3: helpers cost only when called (v2 charged all carried bytes up front: stalemates). Sim half only, 45 min per seed."
 }

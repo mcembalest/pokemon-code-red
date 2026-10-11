@@ -210,7 +210,7 @@ export class CodeBattle {
     const doubt = side === 0 && req.calledSlot ? { called: this.options.calledMove?.(req) ?? null } : null
     const notch = notchOf(req.attackerStages)
     const budget = budgetAt(req.attackerLevel, { stage, badges, notch })
-    const memoryCost = contextCost({ know, hot, memory: prelude })
+    const memoryCost = contextCost({ know, hot }) // + the helpers its code calls, known once it has written it
     const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, know, budget, tutorial, hot, memory: remembers ? { lib, work } : null })
 
     this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}), ...(doubt ? { doubt } : {}) })
@@ -228,9 +228,11 @@ export class CodeBattle {
     }
     const { code } = extractCode(text)
     const runSource = (source: string) => this.sandbox.run(source, '{}')
-    // Re-writing a helper it already carries costs nothing: it is defined already.
+    // Re-writing a helper it already carries costs nothing: it is defined already. Calling one costs its size.
     const judged = remembers ? withoutCarried(code, mergeHelpers(lib, work)) : code
-    const v: Judged = await judge({ move, bytes, data, code: judged, budget: codeBudget(budget, { know, hot, memory: prelude }), runSource, prelude })
+    const used = judged ? carried.filter(n => new RegExp(`(?<!(?:function|const|let|var)\\s+)\\b${n}\\b`).test(judged)) : []
+    const charged = helpersSource(mergeHelpers(lib, work).filter(h => used.includes(h.name)))
+    const v: Judged = await judge({ move, bytes, data, code: judged, budget: codeBudget(budget, { know, hot, memory: charged }), runSource, prelude })
     // Working memory: the my… helpers its code defined, from code that ran (a hit, or a wrong answer), kept for the battle.
     let kept: string[] | undefined
     if (remembers && code && (v.hit || v.reason === 'wrong answer')) {
@@ -244,7 +246,6 @@ export class CodeBattle {
     }
     if (remembers && !this.work.has(pid)) this.work.set(pid, { name: attacker, level: req.attackerLevel, helpers: [], stats: {} })
     else if (remembers) this.work.get(pid)!.level = req.attackerLevel
-    const used = code ? carried.filter(n => new RegExp(`(?<!(?:function|const|let|var)\\s+)\\b${n}\\b`).test(code)) : []
     const usedMemory = used.length > 0
     if (remembers) { const st = this.work.get(pid)!.stats; for (const n of used) { const e = (st[n] ??= { used: 0, hits: 0 }); e.used++; if (v.hit) e.hits++ } }
     const verdict: Verdict = v.hit ? 'hit' : 'miss'
@@ -254,7 +255,7 @@ export class CodeBattle {
     await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s code hit!` : missText(attacker, reason ?? 'crashed'), ...(v.got ? { detail: `returned ${v.got}, needed ${v.want}` } : v.error ? { detail: v.error } : {}) })
     this.mailbox.reply(req, verdict, reason ?? 'crashed')
     if (side === 0) this.memory.remember?.(req.attackerPersonality, { at: Date.now(), move: move.name, type, target, verdict, ...(reason ? { reason } : {}), notch, budget, code: (code ?? '').slice(0, 1200) })
-    this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}), ...(v.hit && made ? { payload: made.kind } : {}), ...(doubt ? { doubted: doubt.called ?? '?' } : {}), ...(remembers ? { memory: memoryCost, carried, usedMemory, ...(kept ? { kept } : {}) } : {}) })
+    this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}), ...(v.hit && made ? { payload: made.kind } : {}), ...(doubt ? { doubted: doubt.called ?? '?' } : {}), ...(remembers ? { memory: memoryCost + charged.length, carried, usedMemory, ...(kept ? { kept } : {}) } : {}) })
   }
 }
 

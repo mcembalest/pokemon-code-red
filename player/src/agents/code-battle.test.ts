@@ -112,7 +112,8 @@ test('memory is code: my… helpers it defines stay for the battle, then it cons
   assert.equal(log.begin[0]!.memoryCost, 0, 'carries nothing yet')
   assert.deepEqual(records[0]!.kept, ['myReadWater'], 'it kept the helper it wrote')
   g.request({ pid: 111 }); await b.poll()
-  assert.ok(log.begin[1]!.memoryCost > 20, 'working memory costs bytes')
+  assert.equal(log.begin[1]!.memoryCost, 0, 'carrying is free')
+  assert.ok(records[1]!.memory! > 20, 'calling a helper costs its size')
   assert.deepEqual(records[1]!.carried, ['myReadWater']); assert.equal(records[1]!.usedMemory, true); assert.equal(log.end[1]!.verdict, 'hit')
   assert.deepEqual(mem.lib(111), [], 'nothing long-term until the battle ends')
   await b.battleOver()
@@ -231,7 +232,7 @@ test('status moves hit the code: Growl on the attacker shakes it (smaller budget
   const r = g.mailbox.snapshot.bind(g.mailbox); g.request({ stages: -3 }); assert.equal(r()!.attackerStages, -3, 'signed byte read')
 })
 
-test('one context budget: the memory it carries and your note cost bytes; the code must fit in the rest', async () => {
+test('one context budget: your note costs bytes, a helper costs when called; the code must fit in the rest', async () => {
   const g = game(), { panel, log } = fakePanel(), mem = store()
   const seen: string[] = []
   const spy: CodeWriter = { async write(p, onText) { seen.push(p.user); return mockWriter({ missEvery: 99, delay: instant }).write(p, onText) } }
@@ -243,8 +244,8 @@ test('one context budget: the memory it carries and your note cost bytes; the co
   assert.match(seen[0]!, new RegExp(`at most ${350 - 31} characters`))
   // the helper it kept costs bytes on the next turn, and the prompt shows it
   g.request({ pid: 111 }); await b.poll()
-  assert.ok(log.begin[1]!.memoryCost > 31 + 20, 'helper + notes')
-  assert.match(seen[1]!, /Helpers you carry \(already defined: call them, don't write them again\):\nfunction myReadWater\(/)
+  assert.equal(log.begin[1]!.memoryCost, 31, 'carrying is free; the note always costs')
+  assert.match(seen[1]!, /Helpers you carry \(already defined: call them, don't write them again; each one you call costs its size from your budget\):\nfunction myReadWater\(/)
   assert.match(seen[0]!, /name it for this format, e\.g\. function myReadWater\(data\)/)
 })
 

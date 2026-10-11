@@ -75,8 +75,8 @@ export const codeBudget = (budget, ctx) => Math.max(40, budget - contextCost(ctx
 
 export function turnPrompt({ self, target, move, type, know = null, budget, tutorial = false, words = WORDS, hot = '', memory = null }) {
   // memory = { lib, work } (rules/memory.mjs) for your Pokémon; null for foes and the tutorial
-  const carried = memory ? helpersSource(mergeHelpers(memory.lib ?? [], memory.work ?? [])) : ''
-  const ctx = { know, hot, memory: carried }
+  // Helpers cost only when called (rules/memory.mjs): the budget shown is before them.
+  const ctx = { know, hot }
   const system = [`You are ${self.name}, a level ${self.level} Pokémon. You fight by writing JavaScript.`,
     `When ${self.wild ? 'you pick' : 'your trainer calls'} a move, you write the code for it, then stop.`,
     'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.'].join('\n')
