@@ -46,6 +46,7 @@ jobs:
           sim/build_core.sh
           python3 sim/make_states.py
       - name: Half 1 — power-on → Misty, the real models writing every move
+        if: hashFiles('rehearsal.json') != '' && !contains(github.event.head_commit.message, '[live only]')
         env:
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
