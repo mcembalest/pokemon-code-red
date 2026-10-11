@@ -1,4 +1,1 @@
-{
- "seed": 2,
- "note": "Run 3: seed 2; D1 id resolved like the deploy job."
-}
+{ "seed": 4, "note": "Run 5 (live only): payload moves after #33." }
