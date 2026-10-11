@@ -99,15 +99,21 @@ class Battle:
 
     # ---- menu driving
     def _cursor_to(self, cursor_sym: str, target: int) -> None:
+        """Move a 2×2 menu cursor. The game won't move onto an empty move slot, so when one axis is blocked
+        (2 → 1 past an empty slot 3), go the other way round (2 → 0 → 1)."""
         g = self.g
-        for _ in range(4):
+        vertical_first = False
+        for _ in range(8):
             cur = g.u8(g.sym(cursor_sym))
             if cur == target:
                 return
-            if (cur & 1) != (target & 1):
-                g.press('RIGHT' if target & 1 else 'LEFT', hold=2, after=4)
-            elif (cur >> 1) != (target >> 1):
+            col, row = (cur & 1) != (target & 1), (cur >> 1) != (target >> 1)
+            if row and (vertical_first or not col):
                 g.press('DOWN' if target >> 1 else 'UP', hold=2, after=4)
+            else:
+                g.press('RIGHT' if target & 1 else 'LEFT', hold=2, after=4)
+            if g.u8(g.sym(cursor_sym)) == cur:  # blocked: try the other axis next
+                vertical_first = not vertical_first
 
     def act(self, action: int) -> None:
         self._cursor_to('gActionSelectionCursor', action)

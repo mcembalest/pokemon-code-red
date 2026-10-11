@@ -59,6 +59,12 @@ def main():
     OUT = Path(args.out)
     OUT.mkdir(parents=True, exist_ok=True)
     g = World()
+    # Debugging a stuck run: `kill -USR1 <pid>` saves a screenshot and the Python stack next to the results.
+    import signal, traceback
+    def dump(_sig, frame):
+        g.screenshot(OUT / f'stuck-{g.frame}.png')
+        (OUT / f'stuck-{g.frame}.txt').write_text(''.join(traceback.format_stack(frame)) + f'\nmap {g.map()} in_battle {g.in_battle()}\n' + (json.dumps({k: v for k, v in Battle(g).mon(0).items() if k in ('species', 'moves', 'pp', 'hp')}) + ' cursor ' + str(g.u8(g.sym('gMoveSelectionCursor'))) if g.in_battle() else ''))
+    signal.signal(signal.SIGUSR1, dump)
     host = BrainHost(g, OUT / 'turns.jsonl', mock=args.mock)
     host.attach()
     # Raw states at the first action menu of every gym battle (the browser rehearsal loads them).

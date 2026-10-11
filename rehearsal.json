@@ -1,4 +1,4 @@
 {
  "seeds": [0, 1],
- "note": "Memory is code v4: kept only from hits and only if it checks out (a myRead<Format> helper must read its format right). Sim half only, 45 min per seed."
+ "note": "Memory is code v4: kept only from hits and only if it checks out (a myRead<Format> helper must read its format right). Sim half only, 45 min per seed. Rerun after the sim cursor fix (stuck on an empty move slot once PP ran out)."
 }
