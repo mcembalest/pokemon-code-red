@@ -121,7 +121,7 @@ test('learning: only verified readers; most recent kept within slots; Pokédex t
   assert.deepEqual(readers, { GRASS: 'g', WATER: 'w2' }, 'refresh moves it to the end')
 })
 
-test('growth: focus calms, budget and slots grow, evolution jumps, badges teach', () => {
+test('growth: focus calms, budget and slots grow, evolution jumps', () => {
   assert.equal(focusAt(5), 0.8)
   assert.ok(Math.abs(focusAt(15) - 0.5) < 1e-9)
   assert.equal(focusAt(40), 0.3)
@@ -131,7 +131,7 @@ test('growth: focus calms, budget and slots grow, evolution jumps, badges teach'
   assert.equal(slotsAt(5), 2)
   assert.equal(slotsAt(14), 5)
   assert.equal(slotsAt(16, { stage: 1 }), 8)
-  assert.deepEqual(partyDex({ seen: ['WATER'], badges: ['BOULDER'] }).sort(), ['GROUND', 'ROCK', 'WATER'])
+  assert.deepEqual(partyDex({ seen: ['WATER'], badges: ['BOULDER'] }), ['WATER']) // badges teach no readers since 2026-10-11 (partyDex: labs only)
   assert.deepEqual(BADGES.CASCADE, { budget: 50 })
 })
 
@@ -230,4 +230,53 @@ test('doubt: the chance it uses its own pick is ½ × how much worse your call i
   const rom = new Uint8Array([10, 12, 20, 0xFE, 0xFE, 0, 11, 10, 5, 0xFF])
   const eff = typeChart(rom, 0)
   assert.equal(eff(10, [12, 12]), 2); assert.equal(eff(11, [10, 3]), 0.5); assert.equal(eff(0, [1]), 1)
+})
+
+test('memory is code: my… helpers are found at any depth, skipping strings and comments; fitting drops the oldest', async () => {
+  const { extractHelpers, mergeHelpers, fitHelpers, helpersSize, libCap } = await import('../memory.mjs')
+  const code = "// function myNot() {}\nfunction myRead(data) { return data.split('}').map(Number) }\nconst myMax = xs =>\n  Math.max(...xs)\nfunction slice(data) {\n  let myTmp = { a: '{' }\n  return 1\n}"
+  const h = extractHelpers(code)
+  assert.deepEqual(h.map(x => x.name), ['myRead', 'myMax', 'myTmp'])
+  assert.equal(h[1].src, 'const myMax = xs =>\n  Math.max(...xs);')
+  assert.equal(h[2].src, "const myTmp = { a: '{' };")
+  const merged = mergeHelpers(h, [{ name: 'myRead', src: 'const myRead = d => d;' }])
+  assert.deepEqual(merged.map(x => x.name), ['myMax', 'myTmp', 'myRead'])
+  const fit = fitHelpers(merged, 50)
+  assert.ok(helpersSize(fit) <= 50 && fit.at(-1).name === 'myRead')
+  assert.equal(libCap(5), 105); assert.equal(libCap(40), 280)
+})
+
+test('memory: re-writing a carried helper costs nothing; consolidation sees how each helper did', async () => {
+  const { withoutCarried, consolidatePrompt } = await import('../memory.mjs')
+  const carried = [{ name: 'myReadPoison', src: "function myReadPoison(d){return d.split('x').filter(Boolean).map(Number)}" }]
+  assert.equal(withoutCarried("function myReadPoison(d) { return d.split('x').filter(Boolean).map(Number) }\nfunction ping(data){return myReadPoison(data).length}", carried), 'function ping(data){return myReadPoison(data).length}')
+  assert.match(withoutCarried('function myReadPoison(d){return 1}\nfunction ping(d){}', carried), /return 1/, 'a changed helper is new code')
+  const p = consolidatePrompt({ self: { name: 'BULBASAUR', level: 7 }, lib: [], work: carried, cap: 115, stats: { myReadPoison: { used: 6, hits: 5 } } })
+  assert.match(p.user, /\/\/ myReadPoison: used 6×, 5 hits\nfunction myReadPoison/)
+  assert.match(p.user, /at most 115 characters/)
+})
+
+test('memory: a reading helper is kept only if it reads its format right', async () => {
+  const { checkSource, readerType } = await import('../memory.mjs')
+  const { runBlock } = await import('../../kernel/code.mjs')
+  assert.equal(readerType('myReadPoison'), 'POISON'); assert.equal(readerType('myMax'), null); assert.equal(readerType('myReadNormal'), null)
+  const helpers = [
+    { name: 'myReadPoison', src: "function myReadPoison(d){return d.split('x').filter(Boolean).map(Number)}" },
+    { name: 'myReadBug', src: "function myReadBug(d){return d.split(' ').map(Number)}" }, // wrong: BUG data is a list
+    { name: 'myMax', src: 'const myMax = xs => Math.max(...xs);' },
+  ]
+  const r = await runBlock(checkSource(helpers, { type: 'POISON', data: 'x10x20x', bytes: [10, 20] }), [])
+  assert.deepEqual(r.value, { myReadPoison: true, myReadBug: false, myMax: true })
+  const wrongToday = await runBlock(checkSource(helpers.slice(0, 1), { type: 'POISON', data: 'x10x20x', bytes: [10, 21] }), [])
+  assert.deepEqual(wrongToday.value, { myReadPoison: false })
+})
+
+test('memory: it recalls the reader for this turn’s format and its other helpers; a reader must name its format', async () => {
+  const { recall, memoryLines, checkSource } = await import('../memory.mjs')
+  const { runBlock } = await import('../../kernel/code.mjs')
+  const hs = [{ name: 'myReadPoison', src: 'function myReadPoison(d){return d}' }, { name: 'myReadBug', src: 'function myReadBug(d){return d}' }, { name: 'myMax', src: 'const myMax = 1;' }]
+  assert.deepEqual(recall(hs, 'BUG').map(h => h.name), ['myReadBug', 'myMax'])
+  assert.doesNotMatch(memoryLines({ lib: hs, type: 'BUG' }).join('\n'), /myReadPoison/)
+  const r = await runBlock(checkSource([{ name: 'myReadData', src: 'function myReadData(d){return d}' }]), [])
+  assert.deepEqual(r.value, { myReadData: false })
 })

@@ -10,7 +10,7 @@ export const GROWTH = {
 
 /** Badges teach: Boulder Badge = the ROCK and GROUND readers for the whole party; Cascade Badge = +50 bytes. */
 export const BADGES = {
-  BOULDER: { readers: ['ROCK', 'GROUND'] },
+  BOULDER: {}, // taught the ROCK and GROUND readers until readers went (owner, 2026-10-11)
   CASCADE: { budget: 50 },
 }
 
@@ -51,8 +51,8 @@ const STAGE_2 = ['VENUSAUR', 'CHARIZARD', 'BLASTOISE', 'BUTTERFREE', 'BEEDRILL',
   'POLIWRATH', 'ALAKAZAM', 'MACHAMP', 'VICTREEBEL', 'GOLEM', 'GENGAR', 'DRAGONITE']
 export const stageOf = species => (STAGE_2.includes(species) ? 2 : STAGE_1.includes(species) ? 1 : 0)
 
-/** Knowledge tiers (owner, 2026-10-08): the chance a foe's Pokémon can read any given format. Wild 0, ordinary
- *  trainers 0.5, gym leaders and the rival 1. Fixed per Pokémon and format for a whole battle (seeded). */
+/** RETIRED (owner, 2026-10-11: no readers; every foe writes on pure instinct). Knowledge tiers were the chance a foe's
+ *  Pokémon could read any given format: wild 0, trainers 0.5, bosses 1. Kept for the model labs only. */
 export const KNOWLEDGE = { wild: 0, trainer: 0.5, boss: 1 }
 /** FireRed trainer classes that count as bosses: Leader 84, Elite Four 87, Champion 90, rival 81/89, Boss (Giovanni) 83. */
 export const BOSS_CLASSES = new Set([81, 83, 84, 87, 89, 90])

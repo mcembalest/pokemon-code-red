@@ -483,7 +483,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       eegLink?.poll()
       let now = false
       try { now = reader.inBattle() } catch { /* memory not ready */ }
-      if (inBattle && !now) battle.battleOver()
+      if (inBattle && !now) void battle.battleOver() // your Pokémon consolidate their memory (model calls, in the background)
       inBattle = now
     }, 16)
     disposers.push(() => { clearInterval(poll); panel.dispose(); codeButton.hidden = true; codeButton.onclick = codeButton.onpointerdown = null })
@@ -693,7 +693,7 @@ function cloudWriter(assets: string, api: string, token: () => string): CodeWrit
   return {
     async write(prompt, onText) {
       const { k, models } = await load()
-      const modelId = prompt.meta.move.payload ? k.PAYLOAD_MODEL : k.BATTLE_MODEL // payload moves: a bigger coder
+      const modelId = prompt.meta.move?.payload ? k.PAYLOAD_MODEL : k.BATTLE_MODEL // payload moves: a bigger coder
       const { text } = await k.writeCode({ models, model: { provider: k.GAME_PROVIDER, modelId }, system: prompt.system, user: prompt.user, temperature: prompt.temperature, maxTokens: prompt.maxTokens, onText })
       return text
     },

@@ -40,17 +40,31 @@ def summarize(turns: list[dict], legs: list[dict], result: dict, wall: float) ->
         'payloads_delivered': sum(1 for t in turns if t.get('payload_kind')),
         'by_move': {m: {'n': len(ts), 'hit': rate(ts)} for m, ts in sorted(by_move.items(), key=lambda kv: -len(kv[1]))},
         'tokens': tokens, 'tokens_mine': sum((t.get('usage') or {}).get('input', 0) + (t.get('usage') or {}).get('output', 0) for t in mine),
+        # memory is code (2026-10-11): how often your code called a helper it carried, and how that went
+        'memory_used': round(sum(1 for t in mine if t.get('usedMemory')) / max(1, len(mine)), 3),
+        'hit_with_memory': rate([t for t in mine if t.get('usedMemory')]),
+        'hit_without_memory': rate([t for t in mine if not t.get('usedMemory') and not t.get('tutorial')]),
+        'memory_bytes_mean': round(sum(t.get('memory') or 0 for t in mine) / max(1, len(mine))),
         'model_wait_seconds': round(sum(waits)), 'wait_median': waits[len(waits) // 2] if waits else 0, 'wait_p90': waits[int(len(waits) * 0.9)] if waits else 0,
     }
 
 
 def main():
+    global OUT
     ap = argparse.ArgumentParser()
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--mock', action='store_true')
+    ap.add_argument('--out', default=str(OUT), help='where turns.jsonl / summary.json go (one dir per parallel run)')
     args = ap.parse_args()
+    OUT = Path(args.out)
     OUT.mkdir(parents=True, exist_ok=True)
     g = World()
+    # Debugging a stuck run: `kill -USR1 <pid>` saves a screenshot and the Python stack next to the results.
+    import signal, traceback
+    def dump(_sig, frame):
+        g.screenshot(OUT / f'stuck-{g.frame}.png')
+        (OUT / f'stuck-{g.frame}.txt').write_text(''.join(traceback.format_stack(frame)) + f'\nmap {g.map()} in_battle {g.in_battle()}\n' + (json.dumps({k: v for k, v in Battle(g).mon(0).items() if k in ('species', 'moves', 'pp', 'hp')}) + ' cursor ' + str(g.u8(g.sym('gMoveSelectionCursor'))) if g.in_battle() else ''))
+    signal.signal(signal.SIGUSR1, dump)
     host = BrainHost(g, OUT / 'turns.jsonl', mock=args.mock)
     host.attach()
     # Raw states at the first action menu of every gym battle (the browser rehearsal loads them).
@@ -85,6 +99,9 @@ def main():
     finally:
         host.close()
     s = summarize(host.turns, legs, result, time.time() - t0)
+    s['consolidations'] = len(host.memories)
+    s['consolidations_kept_bytes'] = [sum(len(h['src']) for h in m.get('after') or []) for m in host.memories]
+    s['tokens'] += sum((m.get('usage') or {}).get('input', 0) + (m.get('usage') or {}).get('output', 0) for m in host.memories)
     s['gym_states'] = sorted(saved)
     (OUT / 'summary.json').write_text(json.dumps(s, indent=1, default=str))
     print(json.dumps({k: v for k, v in s.items() if k not in ('legs', 'party')}, indent=1, default=str))

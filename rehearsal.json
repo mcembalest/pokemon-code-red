@@ -1,4 +1,4 @@
 {
- "seed": 2,
- "note": "Run 3: seed 2; D1 id resolved like the deploy job."
+ "seeds": [0, 1],
+ "note": "Memory is code v8 (shipped). Run from a branch to rehearse."
 }

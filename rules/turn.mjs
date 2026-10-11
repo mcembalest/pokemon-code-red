@@ -4,6 +4,7 @@
 // No sandbox here: callers run the sources this module builds (kernel runBlock in Node, the QuickJS runner in the page).
 import { EXAMPLE_BYTES, FORMATS, HINTS, example, show } from './formats.mjs'
 import { HOW, exampleBody, payloadBytes } from './payload.mjs'
+import { memoryLines } from './memory.mjs'
 
 /** The worked example every move description shows: on these numbers it returns ... */
 export const WORKED = [42, 13, 140, 77]
@@ -36,8 +37,10 @@ export const turnType = (r, types) => types[Math.floor(r() * types.length)]
 // ---------- what the attacker knows ----------
 
 /**
- * How the attacker can read this type, if it knows: the party's Pokédex first (shared; includes badge readers),
- * then its own memory (readers learned from verified hits). dex = list of types; readers = { TYPE: line }.
+ * How the attacker can read this type, if it remembers (owner, 2026-10-11: no readers handed out — no Pokédex
+ * readers, no badge readers, nothing for foes; a Pokémon reads a format by instinct from its description, or from
+ * memory: the reading line of its own past hit on that format, verified). readers = { TYPE: line }.
+ * dex is kept for the model labs' old runs; the game passes none.
  */
 export function knowFor(type, { dex = [], readers = {} } = {}) {
   if (dex.includes(type)) return { from: 'dex', line: HINTS[type] }
@@ -66,11 +69,14 @@ export const WORDS = { data: 'numbers', v: 'nums' }
  * against the byte budget; the code must fit in what's left. Memory slots are gone: a Pokémon may remember any
  * number of readers, each costs only when used.
  */
-export const contextCost = ({ know = null, hot = '' } = {}) => (know ? know.line.length : 0) + (hot ? hot.length : 0)
+export const contextCost = ({ know = null, hot = '', memory = '' } = {}) => (know ? know.line.length : 0) + (hot ? hot.length : 0) + (memory ? memory.length : 0)
 /** The budget left for the code itself. */
 export const codeBudget = (budget, ctx) => Math.max(40, budget - contextCost(ctx))
 
-export function turnPrompt({ self, target, move, type, know = null, budget, tutorial = false, words = WORDS, hot = '' }) {
+export function turnPrompt({ self, target, move, type, know = null, budget, tutorial = false, words = WORDS, hot = '', memory = null }) {
+  // memory = { lib, work } (rules/memory.mjs) for your Pokémon; null for foes and the tutorial
+  // Helpers cost only when called (rules/memory.mjs): the budget shown is before them. The last-turn line costs its bytes.
+  const ctx = { know, hot }
   const system = [`You are ${self.name}, a level ${self.level} Pokémon. You fight by writing JavaScript.`,
     `When ${self.wild ? 'you pick' : 'your trainer calls'} a move, you write the code for it, then stop.`,
     'Reply with only one JavaScript code block. No words outside it. Comments inside are fine.'].join('\n')
@@ -85,8 +91,9 @@ export function turnPrompt({ self, target, move, type, know = null, budget, tuto
     move.payload
       ? `- ${move.fn} returns ${move.spec}. ${HOW[move.payload.kind]}\n- One way to write it in ${self.name}'s own voice, after reading ${words.v} (make it your own: change the numbers, the timing, the shape; any version with that character hits):\n${line(`function ${move.fn}(data){const nums=…;${exampleBody(move.payload, self.name)}}`)}`
       : `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(WORKED)} it returns ${JSON.stringify(move.ref(WORKED))}.`,
+    ...(memory && !tutorial ? memoryLines({ ...memory, type }) : []),
     ...(hot ? [`- Your notes: ${hot}`] : []),
-    `- Byte budget: your whole code block must be at most ${codeBudget(budget, { know, hot })} characters, comments included${contextCost({ know, hot }) ? ` (${budget} minus the ${contextCost({ know, hot })} your memory takes)` : ''}.`].join('\n')
+    `- Byte budget: your whole code block must be at most ${codeBudget(budget, ctx)} characters, comments included${contextCost(ctx) ? ` (${budget} minus the ${contextCost(ctx)} your memory takes)` : ''}.`].join('\n')
   return { system, user }
 }
 
@@ -119,9 +126,11 @@ export function definedName(code, fn) {
 }
 
 /** Source that calls the Pokémon's function on the data and returns its answer. The block may also be just a function body. */
-export function answerSource(code, move, data) {
+export function answerSource(code, move, data, prelude = '') {
   const name = definedName(code, move.fn)
-  return `return (function (data) {\n${code}\n;return typeof ${name} === 'function' ? ${name}(data) : undefined\n})(${JSON.stringify(data)})`
+  const inner = `(function (data) {\n${code}\n;return typeof ${name} === 'function' ? ${name}(data) : undefined\n})`
+  // Memory (rules/memory.mjs) is defined in an outer scope: the code can call it, and may redefine a helper of the same name.
+  return prelude ? `return (function (data) {\n${prelude}\n;return ${inner}(data)\n})(${JSON.stringify(data)})` : `return ${inner}(${JSON.stringify(data)})`
 }
 
 /** Before running: is there code, and does it fit the budget? Returns a miss, or null to go on. */
@@ -145,10 +154,10 @@ export function verdict(move, bytes, run) {
 }
 
 /** All of it: precheck → run the answer source → verdict. runSource(source) → Promise<{ ok, value, error }>. */
-export async function judge({ move, bytes, data, code, budget, runSource }) {
+export async function judge({ move, bytes, data, code, budget, runSource, prelude = '' }) {
   const early = precheck(code, budget)
   if (early) return early
-  return verdict(move, bytes, await runSource(answerSource(code, move, data)))
+  return verdict(move, bytes, await runSource(answerSource(code, move, data, prelude)))
 }
 
 /** What the battle text box says after a miss. */
@@ -178,7 +187,7 @@ export function learn(readers, type, line, slots = Infinity) {
 /** Learn from a hit, if the hit's reader checks out. Pokédex types are not memorized. Returns new readers. */
 export async function learnFromHit({ readers, type, code, data, bytes, slots = Infinity, dex = [], runSource }) {
   const line = readerLine(code)
-  if (!line || dex.includes(type)) return readers
+  if (!line || dex.includes(type)) return readers // dex: labs only (the game passes none)
   return readsRight(await runSource(readerSource(line, data)), bytes) ? learn(readers, type, line, slots) : readers
 }
 

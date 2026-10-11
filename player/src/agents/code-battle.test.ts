@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { GbaMemory, fakeCore } from '../bridge/memory.ts'
 import { CodeMoveMailbox, MOVE_MAGIC } from '../bridge/code-move.ts'
 import { PayloadMailbox } from '../bridge/payload.ts'
-import { CodeBattle, localCodeMemory, mockWriter, type CodeWriter, type Panel, type Sandbox, type TurnInfo, type TurnRecord, type TurnResult } from './code-battle.ts'
+import { CodeBattle, type RememberRecord, localCodeMemory, mockWriter, type CodeWriter, type Panel, type Sandbox, type TurnInfo, type TurnRecord, type TurnResult } from './code-battle.ts'
 
 const AT = 0x0203f4d0
 const sandbox: Sandbox = { async run(source) { try { return { ok: true, value: new Function(source)() } } catch (e) { return { ok: false, error: String(e) } } } }
@@ -103,32 +103,66 @@ test('a retry after one failure still plays the code', async () => {
   assert.equal(g.reply().verdict, 1)
 })
 
-test('learning: a verified reader is remembered by that Pokémon; the Pokédex fills after the battle', async () => {
+test('memory is code: my… helpers it defines stay for the battle, then it consolidates; another Pokémon starts fresh', async () => {
   const g = game(), { panel, log } = fakePanel(), mem = store()
-  const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem)
+  const records: TurnRecord[] = [], remembered: RememberRecord[] = []
+  const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem, { onTurn: r => records.push(r), onRemember: r => remembered.push(r) })
   await b.poll(); g.request({ pid: 111 }); await b.poll()
-  assert.deepEqual(Object.keys(mem.readers(111)), ['WATER'])
-  assert.deepEqual(mem.readers(999), {}, 'another Pokémon starts fresh')
+  assert.equal(log.begin[0]!.know, null, 'no readers handed out')
+  assert.equal(log.begin[0]!.memoryCost, 0, 'carries nothing yet')
+  assert.deepEqual(records[0]!.kept, ['myReadWater'], 'it kept the helper it wrote')
   g.request({ pid: 111 }); await b.poll()
-  assert.equal(log.begin[1]!.know, 'memory')
-  assert.deepEqual(mem.seen(), [], 'not in the Pokédex during the battle')
-  b.battleOver()
-  assert.deepEqual(mem.seen(), ['WATER'])
+  assert.equal(log.begin[1]!.memoryCost, 0, 'carrying helpers is free, and so is the last-turn line')
+  assert.ok(records[1]!.memory! > 20, 'calling a helper costs its size')
+  assert.deepEqual(records[1]!.carried, ['myReadWater']); assert.equal(records[1]!.usedMemory, true); assert.equal(log.end[1]!.verdict, 'hit')
+  assert.deepEqual(mem.lib(111), [], 'nothing long-term until the battle ends')
+  await b.battleOver()
+  assert.deepEqual(mem.lib(111).map(h => h.name), ['myReadWater'], 'consolidated into long-term memory')
+  assert.equal(remembered[0]!.ok, true); assert.equal(remembered[0]!.cap, 80 + 5 * 5)
   g.request({ pid: 999 }); await b.poll()
-  assert.equal(log.begin[2]!.know, 'dex', 'the Pokédex is shared by the party')
+  assert.equal(log.begin[2]!.memoryCost, 0, 'nothing shared between Pokémon')
+  g.request({ pid: 111 }); await b.poll()
+  assert.deepEqual(records[3]!.carried, ['myReadWater'], 'long-term memory rides into the next battle')
 })
 
-test('foes: wild ones know no readers; leaders and the rival read every format; ordinary trainers about half', async () => {
+test('consolidation can lose things: what does not compile or fit is gone; a failed call keeps the old memory', async () => {
+  const g = game(), { panel } = fakePanel(), mem = store()
+  mem.setLib(111, [{ name: 'myOld', src: 'const myOld = 1;' }])
+  let reply = '```js\nfunction myGood(d){return d}\nfunction myBad(d){ return (( }\nconst myHuge = "' + 'x'.repeat(200) + '";\n```'
+  const writer: CodeWriter = { async write(p, onText) { return p.meta.remember ? reply : mockWriter({ missEvery: 99, delay: instant }).write(p, onText) } }
+  const b = new CodeBattle(g.mailbox, names, writer, sandbox, panel, mem)
+  await b.poll(); g.request({ pid: 111 }); await b.poll()
+  await b.battleOver()
+  assert.deepEqual(mem.lib(111).map(h => h.name), ['myGood'], 'the old helper was dropped, the broken one and the oversized one too')
+  const failing: CodeWriter = { async write(p, onText) { if (p.meta.remember) throw new Error('offline'); return mockWriter({ missEvery: 99, delay: instant }).write(p, onText) } }
+  const c = new CodeBattle(g.mailbox, names, failing, sandbox, panel, mem)
+  await c.poll(); g.request({ pid: 111 }); await c.poll()
+  await c.battleOver()
+  assert.deepEqual(mem.lib(111).map(h => h.name), ['myGood'], 'no answer: memory unchanged')
+  reply = 'no code at all'
+})
+
+test('an old save: readers learned under the old rule become long-term helpers', async () => {
+  const g = game(), { panel } = fakePanel(), mem = store()
+  const records: TurnRecord[] = []
+  mem.setReaders(111, { WATER: "const nums = data.split('\\n').map(Number)" })
+  const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem, { onTurn: r => records.push(r) })
+  await b.poll(); g.request({ pid: 111 }); await b.poll()
+  assert.deepEqual(records[0]!.carried, ['myReadWater'])
+  assert.deepEqual(mem.readers(111), {})
+})
+
+test('foes write on pure instinct: wild, trainers, the rival and leaders alike', async () => {
   const g = game(), { panel, log } = fakePanel(), mem = store()
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem)
   await b.poll()
   g.request({ side: 1, attacker: 16, flags: 0 }); await b.poll()                 // wild PIDGEY
   assert.equal(log.begin[0]!.know, null); assert.equal(log.begin[0]!.wild, true)
   g.request({ side: 1, attacker: 7, flags: 0x8, cls: 81 }); await b.poll()       // the rival's SQUIRTLE
-  assert.equal(log.begin[1]!.know, 'dex')
-  const knows = new Set<string | null>()
-  for (let pid = 1; pid <= 12; pid++) { g.request({ side: 1, attacker: 7, flags: 0x8, cls: 2, pid: pid * 104729 }); await b.poll(); knows.add(log.begin.at(-1)!.know) }
-  assert.ok(knows.has('dex') && knows.has(null), 'an ordinary trainer reads some formats and not others')
+  assert.equal(log.begin[1]!.know, null)
+  g.request({ side: 1, attacker: 7, flags: 0x8, cls: 84 }); await b.poll()       // a gym leader
+  assert.equal(log.begin[2]!.know, null)
+  assert.deepEqual(mem.readers(0), {}, 'foes never learn')
 })
 
 test('the first battle is a tutorial: a plain list, no format', async () => {
@@ -142,11 +176,11 @@ test('the first battle is a tutorial: a plain list, no format', async () => {
   assert.equal(g.reply().verdict, 1)
 })
 
-test('badges teach: Boulder gives ROCK + GROUND readers, Cascade +50 bytes; evolution raises the budget', async () => {
+test('badges: Cascade +50 bytes, Boulder no readers any more; evolution raises the budget', async () => {
   const g = game(), { panel, log } = fakePanel()
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, store(), { badges: () => ['BOULDER', 'CASCADE'] })
   await b.poll(); g.request({ target: 74, types: [5, 4], attacker: 5, level: 16 }); await b.poll()
-  assert.equal(log.begin[0]!.know, 'dex')
+  assert.equal(log.begin[0]!.know, null)
   assert.equal(log.begin[0]!.budget, 300 + 160 + 100 + 50)
 })
 
@@ -198,7 +232,7 @@ test('status moves hit the code: Growl on the attacker shakes it (smaller budget
   const r = g.mailbox.snapshot.bind(g.mailbox); g.request({ stages: -3 }); assert.equal(r()!.attackerStages, -3, 'signed byte read')
 })
 
-test('one context budget: the reader it uses and its hot memory cost bytes; the code must fit in the rest', async () => {
+test('one context budget: your note costs bytes, a helper costs when called; the code must fit in the rest', async () => {
   const g = game(), { panel, log } = fakePanel(), mem = store()
   const seen: string[] = []
   const spy: CodeWriter = { async write(p, onText) { seen.push(p.user); return mockWriter({ missEvery: 99, delay: instant }).write(p, onText) } }
@@ -208,10 +242,13 @@ test('one context budget: the reader it uses and its hot memory cost bytes; the 
   assert.equal(log.begin[0]!.memoryCost, 'always use const; never use var'.length)
   assert.match(seen[0]!, /- Your notes: always use const; never use var/)
   assert.match(seen[0]!, new RegExp(`at most ${350 - 31} characters`))
-  // a learned reader now costs on use: next turn the WATER reader is charged too
+  // the helper it kept costs bytes on the next turn, and the prompt shows it
   g.request({ pid: 111 }); await b.poll()
-  assert.ok(log.begin[1]!.memoryCost > 31, 'reader + notes')
-  assert.equal(log.begin[1]!.know, 'memory')
+  assert.equal(log.begin[1]!.memoryCost, 31, 'the note costs; carrying helpers and the last-turn line are free')
+  assert.match(seen[1]!, /- Last turn: SLICE on WATER data hit\./)
+  assert.match(seen[1]!, /Helpers you carry \(already defined: call them, don't write them again; each one you call costs its size from your budget\):\nfunction myReadWater\(/)
+  assert.match(seen[0]!, /You carry no WATER reader yet\. If this block defines a working function myReadWater\(data\)/)
+  assert.doesNotMatch(seen[1]!, /You carry no WATER reader/, 'no offer once it carries one')
 })
 
 test('a long note can push correct code over budget: that is the trade-off', async () => {
@@ -252,4 +289,37 @@ test('doubt: the ROM says it used its own pick; the panel names the call it doub
   assert.deepEqual(log.begin[1]!.doubt, { called: 'ERROR' })
   assert.equal(log.begin[1]!.notch, 0); assert.equal(temps[1], temps[0]); assert.equal(log.begin[1]!.budget, log.begin[0]!.budget)
   assert.equal(turns[1]!.doubted, 'ERROR'); assert.equal(turns[0]!.doubted, undefined)
+})
+
+test('a right reader under a wrong answer is still kept; a non-reader helper only from a hit', async () => {
+  const g = game(), { panel } = fakePanel(), mem = store()
+  const records: TurnRecord[] = []
+  let n = 0
+  const writer: CodeWriter = { async write(p, onText) {
+    if (p.meta.remember) return '```js\n```'
+    n++
+    // turn 1: a right WATER reader, a wrong answer (one too many); turn 2: a hit with a plain helper
+    const text = n === 1 ? "```js\nfunction myReadWater(data) { return data.split('\\n').map(Number) }\nconst myJunk = 1\nfunction slice(data) { return myReadWater(data).slice(0, 4) }\n```"
+      : "```js\nconst myMax = xs => Math.max(...xs)\nfunction slice(data) { return myReadWater(data).slice(0, 3) }\n```"
+    onText(text); return text
+  } }
+  const b = new CodeBattle(g.mailbox, names, writer, sandbox, panel, mem, { onTurn: r => records.push(r) })
+  await b.poll(); g.request({ pid: 111 }); await b.poll()
+  assert.equal(records[0]!.verdict, 'miss'); assert.deepEqual(records[0]!.kept, ['myReadWater'], 'the reader checked out; myJunk did not count under a miss')
+  g.request({ pid: 111 }); await b.poll()
+  assert.equal(records[1]!.verdict, 'hit'); assert.deepEqual(records[1]!.kept, ['myReadWater', 'myMax'])
+})
+
+test('working memory of the last turn: a miss comes back as a line with what went wrong; gone when the battle ends', async () => {
+  const g = game(), { panel } = fakePanel(), mem = store()
+  const seen: string[] = []
+  const spy: CodeWriter = { async write(p, onText) { seen.push(p.user); return mockWriter({ missEvery: 1, delay: instant }).write(p, onText) } } // every turn off by one
+  const b = new CodeBattle(g.mailbox, names, spy, sandbox, panel, mem)
+  await b.poll(); g.request({ pid: 111 }); await b.poll()
+  assert.doesNotMatch(seen[0]!, /Last turn/)
+  g.request({ pid: 111 }); await b.poll()
+  assert.match(seen[1]!, /- Last turn: SLICE on WATER data missed \(got \[[\d,]+\], needed \[[\d,]+\]\)\. Do it differently\./)
+  await b.battleOver()
+  g.request({ pid: 111 }); await b.poll()
+  assert.doesNotMatch(seen[2]!, /Last turn/, 'working memory dies with the battle')
 })

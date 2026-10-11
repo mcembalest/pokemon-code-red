@@ -30,16 +30,18 @@ test('encodeText round-trips through decodeText and fits the field', () => {
   assert.equal(decodeText(encodeText('PokÉEG · x', 16)), 'PokÉEG · x')
 })
 
-test('mindOf: readers, Pokédex, budget, focus, last turns, short format, hot memory', () => {
+test('mindOf: its memory by helper name (old readers too), no Pokédex, budget, focus, last turns, short format, hot memory', () => {
   const minds = localCodeMemory(null)
   minds.setReaders(111, { ROCK: 'a', WATER: 'b' }); minds.addSeen(['ROCK', 'GRASS', 'NORMAL']); minds.setHot(111, 'be brave')
   for (const v of ['hit', 'miss', 'hit'] as const) minds.remember!(111, { at: 0, move: 'EMBER', type: 'FIRE', target: 'SQUIRTLE', verdict: v, notch: 0, budget: 300, code: '' })
   const m = mindOf({ personality: 111, species: 4, level: 12 }, { minds, badges: () => ['BOULDER'], ...names })
-  assert.equal(m.readers, 2); assert.equal(m.dex, 4) // 3 seen + the badge's reader
+  assert.equal(m.readers, 2); assert.equal(m.dex, 0) // no Pokédex readers since 2026-10-11
   assert.ok(m.budget > 400)
   assert.deepEqual(m.history, [true, false, true])
   assert.equal(m.format, 'write log'); assert.equal(m.hot, 'be brave'); assert.ok(m.focus > 0 && m.focus <= 100)
-  assert.equal(m.readersText, 'Rock, Water'); assert.equal(m.dexText, 'Rock, Grass, Normal, Ground')
+  assert.equal(m.readersText, 'myReadRock, myReadWater'); assert.equal(m.dexText, '') // an old save: its readers, as helpers
+  minds.setLib(111, [{ name: 'myMax', src: 'const myMax = xs => Math.max(...xs);' }])
+  assert.equal(mindOf({ personality: 111, species: 4, level: 12 }, { minds, badges: () => [], ...names }).readersText, 'myMax')
 })
 
 test('link: answers a mind request, follows the cursor, runs the editor and writes the note back', async () => {
