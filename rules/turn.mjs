@@ -13,7 +13,9 @@ export const WORKED = [42, 13, 140, 77]
 
 /** A FireRed type (as the ROM names it) → its data format. The ??? type (Curse) sends a plain list. */
 export const formatOf = romType => {
-  const t = String(romType).trim().toUpperCase()
+  let t = String(romType).trim().toUpperCase()
+  if (t === 'ELECTR') t = 'ELECTRIC' // FireRed's gTypeNames are 6 characters: ELECTR, PSYCHC (found 2026-10-11: Surge's
+  if (t === 'PSYCHC') t = 'PSYCHIC' // team and Abra were sending plain lists)
   return Object.hasOwn(FORMATS, t) ? t : 'NORMAL'
 }
 

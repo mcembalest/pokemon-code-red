@@ -111,6 +111,8 @@ def opening(g: World, starter: str = 'BULBASAUR', title_wait: int = 0) -> bool:
 
 # ---- general errands -------------------------------------------------------
 import json as _json
+import re
+from functools import lru_cache
 from .game import DECOMP as _DECOMP
 from .world import _map_index
 
@@ -120,10 +122,19 @@ def objects(map_name: str) -> list[dict]:
     return _json.loads((_DECOMP / 'data/maps' / folder / 'map.json').read_text())['object_events']
 
 
+@lru_cache(maxsize=None)
+def gfx_ids() -> dict[str, int]:
+    text = (_DECOMP / 'include/constants/event_objects.h').read_text()
+    return {k: int(v) for k, v in re.findall(r'#define (OBJ_EVENT_GFX_\w+)\s+(\d+)', text)}
+
+
 def talk_to(g: World, gfx: str, across_counter: bool = False, policy=None) -> bool:
-    """Walk next to the first NPC with this sprite on the current map, face it, press A, resolve."""
-    o = next(o for o in objects(g.map()) if o.get('graphics_id') == gfx)
-    x, y = o['x'], o['y']
+    """Walk next to the first NPC with this sprite on the current map (where it stands now), face it, press A, resolve."""
+    live = g.npc_at(gfx_ids()[gfx]) if gfx in gfx_ids() else None
+    if live is None:
+        o = next(o for o in objects(g.map()) if o.get('graphics_id') == gfx)
+        live = (o['x'], o['y'])
+    x, y = live
     gap = 2 if across_counter else 1
     for (dx, dy, face) in ((0, gap, 'UP'), (0, -gap, 'DOWN'), (-gap, 0, 'RIGHT'), (gap, 0, 'LEFT')):
         if g.walk_to(x + dx, y + dy, battle_policy=policy) and g.pos() == (x + dx, y + dy):
@@ -321,3 +332,159 @@ def to_misty(g: World, starter: str = 'BULBASAUR', log=print, seed: int = 0) -> 
         leg(name, fn)
     return {'frames': g.frame, 'game_minutes': round(g.frame / 59.73 / 60, 1), 'party': g.party(),
             'badges': [g.flag(FLAG_BADGE01_GET), g.flag(FLAG_BADGE02_GET)]}
+
+
+# ---- Cerulean -> Lt. Surge (2026-10-11) -------------------------------------------------
+FLAG_BADGE03_GET = SYS_FLAGS + 0x22
+FLAG_GOT_SS_TICKET, FLAG_GOT_HM01 = 0x234, 0x237          # include/constants/flags.h
+VAR_TEMP_0, VAR_TEMP_1 = 0x4000, 0x4001                    # the gym's two switch cans (VermilionCity_Gym/scripts.inc)
+FLAG_FOUND_BOTH_SWITCHES = 0x264
+MOVE_CUT = 15
+SAFFRON_AVOID = ('MAP_ROUTE5_SOUTH_ENTRANCE', 'MAP_ROUTE6_NORTH_ENTRANCE', 'MAP_SAFFRON_CITY')  # the thirsty guards
+
+
+def bill(g: World) -> bool:
+    """Route 25's sea cottage: help Bill (he is the Clefairy), run the cell separator on his PC, get the S.S. Ticket."""
+    if not g.travel('MAP_ROUTE25_SEA_COTTAGE'):
+        return False
+    talk_to(g, 'OBJ_EVENT_GFX_CLEFAIRY')  # YES is the default answer
+    if not g.walk_to(4, 6):
+        return False
+    g.interact('UP')  # the PC at (4,5)
+    g.handle()
+    talk_to(g, 'OBJ_EVENT_GFX_BILL')
+    return g.flag(FLAG_GOT_SS_TICKET)
+
+
+def ss_anne(g: World) -> bool:
+    """Board with the ticket, beat the rival outside the captain's office, rub the captain's back: HM01. Then leave
+    (the ship sails once you step off)."""
+    if not journey(g, 'MAP_SSANNE_CAPTAINS_OFFICE', 'MAP_VERMILION_CITY', SAFFRON_AVOID):
+        return False
+    talk_to(g, 'OBJ_EVENT_GFX_CAPTAIN')
+    if not g.flag(FLAG_GOT_HM01):
+        return False
+    return journey(g, 'MAP_VERMILION_CITY', 'MAP_VERMILION_CITY', SAFFRON_AVOID)
+
+
+def teach_cut(g: World, rules) -> int:
+    """Put CUT in the lead's least valuable move slot (a sim shortcut for the TM case). Returns the slot."""
+    known = g.party_moves(0)
+    def value(mid):
+        m = rules.moves[mid]
+        return m.power * 1.5 if m.power else g.STATUS_VALUE.get(m.name, 0)
+    slot = min(range(4), key=lambda k: (value(known[k]) if known[k] else -1, -k))
+    g.set_party_move(0, slot, MOVE_CUT, 30)
+    return slot
+
+
+def use_cut(g: World, tree: tuple[int, int]) -> bool:
+    """Stand next to the tree, face it, talk to it: with CUT known the game asks "cut it down?" and the dialog
+    driver says YES. (Fallback: START -> POKéMON -> the lead -> CUT.) True when we can stand where the tree was."""
+    from .world import CLEARED
+    tx, ty = tree
+    for (dx, dy, face) in ((0, -1, 'DOWN'), (0, 1, 'UP'), (1, 0, 'LEFT'), (-1, 0, 'RIGHT')):
+        if g.walk_to(tx + dx, ty + dy) and g.pos() == (tx + dx, ty + dy):
+            break
+    else:
+        return False
+    g.interact(face)
+    g.handle()
+    CLEARED.setdefault(g.map(), set()).add(tree)  # the planner may walk through it now
+    if g.walk_to(tx, ty, max_steps=4) and g.pos() == tree:
+        return True
+    g.press('START', hold=2, after=30)
+    g.press('DOWN', hold=2, after=10)     # POKéDEX, POKéMON, BAG, <name>, SAVE, OPTION, EXIT
+    g.press('A', hold=2, after=10)        # the party screen (fades in)
+    g.run_until(lambda: g.brightness() > 0.3, 600, 5)
+    g.run(30)
+    g.press('A', hold=2, after=40)        # the lead's menu: SUMMARY, CUT, ITEM, CANCEL
+    g.press('DOWN', hold=2, after=10)
+    g.press('A', hold=2, after=40)        # "VENUSAUR used CUT!" (pressing A here would reopen the menu: just wait)
+    g.run_until(lambda: g.in_overworld() and g.free(), 1200)
+    g.run(30)
+    return g.walk_to(tx, ty, max_steps=4) and g.pos() == tree
+
+
+def enter_vermilion_gym(g: World) -> bool:
+    """The tree by the gym grows back whenever the city map reloads: cut it on the way in, every time."""
+    from .world import CLEARED
+    if g.map() != 'MAP_VERMILION_CITY' and not g.travel('MAP_VERMILION_CITY'):
+        return False
+    if not use_cut(g, (19, 24)):
+        return False
+    entered = g.travel('MAP_VERMILION_CITY_GYM')
+    CLEARED.get('MAP_VERMILION_CITY', set()).discard((19, 24))
+    return entered
+
+
+def vermilion_gym(g: World) -> bool:
+    """The trash cans: the two switch cans are in VAR_TEMP_0 / VAR_TEMP_1 (ids 1-15, five a row from (1,10)). Open
+    both locks, beat the two trainers on the way, heal, then Lt. Surge."""
+    from .world import CLEARED
+    if not enter_vermilion_gym(g):
+        return False
+    can = lambda k: (1 + 2 * ((k - 1) % 5), 10 + 2 * ((k - 1) // 5))
+    for _ in range(4):
+        first, second = g.var(VAR_TEMP_0), g.var(VAR_TEMP_1)
+        for k in (first, second):
+            x, y = can(k)
+            if not (g.walk_to(x, y + 1) and g.pos() == (x, y + 1)):
+                break
+            g.interact('UP')
+            g.handle()
+        if g.flag(FLAG_FOUND_BOTH_SWITCHES):
+            break
+    if not g.flag(FLAG_FOUND_BOTH_SWITCHES):
+        return False
+    CLEARED.setdefault('MAP_VERMILION_CITY_GYM', set()).update({(5, 6), (5, 7)})  # the beams are off: the door tiles are floor now
+    # Up the middle column: the Gentleman (7,8) looks left along row 8; met from below he stops at (6,8), not in the doorway.
+    g.walk_to(5, 9)
+    g.walk_to(5, 3)
+    # The switches stay found and the trainers beaten: heal before the leader, like a player would.
+    lead = g.party()[0]
+    if lead['hp'] < 0.9 * lead['max_hp']:
+        g.walk_to(5, 9)  # back below the (static-map) wall first: the region planner doesn't know the door opened
+        if not (g.travel('MAP_VERMILION_CITY') and use_cut(g, (19, 24)) and heal(g) and enter_vermilion_gym(g)
+                and g.walk_to(5, 9) and g.walk_to(5, 3)):
+            return False
+    return talk_to(g, 'OBJ_EVENT_GFX_LT_SURGE') and g.flag(FLAG_BADGE03_GET)
+
+
+def to_surge(g: World, log=print, leg=None, rules=None) -> dict:
+    """After Misty: Nugget Bridge -> Bill -> the Underground Path -> Vermilion -> S.S. Anne (HM01) -> CUT -> Lt. Surge."""
+    from .battle import Rules
+    rules = rules or Rules(g)
+    if leg is None:
+        def leg(name, fn):
+            ok = fn()
+            lead = g.party()[0] if g.party() else {}
+            log(f'{name:<14} {"ok " if ok else "FAIL"} frame {g.frame:>7} ({g.frame / 59.73 / 60:5.1f} game-min) '
+                f'{g.map()} L{lead.get("level")} {lead.get("hp")}/{lead.get("max_hp")}')
+            if not ok:
+                g.screenshot(CHECKPOINTS / f'fail-{name}.png')
+                raise RuntimeError(f'leg {name} failed')
+            save_checkpoint(g, name)
+
+    def nugget():  # the rival at the bridge, five trainers, the Rocket's offer (declined by walking on)
+        return journey(g, 'MAP_ROUTE25', 'MAP_CERULEAN_CITY')
+
+    def vermilion():
+        return journey(g, 'MAP_VERMILION_CITY', 'MAP_CERULEAN_CITY', SAFFRON_AVOID) and heal(g)
+
+    def cut():
+        teach_cut(g, rules)
+        return g.travel('MAP_VERMILION_CITY') and use_cut(g, (19, 24)) and heal(g)
+
+    def surge():
+        return vermilion_gym(g)
+
+    for name, fn in [('nugget', nugget), ('bill', bill_leg(g)), ('vermilion', vermilion), ('ss_anne', lambda: ss_anne(g) and heal(g)),
+                     ('cut', cut), ('surge', surge)]:
+        leg(name, fn)
+    return {'frames': g.frame, 'game_minutes': round(g.frame / 59.73 / 60, 1), 'party': g.party(),
+            'badges': [g.flag(FLAG_BADGE01_GET), g.flag(FLAG_BADGE02_GET), g.flag(FLAG_BADGE03_GET)]}
+
+
+def bill_leg(g: World):
+    return lambda: bill(g) and journey(g, 'MAP_CERULEAN_CITY', 'MAP_CERULEAN_CITY') and heal(g)
