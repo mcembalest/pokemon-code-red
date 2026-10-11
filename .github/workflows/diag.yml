@@ -1,0 +1,27 @@
+name: diag
+# One-off: the raw stream the live Worker recorded for the latest Qwen (payload) call — why numbers vanish on the live route.
+on:
+  push:
+    branches-ignore: [main]
+    paths: ['diag/stream.json']
+permissions:
+  contents: write
+jobs:
+  diag:
+    runs-on: ubuntu-24.04
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: |
+          cd worker && npm ci --no-audit --no-fund >/dev/null
+          ID=$(npx wrangler d1 list --json | jq -r '.[] | select(.name=="code-red") | .uuid'); sed -i "s/^database_id = .*/database_id = \"$ID\"/" wrangler.toml
+          npx wrangler d1 execute code-red --remote --json --command "SELECT at, model, status, substr(response, 1, 6000) AS response FROM llm_calls WHERE model LIKE '%qwen%' ORDER BY at DESC LIMIT 2" > ../qwen-calls.json
+          npx wrangler d1 execute code-red --remote --json --command "SELECT at, model, status, substr(response, 1, 3000) AS response FROM llm_calls WHERE model LIKE '%llama%' ORDER BY at DESC LIMIT 1" > ../llama-call.json
+          cd .. && head -c 400 qwen-calls.json
+          gh release view diag >/dev/null 2>&1 || gh release create diag --prerelease --title "Diagnostics" --notes "One-off diagnostics. Safe to delete."
+          gh release upload diag qwen-calls.json llama-call.json --clobber
