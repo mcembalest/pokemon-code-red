@@ -108,7 +108,7 @@ const TEMPLATE = `
     <button class="code-red-button" data-play-here type="button">Play here instead</button>
   </div>
   <div data-open hidden>
-    <p class="code-red-muted">One-time setup: choose your starter ROM (the FireRed .gba file). It stays in this browser and the game opens by itself from then on. Your progress saves to your account.</p>
+    <p class="code-red-muted">One-time setup: choose your starter ROM — Pokémon FireRed, USA, v1.0 or v1.1, a 16 MB .gba file (not LeafGreen, not other languages). It stays in this browser and the game opens by itself from then on. Your progress saves to your account.</p>
     <button class="code-red-button" data-choose type="button">Choose starter ROM</button>
     <input data-file type="file" accept=".gba,application/octet-stream" hidden />
   </div>
