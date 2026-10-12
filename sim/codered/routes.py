@@ -194,13 +194,27 @@ def grind(g: World, level: int, area: str, city: str, policy=None, max_rounds: i
     return g.party()[0]['level'] >= level
 
 
-def journey(g: World, dest: str, center_city: str, avoid: tuple = (), low: float = 0.4, tries: int = 6, at=None) -> bool:
-    """travel() that retreats to `center_city`'s Pokémon Center whenever the lead drops below `low` HP."""
+def nearest_center(g: World, cities, avoid: tuple = ()) -> str:
+    """Of these cities (each with a Pokémon Center), the one the fewest map hops away from here."""
+    from .world import region_route
+    def hops(city):
+        try:
+            r = region_route(g.map(), g.pos(), city, avoid)
+        except Exception:
+            r = None
+        return len(r) if r is not None else 999
+    return min(cities, key=hops)
+
+
+def journey(g: World, dest: str, center_city, avoid: tuple = (), low: float = 0.4, tries: int = 6, at=None) -> bool:
+    """travel() that retreats to a Pokémon Center whenever the lead drops below `low` HP: `center_city`'s, or the
+    nearest of several (a tuple: on a long route the one behind us is often farther than the one ahead)."""
     hurt = lambda: g.party()[0]['hp'] < low * g.party()[0]['max_hp']
+    centers = (center_city,) if isinstance(center_city, str) else tuple(center_city)
     for _ in range(tries):
         if hurt():
             try:
-                if g.travel(center_city, avoid=avoid):
+                if g.travel(nearest_center(g, centers, avoid), avoid=avoid):
                     heal(g)
             except ValueError:
                 pass  # stranded off the planner's map: the next travel() re-plans from where we are
@@ -471,7 +485,7 @@ def bill_leg(g: World) -> bool:
 
 
 def vermilion(g: World) -> bool:
-    return journey(g, 'MAP_VERMILION_CITY', 'MAP_CERULEAN_CITY', SAFFRON_AVOID) and heal(g)
+    return journey(g, 'MAP_VERMILION_CITY', ('MAP_CERULEAN_CITY', 'MAP_VERMILION_CITY'), SAFFRON_AVOID) and heal(g)
 
 
 def cut(g: World) -> bool:
@@ -521,15 +535,15 @@ def route10(g: World) -> bool:
         use_cut(g, (19, 24))
     return journey(g, 'MAP_CERULEAN_CITY', 'MAP_VERMILION_CITY', ERIKA_AVOID) and heal(g) \
         and g.travel('MAP_ROUTE9', avoid=ERIKA_AVOID) and use_cut(g, (2, 8)) \
-        and journey(g, 'MAP_ROUTE10', 'MAP_CERULEAN_CITY', ERIKA_AVOID) and heal(g)
+        and journey(g, 'MAP_ROUTE10', ('MAP_CERULEAN_CITY', 'MAP_ROUTE10'), ERIKA_AVOID) and heal(g)
 
 
 def lavender(g: World) -> bool:
-    return journey(g, 'MAP_LAVENDER_TOWN', 'MAP_ROUTE10', ERIKA_AVOID) and heal(g)
+    return journey(g, 'MAP_LAVENDER_TOWN', ('MAP_ROUTE10', 'MAP_LAVENDER_TOWN'), ERIKA_AVOID) and heal(g)
 
 
 def celadon(g: World) -> bool:
-    return journey(g, 'MAP_CELADON_CITY', 'MAP_LAVENDER_TOWN', ERIKA_AVOID) and heal(g)
+    return journey(g, 'MAP_CELADON_CITY', ('MAP_LAVENDER_TOWN', 'MAP_CELADON_CITY'), ERIKA_AVOID) and heal(g)
 
 
 def to_erika(g: World, log=print, leg=None) -> dict:
