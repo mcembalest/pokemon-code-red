@@ -86,7 +86,12 @@ class Battle:
 
     # ---- decisions
     def best_move(self) -> int:
+        """The move with the best expected damage: power × accuracy × STAB × effectiveness, times how often its code
+        has landed against foes of these types so far this run (g.code_stats, kept by the brain host; a player
+        notices which calls keep missing). Unknown pairs count as 2 of 4."""
         me, foe = self.mon(0), self.mon(1)
+        stats = getattr(self.g, 'code_stats', {})
+        types = tuple(sorted(set(foe['types'])))
         def score(k):
             mid, pp = me['moves'][k], me['pp'][k]
             if not mid or not pp:
@@ -94,7 +99,9 @@ class Battle:
             m = self.rules.moves[mid]
             stab = 1.5 if m.type in me['types'] else 1.0
             eff = self.rules.effectiveness(m.type, foe['types'])
-            return m.power * (m.accuracy or 100) / 100 * stab * eff + 0.01  # status moves still beat nothing
+            hits, n = stats.get((m.name, types), (0, 0))
+            lands = (hits + 1) / (n + 2)
+            return (m.power * (m.accuracy or 100) / 100 * stab * eff + 0.01) * lands  # status moves still beat nothing
         return max(range(4), key=score)
 
     # ---- menu driving

@@ -54,7 +54,7 @@ export function knowFor(type, { dex = [], readers = {} } = {}) {
 // ---------- the prompt ----------
 
 /**
- * The prompt for one move. Same text as the journey simulator's calibrated runs (models/lab/journey.mjs).
+ * The prompt for one move.
  *   self   { name, level, wild? }        the Pokémon writing the code
  *   target { name, level, types }        the Pokémon it attacks
  *   move   a move from rules/moves.mjs
@@ -166,31 +166,6 @@ export async function judge({ move, bytes, data, code, budget, runSource, prelud
 export function missText(name, reason) {
   return { 'no code': `${name} didn't write any code!`, 'over budget': `${name}'s code was too long!`,
     crashed: `${name}'s code crashed!`, 'wrong answer': `${name}'s code got it wrong!` }[reason] ?? `${name}'s code missed!`
-}
-
-// ---------- learning ----------
-
-/** The reader line in the Pokémon's code (`const nums = ...`; `bytes` accepted and normalized), if any. */
-export const readerLine = code => { const m = code?.match(/const\s+(nums|bytes)\s*=\s*[^\n;]+/); return m ? m[0].replace(/^const\s+bytes\b/, 'const nums') : null }
-
-/** Source that runs a reader line on the data and returns what it read. */
-export const readerSource = (line, data) => `const data = ${JSON.stringify(data)}\n${line.replace(/^const\s+bytes\b/, 'const nums')}\nreturn nums`
-
-/** Does the reader really read this data (run = sandbox result of readerSource)? Only verified readers are learned. */
-export const readsRight = (run, bytes) => run.ok && same(run.value, bytes)
-
-/** Remember a verified reader for a type: most recent last. `slots` (optional) caps how many are kept; the game passes none. */
-export function learn(readers, type, line, slots = Infinity) {
-  const entries = Object.entries(readers).filter(([t]) => t !== type)
-  entries.push([type, line])
-  return Object.fromEntries(entries.slice(Math.max(0, entries.length - slots)))
-}
-
-/** Learn from a hit, if the hit's reader checks out. Pokédex types are not memorized. Returns new readers. */
-export async function learnFromHit({ readers, type, code, data, bytes, slots = Infinity, dex = [], runSource }) {
-  const line = readerLine(code)
-  if (!line || dex.includes(type)) return readers // dex: labs only (the game passes none)
-  return readsRight(await runSource(readerSource(line, data)), bytes) ? learn(readers, type, line, slots) : readers
 }
 
 // ---------- helpers ----------

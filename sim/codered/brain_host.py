@@ -25,6 +25,7 @@ class BrainHost:
         self.payload = PayloadHost(g)
         self.moves = CodeMoveHost(g, self.decide, delay=2)
         self.turns: list[dict] = []
+        g.code_stats = {}  # (move name, foe type ids) -> (hits, tries), for the move chooser
         self.memories: list[dict] = []
         self._in_battle = False
         if log:
@@ -57,10 +58,14 @@ class BrainHost:
         if res.get('payload') and self.payload.a:
             p = res['payload']
             self.payload.deliver(p['kind'], p['bytes'], p.get('palette'))
-        rec = {**(res.get('record') or {}), 'verdict': res['verdict'], 'reason': res.get('reason'), 'wall': wall,
+        rec = {**(res.get('record') or {}), 'verdict': res['verdict'], 'reason': res.get('reason') if res['verdict'] == 'miss' else None, 'wall': wall,
                'usage': res.get('usage'), 'map': self.g.map(), 'frame': self.g.frame, 'payload_kind': (res.get('payload') or {}).get('kind'),
                'level': r['level'], 'side': r['side'], 'trainer': r['trainer'], 'class': r['class'], 'doubted_slot': req['calledSlot']}
         self.turns.append(rec)
+        if r['side'] == 0 and res['verdict'] in ('hit', 'miss'):  # the move chooser learns what lands (battle.best_move)
+            key = (rec.get('move'), tuple(sorted(set(r['target_types']))))  # the record's move name = rules.moves[id].name
+            h, n = self.g.code_stats.get(key, (0, 0))
+            self.g.code_stats[key] = (h + (res['verdict'] == 'hit'), n + 1)
         if self.log:
             with self.log.open('a') as f:
                 f.write(json.dumps(rec) + '\n')

@@ -129,9 +129,6 @@ export function checkSource(helpers, turn = null) {
   return `${helpersSource(helpers)}\nconst ok = {}\n${lines.join('\n')}\nreturn ok`
 }
 
-/** Source that checks helpers compile on their own: returns the names that are functions or values. */
-export const compileSource = helpers => `${helpersSource(helpers)}\nreturn [${helpers.map(h => `typeof ${h.name} !== 'undefined' && '${h.name}'`).join(',')}].filter(Boolean)`
-
 /** Its code, minus exact re-definitions of helpers it already carries (they are defined already: no bytes charged). */
 export function withoutCarried(code, carried) {
   if (!code || !carried.length) return code

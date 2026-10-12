@@ -68,6 +68,14 @@ class MapInfo:
 CLEARED: dict[str, set] = {}
 
 
+def clear_obstacle(map_name: str, cell: tuple[int, int], cleared: bool = True) -> None:
+    """Mark a cell passable (a tree cut) or not again (it grew back on a map reload); the region planner recomputes."""
+    cells = CLEARED.setdefault(map_name, set())
+    (cells.add if cleared else cells.discard)(cell)
+    regions.cache_clear()
+    _region_hops.cache_clear()
+
+
 @lru_cache(maxsize=None)
 def _map_index() -> dict:
     groups = json.loads((DECOMP / 'data/maps/map_groups.json').read_text())
@@ -121,24 +129,6 @@ def _neighbors(name: str) -> tuple:
     out = [('edge', c['direction'], c['map']) for c in data.get('connections') or []]
     out += [('warp', None, w['dest_map']) for w in data.get('warp_events', []) if w['dest_map'] in _map_index()['name']]
     return tuple(out)
-
-
-def map_route(src: str, dest: str, avoid: tuple = ()) -> list | None:
-    """Shortest list of (kind, direction, next_map) hops from src to dest."""
-    prev, queue = {src: None}, deque([src])
-    while queue:
-        cur = queue.popleft()
-        if cur == dest:
-            out = []
-            while prev[cur]:
-                cur, hop = prev[cur]
-                out.append(hop)
-            return out[::-1]
-        for kind, d, nxt in _neighbors(cur):
-            if nxt not in prev and nxt not in avoid:
-                prev[nxt] = (cur, (kind, d, nxt))
-                queue.append(nxt)
-    return None
 
 
 def path(m: MapInfo, start: tuple[int, int], goal: tuple[int, int], extra_blocked=frozenset()) -> list[str] | None:
@@ -524,6 +514,16 @@ class World(Game):
                 self.run_until(self.in_overworld, 300)
                 self.run(30)
                 return True
+            if not self.free():
+                # A trainer saw us, or a sign spoke: resolve it here. Never rewind through a battle: the state goes
+                # back but the code brain does not, so it was asked the same move over and over (seed 0, 2026-10-12:
+                # 210 model calls at one frame beside a Rocket grunt on Mt. Moon B2F).
+                self.handle()
+                if self.map() != start:
+                    return True
+                self.walk_to(x, y)
+                here = self.save_state()
+                continue
             if self.pos() != (x, y):  # stepped off a warp we were already standing on (an arrival tile): step back onto it
                 self.walk_to(x, y)
                 if self.run_until(lambda: self.map() != start, 90):

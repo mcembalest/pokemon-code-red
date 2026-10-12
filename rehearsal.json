@@ -1,4 +1,6 @@
 {
- "seeds": [0, 1],
- "note": "To Lt. Surge: Nugget Bridge, Bill, the Underground Path, the S.S. Anne, CUT, the trash cans. 18 new moves; ELECTR/PSYCHC formats fixed. Sim half only."
+ "seeds": [
+  0
+ ],
+ "note": "To Erika, take 3, seed 0 only (seed 1 beat Erika in take 2): the warp step no longer rewinds through a battle. Sim half only."
 }

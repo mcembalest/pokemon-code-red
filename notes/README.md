@@ -1,10 +1,15 @@
 # notes/
 
-Working notes. Outline + links + quotes. Not docs.
+Working notes. Outline + links + quotes. Not docs. Dated files are snapshots of that day and may describe things since changed; `design.md` is kept current.
 
 | file | what |
 |---|---|
-| [design.md](design.md) | goals, decisions, open questions, risks — the game itself |
+| [design.md](design.md) | goals, decisions, open questions, risks — the game itself; every owner decision with the date, and what each change measured |
+| [moves.md](moves.md) | every type's data format and every move's code (generated: `make names`) |
+| [types.md](types.md) | the type ↔ storage/security concept table (owner's typechart) |
+| [sim.md](sim.md) | the dress rehearsals: real models through the sim, a fresh account on the live site |
+| [battle-lab.md](battle-lab.md) | 2026-10-07: the battle rules' first drafts measured in the lab (readers and slots there are gone since 2026-10-11) |
+| [strategy.md](strategy.md) | 2026-10-08: the move-choice strategy lab (`models/strategy/`) |
 | [state-2026-10-04.md](state-2026-10-04.md) | what exists, where (branches, commits, files) |
 | [fragility-audit.md](fragility-audit.md) | weak points in browser / runtime / dev cycle, with evidence |
 | [memory-budget.md](memory-budget.md) | measured RAM / ROM / save numbers from vanilla build |

@@ -10,8 +10,8 @@ sim/build_core.sh), so RAM layout, mailboxes and save behavior match.
     s = g.save_state(); ...; g.load_state(s)   # fork / restore
     g.u16(g.sym('gSaveBlock1Ptr'))   # read RAM by symbol
 
-One Game per process (libretro cores are process-global). For parallel
-branches use codered.parallel.
+One Game per process (libretro cores are process-global); parallel seeds
+are separate processes (sim/rehearse.py, .github/workflows/sim.yml).
 """
 from __future__ import annotations
 

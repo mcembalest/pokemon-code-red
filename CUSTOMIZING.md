@@ -17,8 +17,9 @@ or at once by editing `src/things/pokemon-code-red/bundle.lock.json` in `maxcemb
 release's `code-red-player.tar.gz.sha256`). The backend deploys from `worker/` on every push to `main`.
 
 To measure a change before shipping it: edit `rehearsal.json` on the branch (`"seeds": [0, 1]`) and push with
-`[sim only]` in the commit message. The real models then play power-on → Lt. Surge, and results land on the
-`rehearsal` release (`<sha7>-seed0-summary.json`, `turns.jsonl`). ~35 min, ~650k tokens a seed.
+`[sim only]` in the commit message. The real models then play power-on → Erika, and results land on the
+`rehearsal` release (`<sha7>-seed0-summary.json`, `turns.jsonl`). ~50 min, ~850k tokens a seed (`by_type` in the
+summary says which data formats it reads badly; `leader_tries` how many challenges each leader took).
 
 ## What to change, and where
 
@@ -39,7 +40,7 @@ To measure a change before shipping it: edit `rehearsal.json` on the branch (`"s
 | **Page text** — the code panel's lines, the PokÉEG panel's tabs, the hot-memory editor | `player/src/agents/code-panel.ts` (`describe`), `pokeeg.ts` (the `body` per tab), `player.ts` (ROM chooser, starter card) | `make player`; `player/tests/pokeeg.py` |
 | **Badges** | `rules/knobs.mjs` → `BADGES` (`budget` bytes; add a key per badge) | `make test` |
 | **Starter moves** (which moves are in the tutorial battle) | `rules/moves.mjs` → `STARTER_MOVES` | `make test` |
-| **Where the sim plays to** | `sim/codered/routes.py` (`to_misty`, `to_surge`: one function per leg); `sim/rehearse.py --to` | `python3 sim/rehearse.py --mock` plays it with the stand-in model (no tokens) |
+| **Where the sim plays to** | `sim/codered/routes.py` (`to_misty`, `to_surge`, `to_erika`: one function per leg); `sim/rehearse.py --to` | `python3 sim/rehearse.py --mock` plays it with the stand-in model (no tokens) |
 | **The stand-in model** (tests and `?agents=mock`) | `player/src/agents/code-battle.ts` → `mockWriter` | `make test` |
 
 ## Game-side edits in detail
@@ -64,6 +65,6 @@ Move names are the exception: never edit `move_names.h` by hand — `make names`
 - `make test`: every move's answer, every format's round trip, the prompt, memory, doubt maths, the page's battle brain
   against the stand-in model.
 - `sim/experiments/*.py`: things measured in the real ROM (`doubt.py`, `payload.py`, `pokeeg.py` with screenshots).
-- `python3 sim/rehearse.py --mock --seed 0`: the stand-in model plays power-on → Lt. Surge in ~40 min, no tokens.
+- `python3 sim/rehearse.py --mock --seed 0`: the stand-in model plays power-on → Erika in ~60 min, no tokens.
 - A rehearsal on CI (above): the real models.
 - `player/tests/*.py`: the real page in a headless browser (needs `make player` and `scripts/serve_player.py`).

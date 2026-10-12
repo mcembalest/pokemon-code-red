@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import {
-  BADGES, FORMATS, HINTS, MOVES, budgetAt, byFireRed, byName, focusAt, judge, knowFor, learn, learnFromHit, missText,
-  partyDex, readerLine, rng, same, slotsAt, targetBytes, turnData, turnPrompt, turnType, verdict, instinct, doubtChance, maxDoubt, typeChart,
+  BADGES, FORMATS, HINTS, MOVES, budgetAt, byFireRed, byName, focusAt, judge, knowFor, missText,
+  rng, same, targetBytes, turnData, turnPrompt, turnType, verdict, instinct, doubtChance, maxDoubt, typeChart,
 } from '../index.mjs'
 
 // Node-only stand-in for the sandbox (the game uses the QuickJS runner, the lab uses kernel runBlock).
@@ -16,8 +16,8 @@ test('rules are browser-safe: no node: imports', () => {
   for (const f of readdirSync(dir).filter(f => f.endsWith('.mjs'))) assert.doesNotMatch(readFileSync(new URL(f, dir), 'utf8'), /from ['"]node:/, f)
 })
 
-test('moves: 122, unique function names, answers never null, FireRed stats attached', () => {
-  assert.equal(MOVES.length, 122)
+test('moves: 156, unique function names, answers never null, FireRed stats attached', () => {
+  assert.equal(MOVES.length, 156)
   assert.equal(new Set(MOVES.map(m => m.fn)).size, MOVES.length)
   const r = rng(1)
   for (let k = 0; k < 50; k++) {
@@ -105,33 +105,14 @@ test('judging: right answer hits; wrong, crash, too long and no code miss', asyn
   assert.equal(turnData(bytes, 'GROUND', true).join(), bytes.join(), 'tutorial sends the plain list')
 })
 
-test('learning: only verified readers; most recent kept within slots; Pokédex types not memorized', async () => {
-  const bytes = [42, 13, 140, 77], data = turnData(bytes, 'ROCK')
-  const right = "function slice(data) {\n  const nums = data.split(' ').map(h => parseInt(h, 16))\n  return nums.slice(0, 3)\n}"
-  assert.equal(readerLine(right), "const nums = data.split(' ').map(h => parseInt(h, 16))")
-  let readers = await learnFromHit({ readers: {}, type: 'ROCK', code: right, data, bytes, slots: 2, runSource })
-  assert.deepEqual(Object.keys(readers), ['ROCK'])
-  const lucky = "function hash(data) { const nums = data.split(' ').map(Number); return 0 }"
-  assert.deepEqual(await learnFromHit({ readers: {}, type: 'ROCK', code: lucky, data, bytes, slots: 2, runSource }), {}, 'a lucky hit teaches nothing')
-  assert.deepEqual(await learnFromHit({ readers: {}, type: 'ROCK', code: right, data, bytes, slots: 2, dex: ['ROCK'], runSource }), {})
-  readers = learn(readers, 'WATER', 'w', 2)
-  readers = learn(readers, 'GRASS', 'g', 2)
-  assert.deepEqual(Object.keys(readers), ['WATER', 'GRASS'], 'oldest forgotten')
-  readers = learn(readers, 'WATER', 'w2', 2)
-  assert.deepEqual(readers, { GRASS: 'g', WATER: 'w2' }, 'refresh moves it to the end')
-})
-
-test('growth: focus calms, budget and slots grow, evolution jumps', () => {
+test('growth: focus calms, budget grows, evolution jumps', () => {
   assert.equal(focusAt(5), 0.8)
   assert.ok(Math.abs(focusAt(15) - 0.5) < 1e-9)
   assert.equal(focusAt(40), 0.3)
   assert.equal(budgetAt(5), 350)
   assert.equal(budgetAt(16, { stage: 1 }), 560)
   assert.equal(budgetAt(16, { stage: 1, badges: ['BOULDER', 'CASCADE'] }), 610)
-  assert.equal(slotsAt(5), 2)
-  assert.equal(slotsAt(14), 5)
-  assert.equal(slotsAt(16, { stage: 1 }), 8)
-  assert.deepEqual(partyDex({ seen: ['WATER'], badges: ['BOULDER'] }), ['WATER']) // badges teach no readers since 2026-10-11 (partyDex: labs only)
+  assert.deepEqual(BADGES.BOULDER, {}, 'badges teach no readers since 2026-10-11')
   assert.deepEqual(BADGES.CASCADE, { budget: 50 })
 })
 
@@ -152,28 +133,15 @@ test('status moves hit the code: notches shake or steady focus and budget, cappe
   assert.equal(NOTCH.cap, 2)
 })
 
-test('knowledge tiers: wild none, trainers about half (fixed per Pokémon), bosses all; the token cap follows the budget', async () => {
-  const { KNOWLEDGE, foeDex, tierOf, tokenCapFor } = await import('../index.mjs')
-  const formats = Object.keys(FORMATS)
-  assert.deepEqual(foeDex('wild', 123, formats), [])
-  assert.deepEqual(foeDex('boss', 123, formats), formats)
-  assert.equal(tierOf(84, false), 'boss'); assert.equal(tierOf(81, false), 'boss'); assert.equal(tierOf(2, false), 'trainer'); assert.equal(tierOf(0, true), 'wild')
-  const a = foeDex('trainer', 1234567, formats), b = foeDex('trainer', 1234567, formats)
-  assert.deepEqual(a, b, 'the same Pokémon reads the same formats all battle')
-  const share = Array.from({ length: 200 }, (_, i) => foeDex('trainer', i * 7919 + 13, formats).length / formats.length).reduce((x, y) => x + y, 0) / 200
-  assert.ok(Math.abs(share - KNOWLEDGE.trainer) < 0.08, `about half: ${share}`)
-  assert.equal(tokenCapFor(350), 260)
-})
-
 test('one context budget: the reader and hot memory are charged against the budget', async () => {
-  const { codeBudget, contextCost } = await import('../index.mjs')
+  const { codeBudget, contextCost, tokenCapFor } = await import('../index.mjs')
   const know = knowFor('ROCK', { dex: ['ROCK'] })
   assert.equal(contextCost({ know, hot: 'be brief' }), HINTS.ROCK.length + 8)
   assert.equal(codeBudget(350, { know, hot: 'be brief' }), 350 - HINTS.ROCK.length - 8)
   const p = turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['ROCK'] }, move: byName.SLICE, type: 'ROCK', know, budget: 350, hot: 'be brief' })
   assert.match(p.user, /- Your notes: be brief/)
   assert.match(p.user, new RegExp(`at most ${350 - HINTS.ROCK.length - 8} characters, comments included \\(350 minus the ${HINTS.ROCK.length + 8} your memory takes\\)`))
-  assert.deepEqual(Object.keys(learn({ A: '1', B: '2', C: '3' }, 'D', '4')), ['A', 'B', 'C', 'D'], 'no slot cap')
+  assert.equal(tokenCapFor(350), 260, 'the token cap follows the budget')
 })
 
 test('payload moves: the checker judges the character, a hit carries the bytes (no count), the prompt says how', async () => {
