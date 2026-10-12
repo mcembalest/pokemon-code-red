@@ -16,10 +16,10 @@ test('every foe type: cleanup undoes its junk exactly', () => {
   assert.ok(Object.keys(TYPES).length >= 13)
 })
 
-test('209 moves: unique names and functions, ≤ 12 chars, every answer computable', () => {
-  assert.equal(MOVES.length, 209)
-  assert.equal(new Set(MOVES.map(m => m.name)).size, 209)
-  assert.equal(new Set(MOVES.map(m => m.fn)).size, 209)
+test('212 moves: unique names and functions, ≤ 12 chars, every answer computable', () => {
+  assert.equal(MOVES.length, 212)
+  assert.equal(new Set(MOVES.map(m => m.name)).size, 212)
+  assert.equal(new Set(MOVES.map(m => m.fn)).size, 212)
   for (const m of MOVES) assert.ok(m.name.length <= 12, m.name)
   const foe = { name: 'ONIX', level: 12, types: ['ROCK', 'GROUND'], status: 'none', bytes: [9, 255, 30] }
   for (const m of MOVES) for (const b of [[12, 40, 7, 33], [150, 11, 99, 64, 23, 180, 71]]) assert.doesNotThrow(() => JSON.stringify(m.ref(b, foe)), m.name)

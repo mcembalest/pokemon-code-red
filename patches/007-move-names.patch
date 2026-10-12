@@ -3,7 +3,7 @@ words that fit their type family (SCRATCH -> SLICE, GROWL -> ERRORMSG ...); 15 k
 Generated from rules/moves.mjs.
 
 diff --git a/src/data/text/move_names.h b/src/data/text/move_names.h
-index d63ddb8..add1e6c 100644
+index d63ddb8..62c5dfe 100644
 --- a/src/data/text/move_names.h
 +++ b/src/data/text/move_names.h
 @@ -1,168 +1,168 @@
@@ -103,7 +103,8 @@ index d63ddb8..add1e6c 100644
 +    [MOVE_WATER_GUN]     = _("FLUSH"),
 +    [MOVE_HYDRO_PUMP]    = _("FIREHOSE"),
      [MOVE_SURF]          = _("SURF"),
-     [MOVE_ICE_BEAM]      = _("ICE BEAM"),
+-    [MOVE_ICE_BEAM]      = _("ICE BEAM"),
++    [MOVE_ICE_BEAM]      = _("COLDSTORE"),
      [MOVE_BLIZZARD]      = _("BLIZZARD"),
 -    [MOVE_PSYBEAM]       = _("PSYBEAM"),
 -    [MOVE_BUBBLE_BEAM]   = _("BUBBLEBEAM"),
@@ -368,6 +369,8 @@ index d63ddb8..add1e6c 100644
 -    [MOVE_PURSUIT]       = _("PURSUIT"),
 -    [MOVE_RAPID_SPIN]    = _("RAPID SPIN"),
 -    [MOVE_SWEET_SCENT]   = _("SWEET SCENT"),
+-    [MOVE_IRON_TAIL]     = _("IRON TAIL"),
+-    [MOVE_METAL_CLAW]    = _("METAL CLAW"),
 +    [MOVE_MEGAHORN]      = _("OVERFLOW"),
 +    [MOVE_DRAGON_BREATH] = _("FLAMEOUT"),
 +    [MOVE_BATON_PASS]    = _("HANDOFF"),
@@ -375,8 +378,7 @@ index d63ddb8..add1e6c 100644
 +    [MOVE_PURSUIT]       = _("TRACE"),
 +    [MOVE_RAPID_SPIN]    = _("SPINUP"),
 +    [MOVE_SWEET_SCENT]   = _("LURE"),
-     [MOVE_IRON_TAIL]     = _("IRON TAIL"),
--    [MOVE_METAL_CLAW]    = _("METAL CLAW"),
++    [MOVE_IRON_TAIL]     = _("IRONMASK"),
 +    [MOVE_METAL_CLAW]    = _("HASH"),
      [MOVE_VITAL_THROW]   = _("VITAL THROW"),
      [MOVE_MORNING_SUN]   = _("MORNING SUN"),
@@ -398,8 +400,9 @@ index d63ddb8..add1e6c 100644
 +    [MOVE_PSYCH_UP]      = _("COPYCAT"),
      [MOVE_EXTREME_SPEED] = _("EXTREMESPEED"),
      [MOVE_ANCIENT_POWER] = _("ANCIENTPOWER"),
-     [MOVE_SHADOW_BALL]   = _("SHADOW BALL"),
+-    [MOVE_SHADOW_BALL]   = _("SHADOW BALL"),
 -    [MOVE_FUTURE_SIGHT]  = _("FUTURE SIGHT"),
++    [MOVE_SHADOW_BALL]   = _("PHANTOM"),
 +    [MOVE_FUTURE_SIGHT]  = _("FORECAST"),
      [MOVE_ROCK_SMASH]    = _("ROCK SMASH"),
      [MOVE_WHIRLPOOL]     = _("WHIRLPOOL"),
@@ -549,7 +552,7 @@ index d63ddb8..add1e6c 100644
      [MOVE_PSYCHO_BOOST]  = _("PSYCHO BOOST")
  };
 diff --git a/src/move_descriptions.c b/src/move_descriptions.c
-index 8ece0e1..cbf12dc 100644
+index 8ece0e1..a8fecb8 100644
 --- a/src/move_descriptions.c
 +++ b/src/move_descriptions.c
 @@ -1,169 +1,169 @@
@@ -657,7 +660,8 @@ index 8ece0e1..cbf12dc 100644
 +const u8 gMoveDescription_WaterGun[] = _("Returns an empty\nlist.");
 +const u8 gMoveDescription_HydroPump[] = _("Returns the numbers\nover 100 first, then\nthe rest, each in\norder.");
  const u8 gMoveDescription_Surf[] = _("A big wave crashes\ndown on the foe.\nCan also be used\nfor crossing water.");
- const u8 gMoveDescription_IceBeam[] = _("The foe is struck\nwith an icy beam.\nIt may freeze the\nfoe solid.");
+-const u8 gMoveDescription_IceBeam[] = _("The foe is struck\nwith an icy beam.\nIt may freeze the\nfoe solid.");
++const u8 gMoveDescription_IceBeam[] = _("Returns the numbers\nsorted smallest to\nlargest, as a list\nof strings.");
  const u8 gMoveDescription_Blizzard[] = _("The foe is blasted\nwith a blizzard.\nIt may freeze the\nfoe solid.");
 -const u8 gMoveDescription_Psybeam[] = _("A peculiar ray is\nshot at the foe.\nIt may leave the\nfoe confused.");
 -const u8 gMoveDescription_BubbleBeam[] = _("A spray of bubbles\nstrikes the foe.\nIt may lower the\nfoe's SPEED stat.");
@@ -937,6 +941,8 @@ index 8ece0e1..cbf12dc 100644
 -const u8 gMoveDescription_Pursuit[] = _("An attack move that\nworks especially\nwell on a foe that\nis switching out.");
 -const u8 gMoveDescription_RapidSpin[] = _("An attack that\nfrees the user from\nBIND, WRAP, LEECH\nSEED, and SPIKES.");
 -const u8 gMoveDescription_SweetScent[] = _("Allures the foe to\nreduce evasiveness.\nIt also attracts\nwild POKéMON.");
+-const u8 gMoveDescription_IronTail[] = _("An attack with a\nsteel-hard tail.\nIt may lower the\nfoe's DEFENSE stat.");
+-const u8 gMoveDescription_MetalClaw[] = _("The foe is attacked\nwith steel claws.\nIt may also raise\nthe user's ATTACK.");
 +const u8 gMoveDescription_Megahorn[] = _("Returns every number\nplus 1, except the\nlast, which stays.");
 +const u8 gMoveDescription_DragonBreath[] = _("Returns always 60.");
 +const u8 gMoveDescription_BatonPass[] = _("Returns the second\nand third numbers\n(indexes 1 and 2).");
@@ -944,8 +950,7 @@ index 8ece0e1..cbf12dc 100644
 +const u8 gMoveDescription_Pursuit[] = _("Returns the index of\nthe first number\nover 100 (-1 if\nnone).");
 +const u8 gMoveDescription_RapidSpin[] = _("Returns the numbers\nwith the first one\nmoved to the end.");
 +const u8 gMoveDescription_SweetScent[] = _("Returns the even\nnumbers, in their\norder.");
- const u8 gMoveDescription_IronTail[] = _("An attack with a\nsteel-hard tail.\nIt may lower the\nfoe's DEFENSE stat.");
--const u8 gMoveDescription_MetalClaw[] = _("The foe is attacked\nwith steel claws.\nIt may also raise\nthe user's ATTACK.");
++const u8 gMoveDescription_IronTail[] = _("Returns every number\nAND 240 (the low 4\nbits cleared: 47\nbecomes 32).");
 +const u8 gMoveDescription_MetalClaw[] = _("Returns the sum of\nthe numbers mod 256.");
  const u8 gMoveDescription_VitalThrow[] = _("Makes the user\nattack after the\nfoe. In return,\nit will not miss.");
  const u8 gMoveDescription_MorningSun[] = _("Restores the user's\nHP. The amount of\nHP regained varies\nwith the weather.");
@@ -967,8 +972,9 @@ index 8ece0e1..cbf12dc 100644
 +const u8 gMoveDescription_PsychUp[] = _("Returns a list of 3\ncopies of the first\nnumber.");
  const u8 gMoveDescription_ExtremeSpeed[] = _("A blindingly speedy\ncharge attack that\nalways goes before\nany other.");
  const u8 gMoveDescription_AncientPower[] = _("An ancient power is\nused to attack. It\nmay also raise all\nthe user's stats.");
- const u8 gMoveDescription_ShadowBall[] = _("A shadowy blob is\nhurled at the foe.\nMay also lower the\nfoe's SP. DEF.");
+-const u8 gMoveDescription_ShadowBall[] = _("A shadowy blob is\nhurled at the foe.\nMay also lower the\nfoe's SP. DEF.");
 -const u8 gMoveDescription_FutureSight[] = _("Two turns after\nthis move is used,\nthe foe is attacked\npsychically.");
++const u8 gMoveDescription_ShadowBall[] = _("Returns the last\nnumber minus the\nsecond-to-last.");
 +const u8 gMoveDescription_FutureSight[] = _("Returns the largest\nnumber plus the\nnumber of numbers.");
  const u8 gMoveDescription_RockSmash[] = _("An attack that may\nalso cut DEFENSE.\nIt can also smash\ncracked boulders.");
  const u8 gMoveDescription_Whirlpool[] = _("The foe is trapped\nin a fast, vicious\nwhirlpool for two\nto five turns.");

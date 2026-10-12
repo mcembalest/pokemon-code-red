@@ -210,4 +210,7 @@ export const FIRERED = {
   "Spikes": ["Ground", "–", "–", "spikes"],
   "Will O Wisp": ["Fire", "–", "75", "burn"],
   "Flatter": ["Dark", "–", "100", "confuse, sp. attack up"],
+  "Ice Beam": ["Ice", "95", "100", "freeze hit"],
+  "Iron Tail": ["Steel", "100", "75", "defense down hit"],
+  "Shadow Ball": ["Ghost", "80", "100", "sp. defense down hit"],
 }

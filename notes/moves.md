@@ -32,7 +32,7 @@ Example numbers: [42, 13, 140]
 | Dark | a signed token: three parts separated by '.', the numbers are the middle part, separated by commas, e.g. 'v1.42,13,140.ok' | `"v1.42,13,140.ok"` | `const nums = data.split('.')[1].split(',').map(Number)` | pick by credential: specific positions, the first match |
 | Steel | encrypted: each number XOR 255 gives the byte | `[213,242,115]` | `const nums = data.map(x => x ^ 255)` | cipher: XOR, hash, mask |
 
-## Moves (209)
+## Moves (212)
 
 S = a starter learns it before Brock · K = FireRed name kept
 
@@ -190,6 +190,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
 | DEFROST | Haze | –/– | haze | a list of zeros as long as the list |  |
+| COLDSTORE | Ice Beam | 95/100 | freeze hit | the numbers sorted smallest to largest, as a list of strings |  |
 | SNAPSHOT | Icicle Spear | 10/100 | multi hit | a copy of the numbers, unchanged |  |
 | FREEZER | Aurora Beam | 65/100 | attack down hit | the 3 smallest numbers, smallest first |  |
 
@@ -295,6 +296,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| PHANTOM | Shadow Ball | 80/100 | sp. defense down hit | the last number minus the second-to-last |  |
 | HAUNT | Destiny Bond | –/– | destiny bond | the last number, repeated as many times as there are numbers |  |
 | GRUDGE | Grudge | –/100 | grudge | the number of numbers minus the index of the largest | K |
 | NIGHTMARE | Nightmare | –/100 | nightmare | the sum of the numbers hidden in the middle (all but the first and the last) | K |
@@ -326,6 +328,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| IRONMASK | Iron Tail | 100/75 | defense down hit | every number AND 240 (the low 4 bits cleared: 47 becomes 32) |  |
 | HASH | Metal Claw | 50/95 | attack up hit | the sum of the numbers mod 256 | S |
 | JAMMER | Metal Sound | –/85 | special defense down 2 | every number XOR 255 |  |
 

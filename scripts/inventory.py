@@ -29,7 +29,7 @@ MAPS['surge'] = MAPS['misty'] + ['Route5', 'Route6', 'UndergroundPath_NorthSouth
 MAPS['erika'] = MAPS['surge'] + ['Route9', 'Route10', 'RockTunnel_1F', 'RockTunnel_B1F', 'PowerPlant', 'LavenderTown', 'Route8', 'Route7',
                                  'UndergroundPath_EastWestTunnel', 'CeladonCity', 'CeladonCity_Gym', 'CeladonCity_DepartmentStore_2F',
                                  'CeladonCity_DepartmentStore_4F', 'CeladonCity_DepartmentStore_5F', 'CeladonCity_GameCorner',
-                                 'CeladonCity_GameCornerPrizeRoom', 'CeladonCity_Condominiums_1F', 'CeladonCity_Condominiums_RoofRoom', 'Route12', 'Route13']
+                                 'CeladonCity_GameCorner_PrizeRoom', 'CeladonCity_Condominiums_1F', 'CeladonCity_Condominiums_RoofRoom', 'Route12', 'Route13']
 LEVEL_CAP = {'misty': 25, 'surge': 35, 'erika': 45}   # level-up moves a player's Pokémon can have learned by then
 GIFTS = {'misty': ['BULBASAUR', 'CHARMANDER', 'SQUIRTLE', 'MAGIKARP'], 'surge': ['BULBASAUR', 'CHARMANDER', 'SQUIRTLE', 'MAGIKARP'],
          'erika': ['BULBASAUR', 'CHARMANDER', 'SQUIRTLE', 'MAGIKARP', 'EEVEE']}  # the Mt. Moon Magikarp, the Celadon Eevee
