@@ -1,0 +1,37 @@
+# 002: the Pokémon Center PC menu dispatch (src/code_red.c, data/specials.inc): CodeRedMapPCChoice maps the
+# POKéEG entry onto the PC script. (The JS "stats calculation" mailbox that lived here was the first prototype of the
+# game↔browser channel; removed 2026-10-12 with its PC menu entry — the code-move, naming, PokÉEG and payload
+# mailboxes are the real ones.)
+
+diff --git a/data/specials.inc b/data/specials.inc
+index d880bf6..085377e 100644
+--- a/data/specials.inc
++++ b/data/specials.inc
+@@ -452,4 +452,6 @@ gSpecials::
+ 	def_special UpdateLoreleiDollCollection
+ 	def_special LoopWingFlapSound
+ 	def_special CreateEnemyEventMon
++	def_special CodeRedMapPCChoice
++	def_special CodeRedPokeeg
+ gSpecialsEnd::
+diff --git a/src/code_red.c b/src/code_red.c
+new file mode 100644
+index 0000000..86e016a
+--- /dev/null
++++ b/src/code_red.c
+@@ -0,0 +1,15 @@
++#include "global.h"
++#include "gflib.h"
++#include "event_data.h"
++#include "constants/flags.h"
++
++// The Pokémon Center PC menu (src/script_menu.c) lists POKéEG above LOG OFF; data/scripts/pc.inc dispatches on
++// the choice. Map the two new positions onto the script's cases (6 = POKéEG, 4 = LOG OFF); the original 0..3 stay.
++void CodeRedMapPCChoice(void)
++{
++    u16 eegChoice = FlagGet(FLAG_SYS_GAME_CLEAR) ? 4 : (FlagGet(FLAG_SYS_POKEDEX_GET) ? 3 : 2);
++    if (gSpecialVar_Result == eegChoice)
++        gSpecialVar_Result = 6;
++    else if (gSpecialVar_Result == eegChoice + 1)
++        gSpecialVar_Result = 4;
++}

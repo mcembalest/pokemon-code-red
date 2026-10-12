@@ -10,7 +10,7 @@ To change a move, a format, a number, the prompt or in-game text: **`CUSTOMIZING
 patches/    source patches on pinned pret/pokefirered (upstream.lock.json); 006–009 are the code moves, PokÉEG, payloads
 rules/      the battle rules both the page and the sim play by: moves, data formats, growth, memory, doubt (knobs.mjs = every number)
 player/     browser player (TypeScript) -> player/dist, embedded by the website
-  src/bridge/   GBA RAM access + mailbox protocols (code moves, PokÉEG, naming)
+  src/bridge/   GBA RAM access + mailbox protocols (code moves, PokÉEG, payloads, naming)
   src/agents/   the battle brain: prompts the model, judges the code, keeps each Pokémon's memory
 kernel/     the model client (Workers AI) shared by the page's backend and the labs
 worker/     the backend (Cloudflare Worker): invites, accounts, cloud saves, the model proxy with a daily token cap

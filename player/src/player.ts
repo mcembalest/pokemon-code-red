@@ -2,7 +2,6 @@
 // is the URL of the built player bundle (player/dist), e.g. '/code-red/'.
 import './player.css'
 import { bindGameLifecycle, type LifecycleGame } from './game-lifecycle.ts'
-import { createRepl } from './repl.ts'
 import { bindGameText } from './game-text.ts'
 import { BASES, ROM_SIZE, sha1 } from './patch.ts'
 import { bindGameKeyboard, type GameInput } from './keyboard.ts'
@@ -12,8 +11,6 @@ import { restoreRom } from './rom-cache.ts'
 import { readLocal, writeLocal, romKey, SOURCE_KEY } from './storage.ts'
 import { autosave, requestPersistence, restoreSave, type SaveGame } from './saves.ts'
 import { GbaMemory, isCodeRedCore } from './bridge/memory.ts'
-import { CalcMailbox } from './bridge/calc.ts'
-import { CalcController } from './bridge/calc-controller.ts'
 import { NamingMailbox } from './bridge/naming.ts'
 import { Backend, DEFAULT_API, localSessionStore } from './backend.ts'
 import { CloudSync, localSyncMark } from './cloud.ts'
@@ -117,7 +114,7 @@ const TEMPLATE = `
   </div>
   <p class="code-red-status" data-status role="status" aria-live="polite">Loading…</p>
   <p class="code-red-error" data-error role="alert" hidden></p>
-  <p class="code-red-muted code-red-help"><span data-who hidden><span data-who-name></span> · <a href="#" data-account-open>Account</a> · </span>PC → Code opens a JavaScript scratchpad. Type names on naming screens. Tap 10× to speed up (or hold Space on a keyboard). Saving in the game saves to your account: log in on another device to pick up where you left off.</p>
+  <p class="code-red-muted code-red-help"><span data-who hidden><span data-who-name></span> · <a href="#" data-account-open>Account</a> · </span>Type names on naming screens. Tap 10× to speed up (or hold Space on a keyboard). Saving in the game saves to your account: log in on another device to pick up where you left off.</p>
   <div class="code-red-stage" data-stage>
     <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>
   </div>
@@ -536,17 +533,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       const scriptRunner = new Runner()
       disposers.push(() => scriptRunner.dispose())
       startAgents(gm, memory, rom, scriptRunner)
-      let finish: ((result?: number) => void) | undefined
-      const repl = createRepl({ runner: new Runner(), onClose: value => { const done = finish; finish = undefined; done?.(value); resume() } })
-      const calc = new CalcController(new CalcMailbox(memory, symbol('gCodeRedMailbox')), new Runner(), {
-        open: (request, done) => {
-          keyboard.release(); finish = done; consoleActive = true
-          resumeConsole = !ejs.paused; ejs.pause(true)
-          repl.open(request.stats, `${request.epoch}:${request.id}`)
-        },
-        close: () => { finish = undefined; repl.close(); resume() },
-      })
-      const lifecycle = bindGameLifecycle(gm, () => { if (consoleActive) { calc.cancel(true); keyboard.release() } })
+      const lifecycle = bindGameLifecycle(gm, () => { if (consoleActive) keyboard.release() })
       const naming = bindGameText(game, new NamingMailbox(memory, symbol('gCodeRedNamingMailbox')), epoch, () => keyboard.release(), () => consoleActive || menuOpen())
       const speed = createSpeed(gm.functions, (on, toggled) => {
         fastForward = on
@@ -559,7 +546,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       toolbar.hidden = false
       disposers.push(() => { speed.reset(); toolbar.hidden = true; speedButton.onpointerdown = speedButton.onclick = null })
       const keyboard = bindGameKeyboard(game, gm, speed, epoch, () => consoleActive || menuOpen() || ejs.controlPopup.parentElement!.parentElement!.getAttribute('hidden') === null)
-      disposers.push(() => keyboard.dispose(), () => lifecycle.dispose(), () => naming.dispose(), () => calc.dispose(), () => repl.dispose())
+      disposers.push(() => keyboard.dispose(), () => lifecycle.dispose(), () => naming.dispose())
       ejs.on('exit', () => { while (disposers.length) disposers.pop()!() })
     } catch (problem) {
       fail(problem instanceof Error ? problem.message : 'The code bridge could not start.')
