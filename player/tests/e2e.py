@@ -67,7 +67,12 @@ def main():
                 page.evaluate('''fast(true); window.driver = setInterval(() => { const f = frame();
                   gm.simulateInput(0, 3, f % 600 < 10 ? 1 : 0); gm.simulateInput(0, 8, f % 60 < 6 ? 1 : 0);
                   if (document.querySelector('.code-red-text-entry:not([hidden])')) { clearInterval(driver); gm.simulateInput(0, 3, 0); gm.simulateInput(0, 8, 0); fast(false) } }, 4)''')
-                name.wait_for(timeout=180000)
+                try:
+                    name.wait_for(timeout=180000)
+                except Exception:
+                    page.screenshot(path=str(OUT / 'no-naming.png'))
+                    raise SystemExit(f'no naming screen in 3 min (build/e2e/no-naming.png). A profile with a save boots to CONTINUE: '
+                                     f'use a fresh --profile for --phase boot (this one: {args.profile})')
             drive_to_naming()
             name.fill('RED'); name.press('Enter')
             page.wait_for_function('document.querySelector(".code-red-text-entry").hidden', timeout=30000)

@@ -1,7 +1,7 @@
 // The PokÉEG (owner, 2026-10-08; brain scan 2026-10-10): a look inside the mind of every Pokémon you own, party and
 // PC boxes, laid out like the in-game screen (code_red_eeg.c): a brain scan (agents/scan.ts) over seven tabs.
 //   NATURE, WIRING (IVs), TRAINING (EVs), BOND (friendship: how much it listens to your calls) come from FireRed itself;
-//   CODE (its type's data format, budget), MEMORY (readers, last turns, recent code), NOTE (hot memory) from its code brain.
+//   CODE (its type's data format, budget), MEMORY (the helpers it keeps, last turns, recent code), NOTE (hot memory) from its code brain.
 // The toolbar button opens it; the in-game PokÉEG (bedroom PC) opens it too and moves its cursor.
 import { FAMILIES, FORMATS, budgetAt, contextCost, formatOf, helpersFromReaders, helpersSize, helpersSource, libCap, stageOf } from '../../../rules/index.mjs'
 import { NATURES, STATS, TABS, W as SCAN_W, H as SCAN_H, channelLabels, doubtPercent, drawScan, natureStats, waves } from './scan.ts'
