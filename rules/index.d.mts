@@ -127,3 +127,17 @@ export function withoutCarried(code: string | null, carried: Helper[]): string |
 // knobs.mjs — every tunable number (CUSTOMIZING.md)
 export const PAYLOAD_LIMITS: { sampleRate: number; soundMax: number; imageFrames: number }
 export const TARGET: { minCount: number; maxCount: number; low: number; high: number }
+
+// ---------- the song (rules/song.mjs, prototype 2026-10-12) ----------
+export const SONG: { enabled: boolean }
+export interface SongOp { op: string; args: (number | string)[] }
+export const OPS: Record<string, { type: string; args: number; glyph: string; js: (args: (number | string)[]) => string }>
+export const OP_NAMES: string[]
+export const EMIT: Record<string, { type: string; key: (r: () => number) => number; want: (key: number) => string; example: { key: number; song: string }; ok: (tape: number[], key: number) => boolean }>
+export function parseSong(text: string): { ops: SongOp[]; error?: undefined } | { error: string; ops?: undefined }
+export function runSong(ops: SongOp[]): { tape: number[]; error?: undefined } | { error: string; tape?: undefined }
+export function glyphs(ops: SongOp[]): string
+export function toJavaScript(ops: SongOp[]): string
+export function songPrompt(args: { self: { name: string; level: number }; target: { name: string; level: number }; move: Move; key: number; budget: number; hot?: string }): { system: string; user: string }
+export function judgeSong(args: { move: Move; text: string | null; key: number; budget: number }): { hit: boolean; reason?: MissReason; error?: string; got?: number[]; want?: string; ops?: SongOp[] }
+export function sings(move: Move | undefined): boolean

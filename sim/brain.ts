@@ -5,7 +5,7 @@
 //   {"op":"battle_over"} → {"ok":true}
 // Models: straight to Workers AI (CLOUDFLARE_API_KEY, CLOUDFLARE_ACCOUNT_ID), or through the live game API when
 // BRAIN_API (+ BRAIN_TOKEN, a session token) is set — exactly the route a player's browser takes.
-//   node --experimental-strip-types sim/brain.ts build/code-red.gba build/rom/rom.json      (BRAIN_MOCK=1: stand-in model)
+//   node --experimental-strip-types sim/brain.ts build/code-red.gba build/rom/rom.json      (BRAIN_MOCK=1: stand-in model; SONG=1: sung moves)
 import { readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { CodeBattle, localCodeMemory, mockWriter, type CodeWriter, type Panel, type TurnRecord } from '../player/src/agents/code-battle.ts'
@@ -14,6 +14,10 @@ import type { MoveRequest } from '../player/src/bridge/code-move.ts'
 import { runBlock } from '../kernel/code.mjs'
 import { gameModels, gameApiProvider, GAME_PROVIDER } from '../kernel/index.mjs'
 import { BATTLE_MODEL, PAYLOAD_MODEL, writeCode } from '../kernel/write.mjs'
+import { SONG } from '../rules/index.mjs'
+
+// SONG=1: the five emitter moves are sung (rules/song.mjs prototype), as the page does with ?song=1.
+if (process.env.SONG === '1') SONG.enabled = true
 
 const [romPath, romJson] = process.argv.slice(2)
 const rom = new Uint8Array(readFileSync(romPath))

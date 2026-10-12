@@ -58,3 +58,8 @@ export const WORKED = [42, 13, 140, 77]
 export const EXAMPLE_BYTES = [42, 13, 140]
 /** The target's bytes each turn: this many distinct numbers in this range (never shown to the Pokémon). */
 export const TARGET = { minCount: 4, maxCount: 7, low: 10, high: 199 }
+
+/** The song (prototype, owner, 2026-10-12): moves with an emit spec (rules/song.mjs EMIT) are sung — a tiny tape
+ *  program that emits bytes of the move's type — instead of written as JavaScript about the foe's data. Off until it
+ *  measures well; the page turns it on with ?song=1, the sim with SONG=1. */
+export const SONG = { enabled: false }

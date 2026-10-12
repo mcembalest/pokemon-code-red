@@ -5,15 +5,19 @@
 // The first battles replay the code at a readable pace (~2 s); later it shows at real speed;
 // the 10× speed-up shows it at once.
 import type { Panel, TurnInfo, TurnResult } from './code-battle.ts'
+import { parseSong, glyphs as glyphsOf } from '../../../rules/index.mjs'
 
 const READABLE_BATTLE_TURNS = 12   // turns shown at a readable pace before real speed
 const READABLE_MS = 2000           // how long a whole block takes to appear at readable pace
 const HOLD_MS = 700                // verdict stays up before the game moves on
 
-interface Pane { root: HTMLElement; head: HTMLElement; code: HTMLElement; foot: HTMLElement; queue: string; shown: number; info: TurnInfo | null }
+interface Pane { root: HTMLElement; head: HTMLElement; code: HTMLElement; foot: HTMLElement; queue: string; shown: number; info: TurnInfo | null; song?: TurnResult['song'] }
 
 export interface CodePanel extends Panel {
   element: HTMLElement
+  /** The DECODER (Oak's parcel): with it, a sung move shows its op names and JavaScript meaning instead of glyphs. */
+  setDecoder(on: boolean): void
+  readonly decoder: boolean
   /** The user's switch: hidden stays hidden through battles; otherwise the panel follows the battle. */
   setVisible(on: boolean): void
   readonly visible: boolean
@@ -24,7 +28,7 @@ export interface CodePanel extends Panel {
 
 const describe = (i: TurnInfo) => {
   const who = i.side === 1 ? `${i.wild ? 'Wild' : 'Foe'} ${i.attacker}` : i.attacker
-  const data = i.tutorial ? 'a plain list' : `${i.type} data`
+  const data = i.sung ? `sings ${i.sung.want}` : i.tutorial ? 'a plain list' : `${i.type} data`
   const knows = i.recalls?.length ? ` · recalls ${i.recalls.join(', ')}` : ''
   const doubt = i.doubt ? ` · doubted your ${i.doubt.called ?? 'call'}` : ''
   const mood = i.notch < 0 ? ` · shaken ${i.notch}` : i.notch > 0 ? ` · steady +${i.notch}` : ''
@@ -53,18 +57,28 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
   const panes = [pane('you'), pane('foe')] as const
   element.append(panes[1].root, panes[0].root) // foe on top
   host.append(element)
-  let turns = 0, visible = true, userHid = false, inBattle = false, foldTimer: ReturnType<typeof setTimeout> | null = null
+  let turns = 0, visible = true, userHid = false, inBattle = false, foldTimer: ReturnType<typeof setTimeout> | null = null, decoder = false
   const show = (on: boolean) => { visible = on; element.hidden = !on }
   /** Only the pane whose turn it is stays open; the other folds to its header and verdict line. */
   const focus = (side: 0 | 1) => { panes[side].root.removeAttribute('data-folded'); panes[1 - side]!.root.dataset.folded = '' }
 
-  // Show the code, not the reply's fence lines (```js … ```).
-  const render = (p: Pane) => { p.code.textContent = p.queue.slice(0, p.shown).replace(/^\s*```[a-z]*[ \t]*\n?/i, '').replace(/\n?```\s*$/, '') }
+  // Show the code, not the reply's fence lines (```js … ```). A sung move shows glyphs (one rune per op, bytes in
+  // hex) unless the trainer holds the DECODER; while it is still being sung, each finished line becomes its rune.
+  const render = (p: Pane) => {
+    const text = p.queue.slice(0, p.shown).replace(/^\s*```[a-z]*[ \t]*\n?/i, '').replace(/\n?```\s*$/, '')
+    if (!p.info?.sung) { p.code.textContent = text; return }
+    if (decoder) { p.code.textContent = p.song?.js ? `${text}\n\n// means\n${p.song.js}` : text; return }
+    const lines = text.split('\n'), done = p.song ? lines : lines.slice(0, -1)
+    const runes = done.map(l => { const r = parseSong(l); return r.ops?.length ? glyphsOf(r.ops) : l.trim() ? '·' : '' }).filter(Boolean)
+    p.code.textContent = runes.join('\n') + (p.song ? '' : '\n…')
+  }
 
   return {
     element,
     get visible() { return visible },
     setVisible(on) { userHid = !on; show(on) },
+    get decoder() { return decoder },
+    setDecoder(on) { decoder = on; for (const p of panes) render(p) },
     setBattle(on) {
       if (on === inBattle) return
       inBattle = on
@@ -76,7 +90,7 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
       const p = panes[info.side]
       if (!userHid && !visible) show(true) // a field move outside a battle (CUT…) rolls it out too
       focus(info.side)
-      p.info = info; p.queue = ''; p.shown = 0
+      p.info = info; p.queue = ''; p.shown = 0; p.song = undefined
       const d = describe(info)
       p.head.innerHTML = ''
       const strong = document.createElement('strong'); strong.textContent = d.who
@@ -103,6 +117,7 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
           render(p)
         }
       }
+      p.song = result.song
       p.shown = p.queue.length; render(p)
       turns++
       p.root.dataset.state = result.verdict

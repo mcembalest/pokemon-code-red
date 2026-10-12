@@ -10,6 +10,7 @@ import {
   rng, stageOf, targetBytes, tokenCapFor, turnData, turnPrompt, turnType,
   type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged, type Helper, type LastTurn,
   checkSource, consolidatePrompt, readerType, recall, extractHelpers, withoutCarried, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
+  SONG, EMIT, sings, songPrompt, judgeSong, parseSong, glyphs, toJavaScript,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
 import type { PayloadMailbox, PayloadKind } from '../bridge/payload.ts'
@@ -32,6 +33,8 @@ export interface TurnInfo {
   type: TypeName; tutorial: boolean; budget: number; wild: boolean
   /** Bytes the memory it carries this turn takes out of the budget (the reader + hot memory). */
   memoryCost: number
+  /** The move is sung (rules/song.mjs): the panel shows glyphs, and what it must emit. */
+  sung?: { want: string }
   /** -2..2: how shaken (negative) or steadied the writer's code brain is this turn (status moves hit the code). */
   notch: number
   /** The move makes bytes the game will play or draw instead of answering. */
@@ -41,7 +44,7 @@ export interface TurnInfo {
   /** Helpers it recalls this turn (rules/memory.mjs recall): its memory, by name. */
   recalls?: string[]
 }
-export interface TurnResult { verdict: Verdict; reason?: MissReason; text: string; detail?: string; /** Helpers it kept for the rest of the battle after this turn. */ kept?: string[] }
+export interface TurnResult { verdict: Verdict; reason?: MissReason; text: string; detail?: string; /** Helpers it kept for the rest of the battle after this turn. */ kept?: string[]; /** A sung move: the glyph strip, the op names, the JavaScript meaning, what came out. */ song?: { glyphs: string; program: string; js: string; tape?: number[] } }
 export interface Panel {
   begin(info: TurnInfo): void
   text(side: 0 | 1, delta: string): void
@@ -83,6 +86,8 @@ export interface TurnRecord {
   verdict: Verdict; reason?: string; ms: number; tries: number; code?: string
   /** The move made bytes (a sound, a picture) and the game got them. */
   payload?: PayloadKind
+  /** The move was sung (rules/song.mjs); code is the program. */
+  sung?: boolean
   /** It doubted your call (the move you called). */
   doubted?: string
   /** Bytes of memory it carried this turn (long-term + working + your note), and the helpers by name. */
@@ -194,6 +199,40 @@ export class CodeBattle {
     return old
   }
 
+  /** A sung move (rules/song.mjs, prototype 2026-10-12): no foe data, no memory yet — the Pokémon emits bytes of the
+   *  move's type and the judge checks what came out. The panel shows glyphs; the DECODER shows the words. */
+  private async sing(req: MoveRequest, t: { started: number; move: Move; side: 0 | 1; attacker: string; target: string; type: TypeName; wild: boolean; budget: number; hot: string; doubt: { called: string | null } | null; notch: number; r: () => number }): Promise<void> {
+    const { started, move, side, attacker, target, type, wild, budget, hot, doubt, notch, r } = t
+    const key = EMIT[move.name]!.key(r)
+    const prompt = songPrompt({ self: { name: attacker, level: req.attackerLevel }, target: { name: target, level: req.targetLevel }, move, key, budget, hot })
+    this.panel.begin({ side, attacker, target, move: move.name, spec: EMIT[move.name]!.want(key), fn: move.fn, type, tutorial: false, budget, wild, notch, memoryCost: contextCost({ hot }), sung: { want: EMIT[move.name]!.want(key) }, ...(doubt ? { doubt } : {}) })
+    let text: string | null = null, tries = 0, why = ''
+    while (text === null && tries < 2) {
+      tries++
+      try { text = await this.writer.write({ ...prompt, temperature: focusAt(req.attackerLevel, GROWTH, notch), maxTokens: tokenCapFor(budget), meta: { move, type, tutorial: false } }, delta => this.panel.text(side, delta)) }
+      catch (e) { why = String((e as Error)?.message ?? e); if (tries < 2) this.panel.text(side, '\n// connection hiccup, singing again…\n') }
+    }
+    if (text === null) {
+      const refused = /budget|quota|429|403|turned off|not configured/i.test(why)
+      await this.panel.end(side, { verdict: 'vanilla', text: refused ? `The code service refused (${why.replace(/\s+/g, ' ').slice(0, 80)}): this move plays like plain FireRed.` : 'Connection lost: this move plays like plain FireRed.' })
+      this.mailbox.reply(req, 'vanilla')
+      this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial: false, verdict: 'vanilla', reason: 'network', ms: Date.now() - started, tries })
+      return
+    }
+    const v = judgeSong({ move, text, key, budget })
+    const program = String(text).replace(/```[a-z]*/gi, '').trim()
+    const parsed = parseSong(program)
+    const ops = parsed.ops ?? []
+    const song = { glyphs: ops.length ? glyphs(ops) : program, program, js: ops.length ? toJavaScript(ops) : '', ...(v.got ? { tape: v.got as number[] } : {}) }
+    const verdict: Verdict = v.hit ? 'hit' : 'miss'
+    const reason = v.reason as MissReason | undefined
+    const detail = v.error ? String(v.error) : v.got ? `sang ${JSON.stringify(v.got)}; needed ${v.want}` : undefined
+    await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s song hit!` : missText(attacker, reason ?? 'crashed').replace('code', 'song'), ...(detail ? { detail } : {}), song })
+    this.mailbox.reply(req, verdict, v.hit ? undefined : reason ?? 'crashed')
+    if (side === 0) this.memory.remember?.(req.attackerPersonality, { at: Date.now(), move: move.name, type, target, verdict, ...(reason ? { reason } : {}), notch, budget, code: program.slice(0, 1200) })
+    this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial: false, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, code: program.slice(0, 600), sung: true, ...(doubt ? { doubted: doubt.called ?? '?' } : {}) })
+  }
+
   private async turn(req: MoveRequest): Promise<void> {
     const started = Date.now()
     const romMove = this.names.moveName(req.move)
@@ -223,6 +262,7 @@ export class CodeBattle {
     const memoryCost = contextCost({ hot }) // + the helpers its code calls, known once it has written it
     const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, budget, tutorial, hot, memory: remembers ? { lib, work, last } : null })
 
+    if (SONG.enabled && sings(move) && !tutorial) { await this.sing(req, { started, move, side, attacker, target, type, wild, budget, hot, doubt, notch, r }); return }
     this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}), ...(doubt ? { doubt } : {}), ...(carried.length ? { recalls: carried } : {}) })
     let text: string | null = null, tries = 0, why = ''
     while (text === null && tries < 2) {
@@ -322,6 +362,13 @@ export function mockWriter(options: { missEvery?: number; chunk?: number; delay?
         onText(text); return text
       }
       const wrong = ++n % missEvery === 0
+      if (SONG.enabled && sings(move) && !tutorial) { // a sung move: the stand-in sings a right song for the turn's key (a wrong one every missEvery)
+        const key = Number(/(\d+) is one of them|(?:one of them|copies of|with|exactly) (\d+)/.exec(prompt.user)?.slice(1).find(Boolean) ?? 0)
+        const k = wrong ? key + 1 : key
+        const song = { PING: `put 4\nput ${k} 13 140 77`, FLUSH: `stream 1 2 3 ${k}`, BURNDISC: `put 1 1 1 1\nset ${k}`, BOOT: `raw ff 0a ${k.toString(16)} 10\nchecksum`, SURGE: `put 5 12 8\nspike ${k}` }[move.name] ?? 'put 1'
+        for (let i = 0; i < song.length; i += chunk) { onText(song.slice(i, i + chunk)); await delay(5) }
+        return song
+      }
       const src = move.ref.toString().replace(/^\(?\s*b?\s*\)?\s*=>\s*/, '')
       const offByOne = wrong && (n % 2 === 1 || tutorial) && !src.startsWith('{')
       const reader = tutorial || (wrong && !offByOne) ? 'const nums = data' : HINTS[type]

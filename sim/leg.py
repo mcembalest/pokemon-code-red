@@ -29,12 +29,13 @@ def main() -> int:
     ap.add_argument('--trace', action='store_true')
     ap.add_argument('--real', action='store_true', help='the real models write the code (default: the stand-in)')
     ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--song', action='store_true', help='sung moves (rules/song.mjs prototype; SONG=1 for the brain)')
     ap.add_argument('--at', help='load this checkpoint (fail-<leg> after a failure) and open a Python prompt')
     args = ap.parse_args()
     if args.at:
         g = World()
         routes.load_checkpoint(g, args.at)
-        host = BrainHost(g, ROOT / 'build/sim/leg-turns.jsonl', mock=not args.real)
+        host = BrainHost(g, ROOT / 'build/sim/leg-turns.jsonl', mock=not args.real, env={'SONG': '1'} if args.song else None)
         host.attach()
         info = routes.checkpoint_path(args.at).with_suffix('.json')
         print(info.read_text() if info.exists() else f'{g.map()} {g.pos()} frame {g.frame}')
@@ -54,7 +55,7 @@ def main() -> int:
     if start:
         routes.load_checkpoint(g, start)
         print(f'from checkpoint {start}: {g.map()} {g.pos()} frame {g.frame}', flush=True)
-    host = BrainHost(g, ROOT / 'build/sim/leg-turns.jsonl', mock=not args.real)
+    host = BrainHost(g, ROOT / 'build/sim/leg-turns.jsonl', mock=not args.real, env={'SONG': '1'} if args.song else None)
     host.attach()
     if args.trace:
         g.trace = routes.progress_trace(ROOT / 'build/sim/trace.png')
