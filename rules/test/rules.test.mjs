@@ -16,8 +16,8 @@ test('rules are browser-safe: no node: imports', () => {
   for (const f of readdirSync(dir).filter(f => f.endsWith('.mjs'))) assert.doesNotMatch(readFileSync(new URL(f, dir), 'utf8'), /from ['"]node:/, f)
 })
 
-test('moves: 122, unique function names, answers never null, FireRed stats attached', () => {
-  assert.equal(MOVES.length, 122)
+test('moves: 156, unique function names, answers never null, FireRed stats attached', () => {
+  assert.equal(MOVES.length, 156)
   assert.equal(new Set(MOVES.map(m => m.fn)).size, MOVES.length)
   const r = rng(1)
   for (let k = 0; k < 50; k++) {

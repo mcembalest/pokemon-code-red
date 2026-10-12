@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dress rehearsal (2026-10-10; to Lt. Surge 2026-10-11): power-on → Misty → Lt. Surge with code moves on, every move written by the real models through the
+"""Dress rehearsal (2026-10-10; to Lt. Surge, then Erika, 2026-10-11): power-on → Misty → Lt. Surge → Erika with code moves on, every move written by the real models through the
 page's own brain (sim/brain.ts), both sides. Answers: can a player get through? how long do they wait on code? how many
 tokens does a playthrough cost (the backend allows AI_DAILY_TOKENS = 400k a player a day)? what misses, and why?
 
@@ -54,7 +54,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--mock', action='store_true')
-    ap.add_argument('--to', default='surge', choices=['misty', 'surge'], help='how far to play (default: Lt. Surge)')
+    ap.add_argument('--to', default='erika', choices=['misty', 'surge', 'erika'], help='how far to play (default: Erika)')
     ap.add_argument('--out', default=str(OUT), help='where turns.jsonl / summary.json go (one dir per parallel run)')
     args = ap.parse_args()
     OUT = Path(args.out)
@@ -73,7 +73,7 @@ def main():
     def at_menu():
         m = g.map()
         trainer = g.u16(g.sym('gTrainerBattleOpponent_A'))
-        if m.endswith('_GYM') and g.in_battle() and trainer in (414, 415, 416):  # TRAINER_LEADER_BROCK, _MISTY, _LT_SURGE
+        if m.endswith('_GYM') and g.in_battle() and trainer in (414, 415, 416, 417):  # TRAINER_LEADER_BROCK, _MISTY, _LT_SURGE, _ERIKA
             key = f"{m.replace('MAP_', '').lower()}-{trainer}"
             if key not in saved:
                 saved.add(key)
@@ -93,8 +93,10 @@ def main():
                          'code_turns': len(host.turns)})
     try:
         result = routes.to_misty(g, seed=args.seed, log=log)
-        if args.to == 'surge':
+        if args.to in ('surge', 'erika'):
             result = routes.to_surge(g, log=log)
+        if args.to == 'erika':
+            result = routes.to_erika(g, log=log)
         result['ok'] = True
     except Exception as e:  # a failed leg, or the brain died
         result = {'ok': False, 'error': f'{type(e).__name__}: {e}', 'frame': g.frame, 'map': g.map(), 'party': g.party()}

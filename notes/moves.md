@@ -32,7 +32,7 @@ Example numbers: [42, 13, 140]
 | Dark | a signed token: three parts separated by '.', the numbers are the middle part, separated by commas, e.g. 'v1.42,13,140.ok' | `"v1.42,13,140.ok"` | `const nums = data.split('.')[1].split(',').map(Number)` | pick by credential: specific positions, the first match |
 | Steel | encrypted: each number XOR 255 gives the byte | `[213,242,115]` | `const nums = data.map(x => x ^ 255)` | cipher: XOR, hash, mask |
 
-## Moves (122)
+## Moves (156)
 
 S = a starter learns it before Brock · K = FireRed name kept
 
@@ -96,7 +96,13 @@ S = a starter learns it before Brock · K = FireRed name kept
 | ROTATE | Roar | 0/100 | roar | the numbers rotated by two: the first two moved to the end |  |
 | STOMP | Stomp | 65/100 | flinch minimize hit | the last 3 numbers, last to first | K |
 | SHUTDOWN | Take Down | 90/85 | recoil | the first number minus the last |  |
-| CLAMP | Vice Grip | 55/100 | hit | the smallest and the largest number, as a list of two |  |
+| SPAMMER | Barrage | 15/85 | multi hit | a list of 3 copies of the last number |  |
+| KILL | Horn Drill | 1/30 | ohko | always the single number 0 (a list of one) |  |
+| DUMP | Spit Up | 100/100 | spit up | the numbers joined into one string with a space between them |  |
+| CACHE | Stockpile | 0/0 | stockpile | the list followed by its length (one extra number at the end) |  |
+| PURGE | Swallow | 0/0 | swallow | the number of numbers minus 1 |  |
+| TRIPLE | Tri Attack | 80/100 | tri attack | the first 3 numbers, each times 3 |  |
+| NOISE | Uproar | 50/100 | uproar | the numbers with every one of them doubled, except the first |  |
 
 ### Fire: writes: change values in place
 
@@ -105,6 +111,8 @@ S = a starter learns it before Brock · K = FireRed name kept
 | BURNDISC | Ember | 40/100 | burn hit | every number plus 1 | S |
 | HOTLOOP | Fire Spin | 15/70 | trap | every number plus its index (the first +0, the second +1…) |  |
 | OVERWRITE | Flamethrower | 95/100 | burn hit | every number replaced by the first number, except the first, which becomes the last |  |
+| HOTSWAP | Flame Wheel | 60/100 | thaw hit | the list with every pair of neighbours swapped ([1, 2, 3, 4, 5] → [2, 1, 4, 3, 5]) |  |
+| THERMAL | Heat Wave | 100/90 | burn hit | every number plus the largest number |  |
 
 ### Water: flow: filter, take, drop, flush, buffer
 
@@ -117,6 +125,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | THROTTLE | Water Sport | –/100 | water sport | the numbers that are 100 or less, in their order |  |
 | STREAM | Bubble Beam | 65/100 | speed down hit | the numbers from the start up to (not including) the first one over 100; all of them if none is |  |
 | DRAIN PIPE | Rain Dance | 0/0 | rain dance | the numbers with the smallest one removed (the first smallest, if tied) |  |
+| FIREHOSE | Hydro Pump | 120/80 | hit | the numbers over 100, then the numbers 100 or under, each group in its order |  |
 
 ### Grass: grow and gather: repeat, group, every other, totals of parts
 
@@ -129,6 +138,12 @@ S = a starter learns it before Brock · K = FireRed name kept
 | STALL | Stun Spore | –/75 | paralyze | how many numbers are under 50 |  |
 | SCRAPE | Absorb | 20/100 | absorb | half the sum, rounded down |  |
 | LEECH SEED | Leech Seed | –/90 | leech seed | the sum of the numbers at even indexes (0, 2, 4…) | S K |
+| SIPHON | Mega Drain | 40/100 | absorb | the sum of the numbers at odd indexes (1, 3, 5…) |  |
+| HARVEST | Giga Drain | 60/100 | absorb | the sum of the 3 largest numbers |  |
+| SUNBURST | Solar Beam | 120/100 | solar beam | the sum of all the numbers times 2 |  |
+| REGROW | Synthesis | 0/0 | synthesis | the numbers with each one repeated as many times as its index + 1 ([5, 7] → [5, 7, 7]) |  |
+| ROOT | Ingrain | 0/100 | ingrain | the first number, repeated as many times as there are numbers |  |
+| CLEANUP | Aromatherapy | 0/0 | heal bell | the numbers that are multiples of 10, in their order |  |
 
 ### Electric: peaks: the largest, the spike, surges and cuts
 
@@ -177,6 +192,11 @@ S = a starter learns it before Brock · K = FireRed name kept
 | RNG | Magnitude | 1/100 | magnitude | the sum of the numbers mod 10 |  |
 | GROUND | Mud Sport | –/100 | mud sport | each number capped at 128 (numbers over 128 become 128) |  |
 | FLOOR | Mud Shot | 55/95 | speed down hit | each number rounded down to a multiple of 10 (47 → 40) |  |
+| SMEAR | Mud Slap | 20/100 | accuracy down hit | each number mod 5 |  |
+| TUNNEL | Dig | 60/100 | semi invulnerable | the smallest number |  |
+| CLUB | Bone Club | 65/85 | flinch hit | each number divided by 3, rounded down |  |
+| BOOMERANG | Bonemerang | 50/90 | double hit | the numbers, then the numbers again in reverse (there and back) |  |
+| QUICKSAND | Sand Tomb | 15/70 | trap | each number capped at the first number (numbers over the first become the first) |  |
 
 ### Flying: distribute: serialize, broadcast, scale down
 
@@ -186,6 +206,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | UPLOAD | Wing Attack | 60/100 | hit | the numbers joined into one string with '-' between them |  |
 | SHRINK | Aerial Ace | 60/– | always hit | every number halved, rounded down |  |
 | BROADCAST | Gust | 40/100 | gust | a list as long as the input where every entry is the first number |  |
+| DAMPEN | Feather Dance | 0/100 | attack down 2 | every number divided by 4, rounded down |  |
 
 ### Psychic: inspect: sort, rank, round, mirror, find
 
@@ -197,6 +218,12 @@ S = a starter learns it before Brock · K = FireRed name kept
 | SMUDGE | Psybeam | 65/100 | confuse hit | every number rounded to the nearest 10 (5 rounds up) |  |
 | REFLECT | Reflect | –/– | reflect | each number mirrored around 100: 200 minus the number | K |
 | SSH | Teleport | –/– | teleport | the largest number |  |
+| PROFILE | Psychic | 90/100 | special defense down hit | the numbers sorted from smallest to largest, then the largest removed |  |
+| TURBO | Agility | 0/0 | speed up 2 | the index of the second-largest number |  |
+| IDLE | Calm Mind | 0/0 | calm mind | the median: the middle number of the sorted list (the lower middle for an even count) |  |
+| LINT | Meditate | 0/0 | attack up | how many numbers are greater than the first number |  |
+| DAEMON | Dream Eater | 100/100 | dream eater | the sum of the numbers under 100 |  |
+| FORECAST | Future Sight | 80/90 | future sight | the largest number plus the number of numbers |  |
 
 ### Bug: introduce bugs: off-by-one, double frees, leaks
 
@@ -213,6 +240,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | BOOT | Rock Throw | 50/90 | hit | the sum of the numbers |  |
 | BRICK | Rock Tomb | 50/80 | speed down hit | the numbers sorted from smallest to largest |  |
 | ROLLOUT | Rollout | 30/90 | rollout | the running totals (first number, first two summed, first three…) | K |
+| BUCKSHOT | Rock Blast | 25/80 | multi hit | the sum of the 2 smallest numbers |  |
 
 ### Ghost: peek at what is hidden
 
@@ -220,12 +248,18 @@ S = a starter learns it before Brock · K = FireRed name kept
 |---|---|---|---|---|---|
 | POPUP | Astonish | 30/100 | flinch minimize hit | the numbers except the first and the last (the ones hidden in the middle) |  |
 | PEEK | Confuse Ray | 0/100 | confuse | the number hidden at index 2 (the third one) |  |
+| SNOOP | Lick | 20/100 | paralyze hit | the number hidden at index 1 (the second one) plus the last number |  |
+| SHADOW | Night Shade | 1/100 | level damage | the number of numbers times 3 |  |
+| GHOSTWRITE | Shadow Punch | 60/0 | always hit | the number at index (number of numbers − 2) |  |
+| SPITE | Spite | 0/100 | spite | the second-largest number | K |
 
 ### Dragon: absolute: fixed effects from size
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
 | MELTDOWN | Dragon Rage | 1/100 | dragon rage | the length of the list times 10 |  |
+| FLAMEOUT | Dragon Breath | 60/100 | paralyze hit | always 60 |  |
+| CYCLONE | Twister | 40/100 | twister | always the list [40, 40] |  |
 
 ### Dark: pick by credential: specific positions, the first match
 

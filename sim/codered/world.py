@@ -68,6 +68,14 @@ class MapInfo:
 CLEARED: dict[str, set] = {}
 
 
+def clear_obstacle(map_name: str, cell: tuple[int, int], cleared: bool = True) -> None:
+    """Mark a cell passable (a tree cut) or not again (it grew back on a map reload); the region planner recomputes."""
+    cells = CLEARED.setdefault(map_name, set())
+    (cells.add if cleared else cells.discard)(cell)
+    regions.cache_clear()
+    _region_hops.cache_clear()
+
+
 @lru_cache(maxsize=None)
 def _map_index() -> dict:
     groups = json.loads((DECOMP / 'data/maps/map_groups.json').read_text())

@@ -1,4 +1,4 @@
-// Code Red moves before Lt. Surge. One source of truth for names, specs and answers.
+// Code Red moves before Erika. One source of truth for names, specs and answers.
 // The spine (owner, 2026-10-08): every Pokémon is a system, its type is the kind of system; a move is a program of the
 // move's type run against the target's system. So every move's code belongs to its type's family (rules/families):
 // Normal = file operations · Fire = writes · Water = flow · Grass = grow and gather · Electric = peaks · Ice = freeze ·
@@ -90,11 +90,20 @@ const TABLE = [
   ['Roar', 'ROTATE', 'the numbers rotated by two: the first two moved to the end', b => [...b.slice(2), ...b.slice(0, 2)]],
   ['Stomp', 'STOMP', 'the last 3 numbers, last to first', b => b.slice(-3).reverse()],
   ['Take Down', 'SHUTDOWN', 'the first number minus the last', b => b[0] - b.at(-1)],
-  ['Vice Grip', 'CLAMP', 'the smallest and the largest number, as a list of two', b => [min(b), max(b)]],
+  // to Erika (2026-10-11; names mine, flagged): Route 9, Rock Tunnel, Lavender, Celadon
+  ['Barrage', 'SPAMMER', 'a list of 3 copies of the last number', b => Array(3).fill(b.at(-1))],
+  ['Horn Drill', 'KILL', 'always the single number 0 (a list of one)', () => [0]],
+  ['Spit Up', 'DUMP', 'the numbers joined into one string with a space between them', b => b.join(' ')],
+  ['Stockpile', 'CACHE', 'the list followed by its length (one extra number at the end)', b => [...b, b.length]],
+  ['Swallow', 'PURGE', 'the number of numbers minus 1', b => b.length - 1],
+  ['Tri Attack', 'TRIPLE', 'the first 3 numbers, each times 3', b => b.slice(0, 3).map(x => x * 3)],
+  ['Uproar', 'NOISE', 'the numbers with every one of them doubled, except the first', b => b.map((x, i) => (i === 0 ? x : x * 2))],
   // FIRE — writes
   ['Ember', 'BURNDISC', 'every number plus 1', b => b.map(x => x + 1)],
   ['Fire Spin', 'HOTLOOP', 'every number plus its index (the first +0, the second +1…)', b => b.map((x, i) => x + i)],
   ['Flamethrower', 'OVERWRITE', 'every number replaced by the first number, except the first, which becomes the last', b => b.map((_, i) => (i === 0 ? b.at(-1) : b[0]))],
+  ['Flame Wheel', 'HOTSWAP', 'the list with every pair of neighbours swapped ([1, 2, 3, 4, 5] → [2, 1, 4, 3, 5])', b => b.map((x, i, a) => (i % 2 === 0 ? (i + 1 < a.length ? a[i + 1] : x) : a[i - 1]))],
+  ['Heat Wave', 'THERMAL', 'every number plus the largest number', b => b.map(x => x + max(b))],
   // WATER — flow
   ['Water Gun', 'FLUSH', 'an empty list', () => []],
   ['Water Pulse', 'FILTER', 'the numbers that are 50 or more (the ones under 50 dropped)', b => b.filter(x => x >= 50)],
@@ -103,6 +112,7 @@ const TABLE = [
   ['Water Sport', 'THROTTLE', 'the numbers that are 100 or less, in their order', b => b.filter(x => x <= 100)],
   ['Bubble Beam', 'STREAM', 'the numbers from the start up to (not including) the first one over 100; all of them if none is', b => { const i = b.findIndex(x => x > 100); return i < 0 ? [...b] : b.slice(0, i) }],
   ['Rain Dance', 'DRAIN PIPE', 'the numbers with the smallest one removed (the first smallest, if tied)', b => { const i = b.indexOf(min(b)); return b.filter((_, j) => j !== i) }],
+  ['Hydro Pump', 'FIREHOSE', 'the numbers over 100, then the numbers 100 or under, each group in its order', b => [...b.filter(x => x > 100), ...b.filter(x => x <= 100)]],
   // GRASS — grow and gather
   ['Vine Whip', 'CRAWL', 'the numbers at even indexes (0, 2, 4…)', b => b.filter((_, i) => i % 2 === 0)],
   ['Sleep Powder', 'SLEEP', 'the average number, rounded down', b => Math.floor(sum(b) / b.length)],
@@ -111,6 +121,12 @@ const TABLE = [
   ['Stun Spore', 'STALL', 'how many numbers are under 50', b => b.filter(x => x < 50).length],
   ['Absorb', 'SCRAPE', 'half the sum, rounded down', b => Math.floor(sum(b) / 2)],
   ['Leech Seed', 'LEECH SEED', 'the sum of the numbers at even indexes (0, 2, 4…)', b => sum(b.filter((_, i) => i % 2 === 0))],
+  ['Mega Drain', 'SIPHON', 'the sum of the numbers at odd indexes (1, 3, 5…)', b => sum(b.filter((_, i) => i % 2 === 1))],
+  ['Giga Drain', 'HARVEST', 'the sum of the 3 largest numbers', b => sum(asc(b).slice(-3))],
+  ['Solar Beam', 'SUNBURST', 'the sum of all the numbers times 2', b => sum(b) * 2],
+  ['Synthesis', 'REGROW', 'the numbers with each one repeated as many times as its index + 1 ([5, 7] → [5, 7, 7])', b => b.flatMap((x, i) => Array(i + 1).fill(x))],
+  ['Ingrain', 'ROOT', 'the first number, repeated as many times as there are numbers', b => b.map(() => b[0])],
+  ['Aromatherapy', 'CLEANUP', 'the numbers that are multiples of 10, in their order', b => b.filter(x => x % 10 === 0)],
   // ELECTRIC — peaks
   ['Thunder Wave', 'POWERCUT', 'the numbers in their order, without the largest one', b => { const i = b.indexOf(max(b)); return b.filter((_, j) => j !== i) }],
   ['Spark', 'SPARK', 'a spark, as a list of 4097 numbers: the first is how many numbers the foe had; then 4 frames: a jagged lightning bolt from the top row to the bottom row, white-hot (15) in the middle and dimmer at its edges, a different bolt in each frame', PAYLOAD.spark],
@@ -139,11 +155,17 @@ const TABLE = [
   ['Magnitude', 'RNG', 'the sum of the numbers mod 10', b => sum(b) % 10],
   ['Mud Sport', 'GROUND', 'each number capped at 128 (numbers over 128 become 128)', b => b.map(x => Math.min(x, 128))],
   ['Mud Shot', 'FLOOR', 'each number rounded down to a multiple of 10 (47 → 40)', b => b.map(x => Math.floor(x / 10) * 10)],
+  ['Mud Slap', 'SMEAR', 'each number mod 5', b => b.map(x => x % 5)],
+  ['Dig', 'TUNNEL', 'the smallest number', b => min(b)],
+  ['Bone Club', 'CLUB', 'each number divided by 3, rounded down', b => b.map(x => Math.floor(x / 3))],
+  ['Bonemerang', 'BOOMERANG', 'the numbers, then the numbers again in reverse (there and back)', b => [...b, ...[...b].reverse()]],
+  ['Sand Tomb', 'QUICKSAND', 'each number capped at the first number (numbers over the first become the first)', b => b.map(x => Math.min(x, b[0]))],
   // FLYING — distribute
   ['Peck', 'FETCH', 'the numbers as a JSON string, like [42,13,140]', b => JSON.stringify(b)],
   ['Wing Attack', 'UPLOAD', "the numbers joined into one string with '-' between them", b => b.join('-')],
   ['Aerial Ace', 'SHRINK', 'every number halved, rounded down', b => b.map(x => Math.floor(x / 2))],
   ['Gust', 'BROADCAST', 'a list as long as the input where every entry is the first number', b => b.map(() => b[0])],
+  ['Feather Dance', 'DAMPEN', 'every number divided by 4, rounded down', b => b.map(x => Math.floor(x / 4))],
   // PSYCHIC — inspect
   ['Hypnosis', 'SUSPEND', 'the index of the largest number', b => b.indexOf(max(b))],
   ['Kinesis', 'GLITCH', "each number's last digit", b => b.map(x => x % 10)],
@@ -151,6 +173,12 @@ const TABLE = [
   ['Psybeam', 'SMUDGE', 'every number rounded to the nearest 10 (5 rounds up)', b => b.map(x => Math.round(x / 10) * 10)],
   ['Reflect', 'REFLECT', 'each number mirrored around 100: 200 minus the number', b => b.map(x => 200 - x)],
   ['Teleport', 'SSH', 'the largest number', b => max(b)],
+  ['Psychic', 'PROFILE', 'the numbers sorted from smallest to largest, then the largest removed', b => asc(b).slice(0, -1)],
+  ['Agility', 'TURBO', 'the index of the second-largest number', b => { const s = asc(b); return b.indexOf(s[s.length - 2]) }],
+  ['Calm Mind', 'IDLE', 'the median: the middle number of the sorted list (the lower middle for an even count)', b => asc(b)[Math.floor((b.length - 1) / 2)]],
+  ['Meditate', 'LINT', 'how many numbers are greater than the first number', b => b.filter(x => x > b[0]).length],
+  ['Dream Eater', 'DAEMON', 'the sum of the numbers under 100', b => sum(b.filter(x => x < 100))],
+  ['Future Sight', 'FORECAST', 'the largest number plus the number of numbers', b => max(b) + b.length],
   // BUG — introduce bugs
   ['Leech Life', 'LEAK', 'the sum of the last two numbers', b => b.at(-1) + b.at(-2)],
   ['String Shot', 'SKIP', 'the list with its first number added again at the end', b => [...b, b[0]]],
@@ -159,11 +187,18 @@ const TABLE = [
   ['Rock Throw', 'BOOT', 'the sum of the numbers', b => sum(b)],
   ['Rock Tomb', 'BRICK', 'the numbers sorted from smallest to largest', b => asc(b)],
   ['Rollout', 'ROLLOUT', 'the running totals (first number, first two summed, first three…)', b => b.map((_, i) => sum(b.slice(0, i + 1)))],
+  ['Rock Blast', 'BUCKSHOT', 'the sum of the 2 smallest numbers', b => sum(asc(b).slice(0, 2))],
   // GHOST — peek at what is hidden
   ['Astonish', 'POPUP', 'the numbers except the first and the last (the ones hidden in the middle)', b => b.slice(1, -1)],
   ['Confuse Ray', 'PEEK', 'the number hidden at index 2 (the third one)', b => b[2]],
+  ['Lick', 'SNOOP', 'the number hidden at index 1 (the second one) plus the last number', b => b[1] + b.at(-1)],
+  ['Night Shade', 'SHADOW', 'the number of numbers times 3', b => b.length * 3],
+  ['Shadow Punch', 'GHOSTWRITE', 'the number at index (number of numbers − 2)', b => b[b.length - 2]],
+  ['Spite', 'SPITE', 'the second-largest number', b => asc(b)[b.length - 2]],
   // DRAGON — absolute
   ['Dragon Rage', 'MELTDOWN', 'the length of the list times 10', b => b.length * 10],
+  ['Dragon Breath', 'FLAMEOUT', 'always 60', () => 60],
+  ['Twister', 'CYCLONE', 'always the list [40, 40]', () => [40, 40]],
   // DARK — pick by credential
   ['Bite', 'PHISH', 'the second-to-last number', b => b.at(-2)],
   ['Pursuit', 'TRACE', 'the index of the first number over 100 (-1 if none)', b => b.findIndex(x => x > 100)],

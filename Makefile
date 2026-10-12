@@ -10,7 +10,7 @@ help:
 	@echo "dev         build + rom-bundle + player, then serve on :8000"
 	@echo "test        fast tests, no ROM needed (CI runs these)"
 	@echo "check       test + ROM-dependent checks (smoke, native core)"
-	@echo "sim         headless playthrough power-on -> Lt. Surge (sim/README.md)"
+	@echo "sim         headless playthrough power-on -> Erika (sim/README.md)"
 	@echo "patches     rewrite patches/ from the edited sources in .cache/pokefirered (CUSTOMIZING.md)"
 	@echo "names       regenerate the ROM move-name patch (007) and notes/moves.md from rules/moves.mjs"
 

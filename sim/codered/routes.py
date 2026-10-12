@@ -381,7 +381,7 @@ def teach_cut(g: World, rules) -> int:
 def use_cut(g: World, tree: tuple[int, int]) -> bool:
     """Stand next to the tree, face it, talk to it: with CUT known the game asks "cut it down?" and the dialog
     driver says YES. (Fallback: START -> POKéMON -> the lead -> CUT.) True when we can stand where the tree was."""
-    from .world import CLEARED
+    from .world import clear_obstacle
     tx, ty = tree
     for (dx, dy, face) in ((0, -1, 'DOWN'), (0, 1, 'UP'), (1, 0, 'LEFT'), (-1, 0, 'RIGHT')):
         if g.walk_to(tx + dx, ty + dy) and g.pos() == (tx + dx, ty + dy):
@@ -390,7 +390,7 @@ def use_cut(g: World, tree: tuple[int, int]) -> bool:
         return False
     g.interact(face)
     g.handle()
-    CLEARED.setdefault(g.map(), set()).add(tree)  # the planner may walk through it now
+    clear_obstacle(g.map(), tree)  # the planner may walk through it now
     if g.walk_to(tx, ty, max_steps=4) and g.pos() == tree:
         return True
     g.press('START', hold=2, after=30)
@@ -408,20 +408,20 @@ def use_cut(g: World, tree: tuple[int, int]) -> bool:
 
 def enter_vermilion_gym(g: World) -> bool:
     """The tree by the gym grows back whenever the city map reloads: cut it on the way in, every time."""
-    from .world import CLEARED
+    from .world import clear_obstacle
     if g.map() != 'MAP_VERMILION_CITY' and not g.travel('MAP_VERMILION_CITY'):
         return False
     if not use_cut(g, (19, 24)):
         return False
     entered = g.travel('MAP_VERMILION_CITY_GYM')
-    CLEARED.get('MAP_VERMILION_CITY', set()).discard((19, 24))
+    clear_obstacle('MAP_VERMILION_CITY', (19, 24), cleared=False)
     return entered
 
 
 def vermilion_gym(g: World) -> bool:
     """The trash cans: the two switch cans are in VAR_TEMP_0 / VAR_TEMP_1 (ids 1-15, five a row from (1,10)). Open
     both locks, beat the two trainers on the way, heal, then Lt. Surge."""
-    from .world import CLEARED
+    from .world import clear_obstacle
     if not enter_vermilion_gym(g):
         return False
     can = lambda k: (1 + 2 * ((k - 1) % 5), 10 + 2 * ((k - 1) // 5))
@@ -437,7 +437,8 @@ def vermilion_gym(g: World) -> bool:
             break
     if not g.flag(FLAG_FOUND_BOTH_SWITCHES):
         return False
-    CLEARED.setdefault('MAP_VERMILION_CITY_GYM', set()).update({(5, 6), (5, 7)})  # the beams are off: the door tiles are floor now
+    for cell in ((5, 6), (5, 7)):  # the beams are off: the door tiles are floor now
+        clear_obstacle('MAP_VERMILION_CITY_GYM', cell)
     # Up the middle column: the Gentleman (7,8) looks left along row 8; met from below he stops at (6,8), not in the doorway.
     g.walk_to(5, 9)
     g.walk_to(5, 3)
@@ -488,3 +489,67 @@ def to_surge(g: World, log=print, leg=None, rules=None) -> dict:
 
 def bill_leg(g: World):
     return lambda: bill(g) and journey(g, 'MAP_CERULEAN_CITY', 'MAP_CERULEAN_CITY') and heal(g)
+
+
+# ---- Vermilion -> Erika (2026-10-11) --------------------------------------------------------
+FLAG_BADGE04_GET = SYS_FLAGS + 0x23
+ERIKA_AVOID = SAFFRON_AVOID + ('MAP_ROUTE7_EAST_ENTRANCE', 'MAP_ROUTE8_WEST_ENTRANCE')  # every Saffron gate is shut
+
+
+def celadon_gym(g: World) -> bool:
+    """Celadon's gym: the tree in the middle path (6,8) must be cut (it grows back on every reload), then the trainers
+    in line, then Erika at the top."""
+    from .world import clear_obstacle
+    if g.map() != 'MAP_CELADON_CITY_GYM':
+        # The gym sits behind a tree at (40,35) on the south path; it grows back on every reload, like Vermilion's.
+        if not (g.travel('MAP_CELADON_CITY') and use_cut(g, (40, 35)) and g.travel('MAP_CELADON_CITY_GYM')):
+            return False
+        clear_obstacle('MAP_CELADON_CITY', (40, 35), cleared=False)
+    if not use_cut(g, (6, 8)):
+        return False
+    g.walk_to(6, 5)
+    lead = g.party()[0]
+    if lead['hp'] < 0.9 * lead['max_hp']:  # heal before the leader; the trainers stay beaten
+        if not (g.travel('MAP_CELADON_CITY') and use_cut(g, (40, 35)) and heal(g)):
+            return False
+        return celadon_gym(g)
+    return talk_to(g, 'OBJ_EVENT_GFX_ERIKA') and g.flag(FLAG_BADGE04_GET)
+
+
+def to_erika(g: World, log=print, leg=None) -> dict:
+    """After Lt. Surge: back to Cerulean, Route 9, Route 10, Rock Tunnel (dark: the planner doesn't mind), Lavender,
+    Route 8, the east-west Underground Path, Route 7, Celadon, Erika."""
+    if leg is None:
+        def leg(name, fn):
+            ok = fn()
+            lead = g.party()[0] if g.party() else {}
+            log(f'{name:<14} {"ok " if ok else "FAIL"} frame {g.frame:>7} ({g.frame / 59.73 / 60:5.1f} game-min) '
+                f'{g.map()} L{lead.get("level")} {lead.get("hp")}/{lead.get("max_hp")}')
+            if not ok:
+                g.screenshot(CHECKPOINTS / f'fail-{name}.png')
+                raise RuntimeError(f'leg {name} failed')
+            save_checkpoint(g, name)
+
+    def route10():
+        if g.map() == 'MAP_VERMILION_CITY_GYM':  # still in the leader's room: the opened door is floor now
+            from .world import clear_obstacle
+            for cell in ((5, 6), (5, 7)):
+                clear_obstacle('MAP_VERMILION_CITY_GYM', cell)
+            g.walk_to(5, 9)
+            g.travel('MAP_VERMILION_CITY')
+        if g.map() == 'MAP_VERMILION_CITY' and g.pos()[1] >= 25:  # inside the gym's fence: the tree grew back
+            use_cut(g, (19, 24))
+        return journey(g, 'MAP_CERULEAN_CITY', 'MAP_VERMILION_CITY', ERIKA_AVOID) and heal(g) \
+            and g.travel('MAP_ROUTE9', avoid=ERIKA_AVOID) and use_cut(g, (2, 8)) \
+            and journey(g, 'MAP_ROUTE10', 'MAP_CERULEAN_CITY', ERIKA_AVOID) and heal(g)
+
+    def lavender():
+        return journey(g, 'MAP_LAVENDER_TOWN', 'MAP_ROUTE10', ERIKA_AVOID) and heal(g)
+
+    def celadon():
+        return journey(g, 'MAP_CELADON_CITY', 'MAP_LAVENDER_TOWN', ERIKA_AVOID) and heal(g)
+
+    for name, fn in [('route10', route10), ('lavender', lavender), ('celadon', celadon), ('erika', lambda: celadon_gym(g))]:
+        leg(name, fn)
+    return {'frames': g.frame, 'game_minutes': round(g.frame / 59.73 / 60, 1), 'party': g.party(),
+            'badges': [g.flag(f) for f in (FLAG_BADGE01_GET, FLAG_BADGE02_GET, FLAG_BADGE03_GET, FLAG_BADGE04_GET)]}
