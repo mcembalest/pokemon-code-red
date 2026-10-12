@@ -28,6 +28,12 @@ jobs:
         with:
           path: .cache/agbcc
           key: agbcc-${{ hashFiles('upstream.lock.json') }}
+      - name: Base ROM from the decomp (the code brain needs build/rom/rom.json, made from it)
+        if: matrix.seed < 3
+        run: |
+          python3 scripts/dev.py setup
+          python3 scripts/dev.py baseline   # before build: baseline needs the clean checkout
+          mkdir -p local && cp build/baseline.gba local/baserom.gba
       - name: Build ROM (pinned decomp + patches)
         run: python3 scripts/dev.py setup && python3 scripts/dev.py build
       - name: Build simulator core (native)
@@ -36,7 +42,7 @@ jobs:
         if: matrix.seed < 3
         run: |
           make deps                                  # the page's own battle brain runs in Node (sim/brain.ts)
-          python3 scripts/dev.py baseline && mkdir -p local && cp build/baseline.gba local/baserom.gba && make rom-bundle
+          python3 scripts/rom_bundle.py              # build/rom/rom.json: the RAM symbols the brain reads
           pip install --break-system-packages pillow
           set +e
           mkdir -p build/sim
