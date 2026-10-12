@@ -537,6 +537,13 @@ class World(Game):
     def take_warp(self, x: int, y: int) -> bool:
         """Walk onto a warp (door, stairs, exit) and through it. True when the map changed."""
         start = self.map()
+        m = map_info(start)
+        mb = lambda c: m.attrs[c[1] * m.width + c[0]] & 0x1FF if m.attrs and 0 <= c[0] < m.width and 0 <= c[1] < m.height else 0
+        if not 0x60 <= mb((x, y)) <= 0x71:  # not a warp tile itself (a mat is three warp events wide; only one fires):
+            dest = next((w[2] for w in m.warps if (w[0], w[1]) == (x, y)), None)  # take the sibling that does
+            real = [(w[0], w[1]) for w in m.warps if w[2] == dest and 0x60 <= mb((w[0], w[1])) <= 0x71]
+            if real:
+                x, y = min(real, key=lambda c: abs(c[0] - x) + abs(c[1] - y))
         if not self.walk_to(x, y):
             return self.map() != start
         if self.map() != start:
@@ -544,8 +551,7 @@ class World(Game):
         here = self.save_state()
         # An arrow-warp mat (a Pokémon Center's exit: MB_SOUTH_ARROW_WARP) fires only when walked in its direction:
         # try that first instead of bumping around (each wrong try cost ~100 frames and a rewind).
-        mb = map_info(start).attrs[y * map_info(start).width + x] & 0x1FF if map_info(start).attrs else 0
-        first = {0x62: 'RIGHT', 0x63: 'LEFT', 0x64: 'UP', 0x65: 'DOWN'}.get(mb)
+        first = {0x62: 'RIGHT', 0x63: 'LEFT', 0x64: 'UP', 0x65: 'DOWN'}.get(mb((x, y)))
         order = ([first] if first else []) + [d for d in ('UP', 'DOWN', 'LEFT', 'RIGHT') if d != first]
         for d in order:
             self.run(16, d)
