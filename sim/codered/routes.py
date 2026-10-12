@@ -420,16 +420,32 @@ def use_cut(g: World, tree: tuple[int, int]) -> bool:
 World.cut = use_cut  # walk_to() cuts a CUTTABLE tree as it reaches it (world.py)
 
 
+# Where to train after losing to a leader: (a route with tall grass near the city, the city, via maps there and back).
+TRAINING = {
+    'BROCK': ('MAP_VIRIDIAN_FOREST', 'MAP_PEWTER_CITY', (FOREST[2],), (FOREST[2],)),
+    'MISTY': ('MAP_ROUTE24', 'MAP_CERULEAN_CITY', (), ()),
+    'LT_SURGE': ('MAP_ROUTE11', 'MAP_VERMILION_CITY', (), ()),
+    'ERIKA': ('MAP_ROUTE7', 'MAP_CELADON_CITY', (), ()),
+}
+
+
 def leader(g: World, gfx: str, badge_flag: int, again, tries: int) -> bool:
     """Challenge the leader standing in front of us. Losing whites out to the Pokémon Center (healed): a player would
-    walk back and try again, so do that, `tries` times in all (the trainers stay beaten)."""
+    train a couple of levels nearby (TRAINING), walk back and try again, so do that, `tries` times in all (the
+    trainers stay beaten). Two stand-in seeds lost to Erika three times running at L40 before training was added."""
     who = gfx.removeprefix('OBJ_EVENT_GFX_')
     g.leader_tries = {**getattr(g, 'leader_tries', {}), who: getattr(g, 'leader_tries', {}).get(who, 0) + 1}  # for the summary
     talk_to(g, gfx)
     if g.flag(badge_flag):
         return True
     if tries > 1 and g.map().endswith('_POKEMON_CENTER_1F'):
-        g.travel(g.map().replace('_POKEMON_CENTER_1F', ''))
+        city = g.map().replace('_POKEMON_CENTER_1F', '')
+        g.travel(city)
+        if who in TRAINING:
+            area, home, to_area, to_city = TRAINING[who]
+            grind(g, g.party()[0]['level'] + 2, area, home, to_area=to_area, to_city=to_city)
+            g.travel(home, via=to_city) if g.map() != home else None
+            heal(g)
         return again(g, tries - 1)
     return False
 
