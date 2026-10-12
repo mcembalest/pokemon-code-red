@@ -695,7 +695,7 @@ function cloudWriter(assets: string, api: string, token: () => string): CodeWrit
   return {
     async write(prompt, onText) {
       const { k, models } = await load()
-      const modelId = prompt.meta.move?.payload ? k.PAYLOAD_MODEL : k.BATTLE_MODEL // payload moves: a bigger coder
+      const modelId = prompt.meta.move?.payload || (prompt.meta.sung && SONG.coder) ? k.PAYLOAD_MODEL : k.BATTLE_MODEL // payload moves (and sung ones, measured 2026-10-12): the bigger coder
       const { text } = await k.writeCode({ models, model: { provider: k.GAME_PROVIDER, modelId }, system: prompt.system, user: prompt.user, temperature: prompt.temperature, maxTokens: prompt.maxTokens, onText })
       return text
     },

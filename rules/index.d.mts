@@ -129,7 +129,7 @@ export const PAYLOAD_LIMITS: { sampleRate: number; soundMax: number; imageFrames
 export const TARGET: { minCount: number; maxCount: number; low: number; high: number }
 
 // ---------- the song (rules/song.mjs, prototype 2026-10-12) ----------
-export const SONG: { enabled: boolean }
+export const SONG: { enabled: boolean; coder: boolean }
 export interface SongOp { op: string; args: (number | string)[] }
 export const OPS: Record<string, { type: string; args: number; glyph: string; js: (args: (number | string)[]) => string }>
 export const OP_NAMES: string[]

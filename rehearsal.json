@@ -1,9 +1,8 @@
 {
  "seeds": [
-  0,
-  1
+  0
  ],
  "to": "misty",
  "song": true,
- "note": "Song prototype: the five emitter moves sung by the real model, power-on -> Misty, vs. today's by_move rates."
+ "note": "Song prototype, take 2: lean prompt, the coder model sings (SONG.coder). Take 1 (3B, full prompt) sang PING right 1% of the time."
 }

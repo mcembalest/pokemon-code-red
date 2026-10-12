@@ -34,7 +34,7 @@ if (api) {
 const usage = { input: 0, output: 0 }
 const real: CodeWriter = {
   async write(prompt, onText) {
-    const modelId = prompt.meta.move?.payload ? PAYLOAD_MODEL : BATTLE_MODEL
+    const modelId = prompt.meta.move?.payload || (prompt.meta.sung && SONG.coder) ? PAYLOAD_MODEL : BATTLE_MODEL // sung moves: the 3B sings 25%, the coder 100% (models/song-exp, 2026-10-12)
     const r = await writeCode({ models, model: { provider, modelId }, system: prompt.system, user: prompt.user, temperature: prompt.temperature, maxTokens: prompt.maxTokens, onText })
     usage.input += r.usage?.input ?? 0; usage.output += r.usage?.output ?? 0
     return r.text

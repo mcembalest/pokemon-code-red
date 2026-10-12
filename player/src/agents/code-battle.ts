@@ -21,7 +21,7 @@ export interface Prompt {
   /** The model's token cap, derived from the byte budget (a safety stop, not a rule). */
   maxTokens: number
   /** For mock writers (tests, offline play); a real model only sees system + user. */
-  meta: { move: Move; type: TypeName; tutorial: boolean; remember?: { carried: Helper[]; cap: number } }
+  meta: { move: Move; type: TypeName; tutorial: boolean; remember?: { carried: Helper[]; cap: number }; /** A sung move (rules/song.mjs): SONG.coder sends it to the coder model. */ sung?: boolean }
 }
 /** Streams one reply; throws on a model or network failure. */
 export interface CodeWriter { write(prompt: Prompt, onText: (delta: string) => void): Promise<string> }
@@ -210,7 +210,7 @@ export class CodeBattle {
     let text: string | null = null, tries = 0, why = ''
     while (text === null && tries < 2) {
       tries++
-      try { text = await this.writer.write({ ...prompt, temperature: focusAt(req.attackerLevel, GROWTH, notch), maxTokens: tokenCapFor(budget), meta: { move, type, tutorial: false } }, delta => this.panel.text(side, delta)) }
+      try { text = await this.writer.write({ ...prompt, temperature: focusAt(req.attackerLevel, GROWTH, notch), maxTokens: tokenCapFor(budget), meta: { move, type, tutorial: false, sung: true } }, delta => this.panel.text(side, delta)) }
       catch (e) { why = String((e as Error)?.message ?? e); if (tries < 2) this.panel.text(side, '\n// connection hiccup, singing again…\n') }
     }
     if (text === null) {
