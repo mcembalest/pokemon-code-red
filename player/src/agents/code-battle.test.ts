@@ -174,11 +174,11 @@ test('the first battle is a tutorial: a plain list, no format', async () => {
   assert.equal(g.reply().verdict, 1)
 })
 
-test('badges: Cascade +50 bytes, Boulder no readers any more; evolution raises the budget', async () => {
+test('badges: Boulder +30 and Cascade +50 bytes (no readers any more); evolution raises the budget', async () => {
   const g = game(), { panel, log } = fakePanel()
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, store(), { badges: () => ['BOULDER', 'CASCADE'] })
   await b.poll(); g.request({ target: 74, types: [5, 4], attacker: 5, level: 16 }); await b.poll()
-  assert.equal(log.begin[0]!.budget, 300 + 160 + 100 + 50)
+  assert.equal(log.begin[0]!.budget, 300 + 160 + 100 + 30 + 50)
 })
 
 test('every FireRed type has a format now; the ??? type sends a plain list', async () => {

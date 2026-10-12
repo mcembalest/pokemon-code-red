@@ -2,6 +2,7 @@
 """Read a rehearsal's results off the `rehearsal` release and say what happened, seed by seed.
 
   python3 sim/results.py 964b924            the run for that commit (its short sha; `--latest` for the newest)
+  python3 sim/results.py nightly-20261013   a nightly run (one seed, the real models, from rehearsal.yml's schedule)
   python3 sim/results.py 964b924 --turns    also fetch turns.jsonl and show the last turns before a failure
   python3 sim/results.py --file build/sim/rehearsal/summary.json    a local run
 

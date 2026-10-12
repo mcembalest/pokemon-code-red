@@ -32,7 +32,7 @@ export interface Env {
   AI?: { fetch?(input: string, init?: RequestInit): Promise<Response> }; // Workers AI binding
   AI_MODELS: string;         // comma list of Workers AI model ids Pokémon may use
   AI_MAX_TOKENS: string;     // cap per call
-  AI_DAILY_TOKENS: string;   // per player, rolling 24 h
+  AI_DAILY_TOKENS?: string;  // per player, rolling 24 h; unset or 0 = no cap
   AI_GATEWAY: string;        // AI Gateway id the binding routes through
   AI_UPSTREAM_URL?: string;  // tests only: OpenAI-compatible base URL used instead of the binding
   AI_NO_STREAM?: string;     // comma list of models fetched whole even when the player streams (their streams lose tokens)
@@ -103,6 +103,7 @@ async function route(req: Request, env: Env, ctx?: Ctx): Promise<Response> {
     if (sub === 'events' && m === 'GET') return adminEvents(env, url);
     if (sub === 'llm' && m === 'GET') return adminLlm(env, url);
     if (sub === 'agent-records' && m === 'GET') return adminAgentRecords(env, url);
+    if (sub === 'code' && m === 'GET') return adminCode(env, url);
     if (sub === 'invites' && m === 'GET') return json({ invites: (await env.DB.prepare('SELECT * FROM invites ORDER BY created_at DESC').all()).results });
     if (sub === 'invites' && m === 'POST') return adminCreateInvites(req, env);
     if (sub === 'players/recovery' && m === 'POST') { // the owner's fallback for a friend who lost both password and code
@@ -396,10 +397,14 @@ async function ai(req: Request, env: Env, player: Player, ctx: Ctx): Promise<Res
   if (!models.includes(model)) throw new HttpError(400, `model must be one of: ${models.join(', ')}`);
   if (!Array.isArray(input.messages) || input.messages.length === 0) throw new HttpError(400, 'messages required');
 
-  const since = Date.now() - DAY;
-  const used = await env.DB.prepare("SELECT COALESCE(SUM(input_tokens + output_tokens), 0) AS n FROM llm_calls WHERE player_id = ? AND at > ? AND model LIKE '@cf/%'")
-    .bind(player.id, since).first<{ n: number }>();
-  if ((used?.n || 0) >= (Number(env.AI_DAILY_TOKENS) || 1_500_000)) throw new HttpError(429, 'daily agent budget used up');
+  // No cap by default (owner, 2026-10-12: "zero daily caps, I am happy to pay"); AI_DAILY_TOKENS > 0 restores one.
+  const dailyCap = Number(env.AI_DAILY_TOKENS) || 0;
+  if (dailyCap > 0) {
+    const since = Date.now() - DAY;
+    const used = await env.DB.prepare("SELECT COALESCE(SUM(input_tokens + output_tokens), 0) AS n FROM llm_calls WHERE player_id = ? AND at > ? AND model LIKE '@cf/%'")
+      .bind(player.id, since).first<{ n: number }>();
+    if ((used?.n || 0) >= dailyCap) throw new HttpError(429, 'daily agent budget used up');
+  }
 
   // Only the fields a Pokémon turn needs; output capped.
   const cap = Number(env.AI_MAX_TOKENS) || 600;
@@ -515,6 +520,45 @@ export function mapName(map: unknown): string | null {
   const m = typeof map === 'string' ? (() => { try { return JSON.parse(map); } catch { return null; } })() : map;
   if (!Array.isArray(m) || m.length !== 2) return null;
   return MAP_NAMES[`${m[0]}.${m[1]}`] ?? `map ${m[0]}.${m[1]}`;
+}
+
+/** The playtest report for one player (or everyone): how their code moves went, from the code_move events the page
+ *  sends (agents/code-battle.ts TurnRecord): hits by data format and by move, miss reasons, fallbacks, memory use,
+ *  and the last misses with the code, so "that miss felt unfair" can be looked at. */
+async function adminCode(env: Env, url: URL): Promise<Response> {
+  const player = url.searchParams.get('player');
+  const since = Number(url.searchParams.get('since')) || 0;
+  const q = player
+    ? env.DB.prepare("SELECT at, data FROM events WHERE player_id = ? AND kind = 'code_move' AND at > ? ORDER BY at DESC, id DESC LIMIT 5000").bind(player, since)
+    : env.DB.prepare("SELECT at, data FROM events WHERE kind = 'code_move' AND at > ? ORDER BY at DESC, id DESC LIMIT 5000").bind(since);
+  const rows = (await q.all<{ at: number; data: string }>()).results;
+  type Turn = { side?: number; verdict?: string; reason?: string; type?: string; move?: string; attacker?: string; target?: string; usedMemory?: boolean; memory?: number; doubted?: string; payload?: string; code?: string; ms?: number; at: number };
+  const turns: Turn[] = [];
+  for (const r of rows) { try { turns.push({ ...JSON.parse(r.data), at: r.at }); } catch { /* not JSON */ } }
+  const mine = turns.filter((t) => t.side === 0), foes = turns.filter((t) => t.side === 1);
+  const rate = (ts: Turn[]) => ({ n: ts.length, hit: ts.filter((t) => t.verdict === 'hit').length });
+  const by = (ts: Turn[], key: (t: Turn) => string) => {
+    const out: Record<string, { n: number; hit: number }> = {};
+    for (const t of ts) { const k = key(t) || '?'; out[k] ??= { n: 0, hit: 0 }; out[k].n++; if (t.verdict === 'hit') out[k].hit++; }
+    return Object.fromEntries(Object.entries(out).sort((a, b) => b[1].n - a[1].n));
+  };
+  const count = (ts: Turn[], key: (t: Turn) => string | undefined) => {
+    const out: Record<string, number> = {};
+    for (const t of ts) { const k = key(t); if (k) out[k] = (out[k] ?? 0) + 1; }
+    return out;
+  };
+  const ms = mine.map((t) => t.ms ?? 0).filter((x) => x > 0).sort((a, b) => a - b);
+  return json({
+    turns: turns.length, yours: rate(mine), foes: rate(foes),
+    vanilla: turns.filter((t) => t.verdict === 'vanilla').length,
+    doubted: mine.filter((t) => t.doubted).length,
+    payloads: mine.filter((t) => t.payload).length,
+    misses: count(mine.filter((t) => t.verdict === 'miss'), (t) => t.reason ?? 'crashed'),
+    by_type: by(mine, (t) => t.type ?? ''), foe_by_type: by(foes, (t) => t.type ?? ''), by_move: by(mine, (t) => t.move ?? ''),
+    memory: { used: mine.filter((t) => t.usedMemory).length, with: rate(mine.filter((t) => t.usedMemory)), without: rate(mine.filter((t) => !t.usedMemory)) },
+    wait_ms: { median: ms[Math.floor(ms.length / 2)] ?? 0, p90: ms[Math.floor(ms.length * 0.9)] ?? 0 },
+    last_misses: mine.filter((t) => t.verdict !== 'hit').slice(0, 40).map((t) => ({ at: t.at, attacker: t.attacker, move: t.move, type: t.type, target: t.target, verdict: t.verdict, reason: t.reason, code: t.code })),
+  });
 }
 
 /** A player's agent decisions in the player's replay format (agents/agent.ts DecisionRecord). */

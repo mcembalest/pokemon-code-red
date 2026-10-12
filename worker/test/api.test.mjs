@@ -240,6 +240,27 @@ test('events: stored, validated, visible to admin', async () => {
   assert.equal(events.find((e) => e.kind === 'snapshot').place, 'Pallet Town');
 });
 
+test('code report: hits by format and move, misses with code, memory, waits', async () => {
+  const turn = (o) => ({ kind: 'code_move', at: 7000, data: { side: 0, attacker: 'BULBASAUR', target: 'ZUBAT', move: 'PING', type: 'POISON', tutorial: false, verdict: 'hit', ms: 800, tries: 1, ...o } });
+  await call('/v1/events', { token, body: { events: [
+    turn({}), turn({ verdict: 'miss', reason: 'wrong answer', code: 'function ping(d){return 1}', usedMemory: true, memory: 60 }),
+    turn({ type: 'BUG', move: 'SLICE', verdict: 'hit', doubted: 'CRAWL' }), turn({ side: 1, attacker: 'ZUBAT', target: 'BULBASAUR', verdict: 'miss', reason: 'crashed', type: 'GRASS' }),
+    turn({ verdict: 'vanilla', reason: 'network' })] } });
+  const c = await (await call(`/admin/api/code?player=${playerId}`, { token: ADMIN })).json();
+  assert.equal(c.turns, 5);
+  assert.deepEqual(c.yours, { n: 4, hit: 2 }); assert.deepEqual(c.foes, { n: 1, hit: 0 });
+  assert.deepEqual(c.by_type.POISON, { n: 3, hit: 1 }); assert.deepEqual(c.by_type.BUG, { n: 1, hit: 1 });
+  assert.deepEqual(c.foe_by_type, { GRASS: { n: 1, hit: 0 } });
+  assert.deepEqual(c.misses, { 'wrong answer': 1 });
+  assert.equal(c.vanilla, 1); assert.equal(c.doubted, 1);
+  assert.deepEqual(c.memory.with, { n: 1, hit: 0 });
+  assert.equal(c.wait_ms.median, 800);
+  assert.equal(c.last_misses.length, 2); // the miss and the vanilla turn, newest first
+  assert.equal(c.last_misses.find((t) => t.verdict === 'miss').code, 'function ping(d){return 1}');
+  const all = await (await call('/admin/api/code', { token: ADMIN })).json();
+  assert.ok(all.turns >= 5);
+});
+
 test('agent records export (replay format)', async () => {
   await call('/v1/events', { token, body: { events: [
     { kind: 'agent_decision', at: 5000, data: { brain: 'cloud', key: 'abc12345', observation: 'Foe: SQUIRTLE', action: 'scratch', args: {}, thought: 'Go!', ms: 900 } },

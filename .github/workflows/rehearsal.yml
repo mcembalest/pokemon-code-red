@@ -11,6 +11,8 @@ on:
   push:
     branches-ignore: [main]   # run from a branch: merging the tooling must not start a rehearsal (real tokens, a test account)
     paths: ['rehearsal.json']
+  schedule:
+    - cron: '23 9 * * *'      # nightly (owner, 2026-10-12: happy to pay): one seed, the real models, power-on → Erika; no live half
   workflow_dispatch:
 permissions:
   contents: write
@@ -56,6 +58,7 @@ jobs:
           # [live only] in the commit message: the stand-in model plays this half (no tokens); its gym states still feed the live half
           MOCK=""; echo "$HEAD_MSG" | grep -q '\[live only\]' && MOCK="--mock"
           SEEDS=$(jq -r '(.seeds // [.seed // 0]) | map(tostring) | join(" ")' rehearsal.json)
+          [ "$GITHUB_EVENT_NAME" = schedule ] && SEEDS=$(( $(date +%j) % 10 ))   # nightly: one seed, a different one each night
           for S in $SEEDS; do
             mkdir -p build/sim/rehearsal/seed$S
             (timeout 100m python3 sim/rehearse.py --seed "$S" $MOCK --out build/sim/rehearsal/seed$S > build/sim/rehearsal/seed$S/log.txt 2>&1 || echo "::warning title=sim seed $S::did not reach Erika") &
@@ -69,7 +72,7 @@ jobs:
           F=$(echo $SEEDS | cut -d' ' -f1); cp build/sim/rehearsal/seed$F/*.raw build/sim/rehearsal/ 2>/dev/null || true
       - name: Mint a one-use invite
         id: invite
-        if: hashFiles('rehearsal.json') != '' && !contains(github.event.head_commit.message, '[sim only]')
+        if: github.event_name != 'schedule' && hashFiles('rehearsal.json') != '' && !contains(github.event.head_commit.message, '[sim only]')
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -106,7 +109,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          S=${GITHUB_SHA::7}; mkdir -p pub
+          S=${GITHUB_SHA::7}; [ "$GITHUB_EVENT_NAME" = schedule ] && S=nightly-$(date -u +%Y%m%d)-$S; mkdir -p pub
           for d in build/sim/rehearsal/seed*; do [ -d "$d" ] || continue; n=$(basename $d); for f in summary.json turns.jsonl log.txt; do [ -f "$d/$f" ] && cp "$d/$f" "pub/$S-$n-$f"; done; [ -f "$d/fail.png" ] && cp "$d/fail.png" "pub/$S-$n-fail.png"; done
           [ -f build/rehearsal/live.json ] && cp build/rehearsal/live.json "pub/$S-live.json"
           for f in 01-join 03-rom-chooser 04-booted 05-starter-card 06-rival-end 07-pokeeg 08-pokeeg-bond 10-saved; do [ -f "build/rehearsal/$f.png" ] && cp "build/rehearsal/$f.png" "pub/$S-$f.png"; done

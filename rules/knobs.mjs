@@ -18,7 +18,7 @@ export const GROWTH = {
 
 /** What badges do beyond FireRed's own effects. `budget` = extra bytes for the whole party. */
 export const BADGES = {
-  BOULDER: {},            // taught the ROCK and GROUND readers until readers went (owner, 2026-10-11); open: give it something
+  BOULDER: { budget: 30 }, // taught the ROCK and GROUND readers until readers went (owner, 2026-10-11); +30 bytes since 2026-10-12 (my call, flagged)
   CASCADE: { budget: 50 },
 }
 
