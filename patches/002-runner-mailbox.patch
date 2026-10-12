@@ -1,6 +1,6 @@
 
 diff --git a/data/specials.inc b/data/specials.inc
-index d880bf6b..dbf4650d 100644
+index d880bf6..dbf4650 100644
 --- a/data/specials.inc
 +++ b/data/specials.inc
 @@ -452,4 +452,7 @@ gSpecials::
@@ -13,7 +13,7 @@ index d880bf6b..dbf4650d 100644
  gSpecialsEnd::
 diff --git a/src/code_red.c b/src/code_red.c
 new file mode 100644
-index 00000000..7d0d65a0
+index 0000000..7d0d65a
 --- /dev/null
 +++ b/src/code_red.c
 @@ -0,0 +1,83 @@

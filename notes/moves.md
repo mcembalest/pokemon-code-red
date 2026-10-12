@@ -32,7 +32,7 @@ Example numbers: [42, 13, 140]
 | Dark | a signed token: three parts separated by '.', the numbers are the middle part, separated by commas, e.g. 'v1.42,13,140.ok' | `"v1.42,13,140.ok"` | `const nums = data.split('.')[1].split(',').map(Number)` | pick by credential: specific positions, the first match |
 | Steel | encrypted: each number XOR 255 gives the byte | `[213,242,115]` | `const nums = data.map(x => x ^ 255)` | cipher: XOR, hash, mask |
 
-## Moves (104)
+## Moves (122)
 
 S = a starter learns it before Brock · K = FireRed name kept
 
@@ -48,7 +48,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | UNDO | Double Slap | 15/85 | multi hit | the numbers without the first one |  |
 | SPAM | Fury Attack | 15/85 | multi hit | a list of 5 copies of the first number |  |
 | GREP | Fury Swipes | 18/80 | multi hit | the numbers that are under 50 |  |
-| DIM | Sing | –/55 | sleep | a soft hum, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate eight at a time: eight 160s, eight 96s, eight 160s, … until the list has 400 numbers |  |
+| DIM | Sing | –/55 | sleep | a soft lullaby, as a list of about 3200 numbers: the first is how many numbers the foe had; then three notes one after another, each gently swelling and fading, quiet (every number between 60 and 196) |  |
 | BLUR | Smokescreen | –/100 | accuracy down | the numbers in reverse order |  |
 | REBOOT | Headbutt | 70/100 | flinch hit | the first number plus the last |  |
 | CRASH | Hyper Fang | 80/90 | flinch hit | the number at index (first number % number of numbers) |  |
@@ -60,10 +60,10 @@ S = a starter learns it before Brock · K = FireRed name kept
 | HARDEN | Harden | –/– | defense up | each number written as a string, like 42 → '42' (a list of strings) | K |
 | BIND | Bind | 15/75 | trap | the first and last number, as a list of two | K |
 | WRAP | Wrap | 15/85 | trap | the numbers wrapped in another list | K |
-| ERROR | Growl | –/100 | attack down | a buzz, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate 230, 30, 230, 30, … until the list has 400 numbers | S |
-| FLASH | Flash | –/70 | accuracy down | a flash, as a list of 1024 numbers (a 32 by 32 picture): the first is how many numbers the foe had (data.length); then 255 (white) until the list has 640 numbers, then 0 (black) until it has 1024 | K |
+| ERROR | Growl | –/100 | attack down | a glitchy growl, as a list of about 3200 numbers: the first is how many numbers the foe had; then a buzzy square wave whose pitch slides down, with a wobbling voice (change d slowly), a little random grit and a stutter, fading out | S |
+| FLASH | Flash | –/70 | accuracy down | a flash, as a list of 4097 numbers: the first is how many numbers the foe had; then 4 frames: a bright round core with rays around it that grows bigger frame by frame (brightest in the middle) and breaks into sparkles in the last frame | K |
 | SPOOF | Camouflage | –/100 | camouflage | the list with the first and last numbers swapped |  |
-| FEEDBACK | Supersonic | –/55 | confuse | a feedback whine, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate six at a time: six 230s, six 30s, six 230s, … until the list has 400 numbers |  |
+| FEEDBACK | Supersonic | –/55 | confuse | a feedback whine, as a list of about 3200 numbers: the first is how many numbers the foe had; then a thin square wave (d = 0.125) whose pitch climbs with a fast wobble (vibrato), getting louder, then cut off |  |
 | LOCKDOWN | Defense Curl | –/– | defense curl | a list holding only the first number |  |
 | DISTORTION | Screech | –/85 | defense down 2 | the numbers after the first half (the first half is half the length, rounded down) |  |
 | DISABLE | Disable | –/55 | disable | the last number minus the first | K |
@@ -83,17 +83,28 @@ S = a starter learns it before Brock · K = FireRed name kept
 | SPINUP | Rapid Spin | 20/100 | rapid spin | the numbers with the first one moved to the end |  |
 | RECOVER | Recover | –/– | restore hp | how many numbers are greater than 50 | K |
 | FAILOVER | Whirlwind | –/100 | roar | the numbers with the last one moved to the front |  |
-| BUZZ | Sonic Boom | 1/90 | sonicboom | a buzz, as a list of 400 numbers: the first is how many numbers the foe had (data.length); the rest alternate two at a time: 230, 230, 30, 30, 230, 230, 30, 30, … until the list has 400 numbers |  |
+| BUZZ | Sonic Boom | 1/90 | sonicboom | a chirping trill, as a list of about 3200 numbers: the first is how many numbers the foe had; then a square wave that flips back and forth between two high notes, sliding a little lower and fading |  |
 | UPGRADE | Growth | –/– | special attack up | the list with one extra number at the end: how many numbers there were |  |
 | FREEZE | Scary Face | –/90 | speed down 2 | how many numbers are over 150 |  |
 | SPLASH | Splash | –/– | splash | nothing: return without a value | K |
 | TIMEOUT | Yawn | –/100 | yawn | the last number |  |
+| CUT | Cut | 50/95 | hit | the numbers without the first 2 | K |
+| CLIP | Constrict | 10/100 | speed down hit | the first 4 numbers |  |
+| SNIFF | Odor Sleuth | 0/100 | foresight | how many numbers are over 100 |  |
+| PAYOUT | Pay Day | 40/100 | pay day | the first number times 10 |  |
+| FIREWALL | Protect | 0/0 | protect | a list holding only the last number |  |
+| ROTATE | Roar | 0/100 | roar | the numbers rotated by two: the first two moved to the end |  |
+| STOMP | Stomp | 65/100 | flinch minimize hit | the last 3 numbers, last to first | K |
+| SHUTDOWN | Take Down | 90/85 | recoil | the first number minus the last |  |
+| CLAMP | Vice Grip | 55/100 | hit | the smallest and the largest number, as a list of two |  |
 
 ### Fire: writes: change values in place
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
 | BURNDISC | Ember | 40/100 | burn hit | every number plus 1 | S |
+| HOTLOOP | Fire Spin | 15/70 | trap | every number plus its index (the first +0, the second +1…) |  |
+| OVERWRITE | Flamethrower | 95/100 | burn hit | every number replaced by the first number, except the first, which becomes the last |  |
 
 ### Water: flow: filter, take, drop, flush, buffer
 
@@ -104,6 +115,8 @@ S = a starter learns it before Brock · K = FireRed name kept
 | BUFFER | Withdraw | –/– | defense up | the last 3 numbers | S |
 | DRIP | Bubble | 20/100 | speed down hit | every second number starting from the second one: the numbers at positions 1, 3, 5… counting from 0 | S |
 | THROTTLE | Water Sport | –/100 | water sport | the numbers that are 100 or less, in their order |  |
+| STREAM | Bubble Beam | 65/100 | speed down hit | the numbers from the start up to (not including) the first one over 100; all of them if none is |  |
+| DRAIN PIPE | Rain Dance | 0/0 | rain dance | the numbers with the smallest one removed (the first smallest, if tied) |  |
 
 ### Grass: grow and gather: repeat, group, every other, totals of parts
 
@@ -122,9 +135,11 @@ S = a starter learns it before Brock · K = FireRed name kept
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
 | POWERCUT | Thunder Wave | –/100 | paralyze | the numbers in their order, without the largest one |  |
-| SPARK | Spark | 65/100 | paralyze hit | a spark, as a list of 1024 numbers (a 32 by 32 picture): the first is how many numbers the foe had (data.length); then 0 (black) everywhere except 255 (white) at positions 480 to 543 (a bright bar across the middle) | K |
+| SPARK | Spark | 65/100 | paralyze hit | a spark, as a list of 4097 numbers: the first is how many numbers the foe had; then 4 frames: a jagged lightning bolt from the top row to the bottom row, white-hot (15) in the middle and dimmer at its edges, a different bolt in each frame | K |
 | SURGE | Thunder Shock | 40/100 | paralyze hit | the largest number plus 1 |  |
 | CHARGE | Charge | –/100 | charge | the largest number times 2 | K |
+| SPIKE | Thunderbolt | 95/100 | paralyze hit | the two largest numbers, largest first |  |
+| SHORT | Shock Wave | 60/0 | always hit | the largest number minus the smallest |  |
 
 ### Ice: freeze: unchanged copies, cold storage
 
@@ -161,6 +176,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | SANDBOX | Sand Attack | –/100 | accuracy down | each number capped at 100 (numbers over 100 become 100) |  |
 | RNG | Magnitude | 1/100 | magnitude | the sum of the numbers mod 10 |  |
 | GROUND | Mud Sport | –/100 | mud sport | each number capped at 128 (numbers over 128 become 128) |  |
+| FLOOR | Mud Shot | 55/95 | speed down hit | each number rounded down to a multiple of 10 (47 → 40) |  |
 
 ### Flying: distribute: serialize, broadcast, scale down
 
@@ -203,6 +219,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
 | POPUP | Astonish | 30/100 | flinch minimize hit | the numbers except the first and the last (the ones hidden in the middle) |  |
+| PEEK | Confuse Ray | 0/100 | confuse | the number hidden at index 2 (the third one) |  |
 
 ### Dragon: absolute: fixed effects from size
 
@@ -216,6 +233,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 |---|---|---|---|---|---|
 | PHISH | Bite | 60/100 | flinch hit | the second-to-last number |  |
 | TRACE | Pursuit | 40/100 | pursuit | the index of the first number over 100 (-1 if none) |  |
+| BACKDOOR | Faint Attack | 60/0 | always hit | the number at index (last number % number of numbers) |  |
 
 ### Steel: cipher: XOR, hash, mask
 

@@ -34,6 +34,8 @@ jobs:
         run: make rom-bundle
       - name: Save layout guard (existing player saves must keep loading)
         run: python3 scripts/save_guard.py
+      - name: Patches match their sources; move names match the rules (CUSTOMIZING.md)
+        run: python3 scripts/regen_patches.py --check && python3 scripts/move_names.py --check
       - name: Player
         run: make player
       - name: Unit tests

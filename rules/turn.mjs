@@ -7,7 +7,8 @@ import { HOW, exampleBody, payloadBytes } from './payload.mjs'
 import { memoryLines } from './memory.mjs'
 
 /** The worked example every move description shows: on these numbers it returns ... */
-export const WORKED = [42, 13, 140, 77]
+import { TARGET, WORDS, WORKED } from './knobs.mjs'
+export { WORDS, WORKED }
 
 // ---------- the target's bytes ----------
 
@@ -28,8 +29,8 @@ export function rng(seed) {
 
 /** The target's real bytes for one turn: 4–7 different numbers from 10 to 199 (never shown to the Pokémon). */
 export function targetBytes(r) {
-  const n = 4 + Math.floor(r() * 4), set = new Set()
-  while (set.size < n) set.add(10 + Math.floor(r() * 190))
+  const n = TARGET.minCount + Math.floor(r() * (TARGET.maxCount - TARGET.minCount + 1)), set = new Set()
+  while (set.size < n) set.add(TARGET.low + Math.floor(r() * (TARGET.high - TARGET.low + 1)))
   return [...set]
 }
 
@@ -64,7 +65,6 @@ export function knowFor(type, { dex = [], readers = {} } = {}) {
  *   words  { data, v } : what the data is called in prose and the reader variable. Default 'numbers' / 'nums':
  *          lab 3 (2026-10-08) measured 'bytes' / 'bytes' at 0.29 first-time hits vs 0.52, with 78 Node-Buffer hallucinations vs 0.
  */
-export const WORDS = { data: 'numbers', v: 'nums' }
 /**
  * One context budget (owner, 2026-10-08): everything a Pokémon carries into the prompt beyond the move costs bytes.
  * The reader it uses this turn (learned or Pokédex) and its hot memory (notes the trainer typed) are charged

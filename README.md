@@ -2,6 +2,8 @@
 
 FireRed mod where Pokémon are coding agents. Players bring their own FireRed (USA, v1.0) file; the browser patches it locally and runs it with a small code bridge.
 
+To change a move, a format, a number, the prompt or in-game text: **`CUSTOMIZING.md`**.
+
 ## Layout
 
 ```

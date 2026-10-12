@@ -7,7 +7,8 @@
 // payload moves usable with a brand-new Pokémon. Its System 1 = "the move that hits hardest now": power × accuracy × type effectiveness × STAB.
 // The ROM rolls this (patch 006, CodeRedDoubts); these functions mirror it for the page and the tests.
 
-export const DOUBT = { maxFriendship: 255, cap: 0.5 }
+import { DOUBT } from './knobs.mjs'
+export { DOUBT }
 
 /** A move's worth in its instinct's eyes. effectiveness(moveType) → 0.25 … 4 against the foe. */
 export function instinctScore(move, { selfTypes = [], effectiveness = () => 1 } = {}) {

@@ -9,9 +9,10 @@
 // `ref` is a model-sized reference (and the stand-in model's answer: player mockWriter prints ref.toString(), so refs are
 // closure-free and built from source text).
 
-export const SAMPLE_RATE = 8000
-export const SOUND_MAX = 4096
-export const IMAGE_FRAMES = 4
+import { PAYLOAD_LIMITS } from './knobs.mjs'
+export const SAMPLE_RATE = PAYLOAD_LIMITS.sampleRate
+export const SOUND_MAX = PAYLOAD_LIMITS.soundMax
+export const IMAGE_FRAMES = PAYLOAD_LIMITS.imageFrames
 export const IMAGE_PIXELS = 1024 * IMAGE_FRAMES
 
 const finite = v => Array.isArray(v) && v.every(x => typeof x === 'number' && Number.isFinite(x))
