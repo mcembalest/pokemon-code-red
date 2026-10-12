@@ -542,7 +542,12 @@ class World(Game):
         if self.map() != start:
             return True
         here = self.save_state()
-        for d in ('UP', 'DOWN', 'LEFT', 'RIGHT'):
+        # An arrow-warp mat (a Pokémon Center's exit: MB_SOUTH_ARROW_WARP) fires only when walked in its direction:
+        # try that first instead of bumping around (each wrong try cost ~100 frames and a rewind).
+        mb = map_info(start).attrs[y * map_info(start).width + x] & 0x1FF if map_info(start).attrs else 0
+        first = {0x62: 'RIGHT', 0x63: 'LEFT', 0x64: 'UP', 0x65: 'DOWN'}.get(mb)
+        order = ([first] if first else []) + [d for d in ('UP', 'DOWN', 'LEFT', 'RIGHT') if d != first]
+        for d in order:
             self.run(16, d)
             if self.run_until(lambda: self.map() != start, 90):
                 self.run_until(self.in_overworld, 300)
