@@ -44,6 +44,7 @@ jobs:
           status=$?
           grep -v '^ ' build/sim/out.txt | grep -v '^[{}]' | head -40
           python3 sim/results.py --file build/sim/rehearsal/summary.json | sed 's/^/::notice title=seed ${{ matrix.seed }}::/' || true
+          [ $status -ne 0 ] && echo "::error title=seed ${{ matrix.seed }}::$(grep -v '^ ' build/sim/out.txt | grep -v '^[{}]' | tail -c 1500 | tr '\n' '|')"
           exit $status
       - name: Play to Misty on plain FireRed
         if: matrix.seed >= 3

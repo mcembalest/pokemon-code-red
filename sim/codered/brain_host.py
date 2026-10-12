@@ -4,7 +4,7 @@ Every code-move request the ROM makes is sent to a Node process that writes the 
 judges it and (for a payload move) hands back the bytes; the emulator waits while it thinks, like the game waits for
 the browser. Records every turn to `log` (a JSONL path) for the rehearsal report.
 """
-import json, subprocess, time
+import json, subprocess, tempfile, time
 from pathlib import Path
 from .code_moves import CodeMoveHost, PayloadHost
 from .game import ROOT
@@ -20,8 +20,9 @@ class BrainHost:
         e = {**os.environ, **(env or {})}
         if mock:
             e['BRAIN_MOCK'] = '1'
+        self.err = tempfile.TemporaryFile('w+')  # the brain's stderr, shown when it dies
         self.proc = subprocess.Popen(['node', '--experimental-strip-types', '--no-warnings', str(ROOT / 'sim/brain.ts'), str(ROOT / 'build/code-red.gba'), str(ROOT / 'build/rom/rom.json')],
-                                     cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, env=e)
+                                     cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.err, text=True, env=e)
         self.payload = PayloadHost(g)
         self.moves = CodeMoveHost(g, self.decide, delay=2)
         self.turns: list[dict] = []
@@ -33,11 +34,21 @@ class BrainHost:
             log.write_text('')
 
     def _ask(self, msg: dict) -> dict:
-        self.proc.stdin.write(json.dumps(msg) + '\n'); self.proc.stdin.flush()
-        line = self.proc.stdout.readline()
+        try:
+            self.proc.stdin.write(json.dumps(msg) + '\n'); self.proc.stdin.flush()
+            line = self.proc.stdout.readline()
+        except (BrokenPipeError, OSError):
+            line = ''
         if not line:
-            raise RuntimeError('brain exited')
+            raise RuntimeError(f'the code brain (sim/brain.ts) died: {self.stderr_tail()}')
         return json.loads(line)
+
+    def stderr_tail(self, n: int = 1500) -> str:
+        try:
+            self.err.seek(0)
+            return self.err.read()[-n:].strip() or '(no stderr)'
+        except Exception:
+            return '(stderr unavailable)'
 
     def badges(self) -> list[str]:
         return [n for i, n in enumerate(BADGE_NAMES) if self.g.flag(SYS_FLAGS + 0x20 + i)]
@@ -100,3 +111,5 @@ class BrainHost:
             self.proc.stdin.close(); self.proc.wait(timeout=10)
         except Exception:
             self.proc.kill()
+        if self.proc.returncode:
+            print(f'the code brain exited {self.proc.returncode}: {self.stderr_tail()}', flush=True)
