@@ -26,7 +26,8 @@ summary says which data formats it reads badly; `leader_tries` how many challeng
 | You want to change | File | Then |
 |---|---|---|
 | **A number** — byte budgets, focus/temperature, notches, doubt cap, memory caps, badge bonuses, target byte counts, example numbers | `rules/knobs.mjs` (one file, every knob commented) | `make test`. Knobs marked `rom` are mirrored in the ROM: change the C too (below) |
-| **A move's name** (or what its code must compute) | **`rules/moves.mjs` → `TABLE`: the control panel.** One row per move, `[FireRed name, CODE RED NAME, spec, answer]`; rename = edit the second column. Names ≤ 12 characters; a function name that is a JS keyword is refused. The summary screen keeps FireRed's own descriptions | `make names` (the ROM's name table, patch 007, and the readable list `notes/moves.md`), `make build`, `make test` |
+| **A move's name** (or what its code must compute) | **`rules/moves.mjs` → `TABLE`: the control panel.** One row per move, `[FireRed name, CODE RED NAME, spec, answer]`; rename = edit the second column. Names ≤ 12 characters; a function name that is a JS keyword is refused | `make names` (the ROM's name table, patch 007, and the readable list `notes/moves.md`), `make build`, `make test` |
+| **A move's description, an item's description, a Pokédex entry** (the code-speak pass: FireRed's sentence, a word or two turned toward code) | `rules/text.mjs` → `MOVE_TEXT` (by Code Red name), `ITEM_TEXT` (by `ITEM_` constant), `DEX_TEXT` (by species). Flat text; it is wrapped to FireRed's widths (moves 4 × 21, items 3 × 36, dex 3 × 43) and a text that does not fit is refused. Anything not listed keeps FireRed's words. A Pokédex entry that names a move uses the Code Red name | `make text` (patch 010), `make build` |
 | **A new move** (one FireRed has that has no code yet) | add a `TABLE` row in its type's family, plus its FireRed stats in `rules/firered.mjs` (type, power, accuracy, effect from `src/data/battle_moves.h`). `python3 scripts/inventory.py --missing` lists every move a player can meet before Erika that has no code (CI fails on one) | same as above; `node --test rules/test` checks every answer |
 | **A type's data format** (how a foe's numbers arrive) | `rules/formats.mjs` → `FORMATS[TYPE]` (`short`, `note` = the words the Pokémon reads, `encode`, `decode`); `HINTS` = the canonical reading line (labs only) | `make test` |
 | **A type's move family** (the one-line description of what its programs do) | `rules/moves.mjs` → `FAMILIES` | `make test` |
@@ -57,8 +58,9 @@ The ROM is FireRed (pokefirered) plus `patches/NNN-*.patch`. `make build` applie
 Save structs: no layout changes without a migration (`scripts/save_guard.py`, see `AGENTS.md`). Never commit
 `.gba`, saves, `local/`, `.cache/`, `build/`.
 
-Move names are the exception: never edit `move_names.h` by hand — `make names` generates patch 007 from
-`rules/moves.mjs`, so the page, the tests and the ROM always agree.
+Move names and the code-speak texts are the exception: never edit `move_names.h`, `move_descriptions.c`, `items.json`
+or `pokedex_text_fr.h` by hand — `make names` generates patch 007 from `rules/moves.mjs` and `make text` patch 010
+from `rules/text.mjs`, so the page, the tests and the ROM always agree.
 
 ## Checking a change did what you meant
 

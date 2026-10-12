@@ -1,5 +1,5 @@
 # Code Red dev loop. `make help` for the list.
-.PHONY: help setup deps build rom-bundle core-fetch player dev serve test check smoke export baseline patch browser-setup sim-core sim leg patches names
+.PHONY: help setup deps build rom-bundle core-fetch player dev serve test check smoke export baseline patch browser-setup sim-core sim leg patches names text
 
 help:
 	@echo "setup       fetch pinned pokefirered/agbcc + emulator packages, npm deps"
@@ -56,4 +56,6 @@ patches:
 	python3 scripts/regen_patches.py
 names:
 	python3 scripts/move_names.py && python3 scripts/regen_patches.py 007
+text:
+	python3 scripts/codespeak.py && python3 scripts/regen_patches.py 010
 	cd models && node battle/export.mjs ../notes/moves.md

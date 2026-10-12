@@ -469,14 +469,23 @@ def vermilion_gym(g: World, tries: int = 3) -> bool:
     if not enter_vermilion_gym(g):
         return False
     can = lambda k: (1 + 2 * ((k - 1) % 5), 10 + 2 * ((k - 1) // 5))
+    def open_can(k: int) -> bool:
+        # From below first; a beaten trainer can end up standing there (Baily walks up to you and stays: seed 2),
+        # so any free side of the can will do — it is a tile script, read from whichever way you face it.
+        x, y = can(k)
+        for sx, sy, face in ((x, y + 1, 'UP'), (x - 1, y, 'RIGHT'), (x + 1, y, 'LEFT'), (x, y - 1, 'DOWN')):
+            if (sx, sy) in g.npc_tiles():
+                continue
+            if g.walk_to(sx, sy) and g.pos() == (sx, sy):
+                g.interact(face)
+                g.handle()
+                return True
+        return False
     for _ in range(4):
         first, second = g.var(VAR_TEMP_0), g.var(VAR_TEMP_1)
         for k in (first, second):
-            x, y = can(k)
-            if not (g.walk_to(x, y + 1) and g.pos() == (x, y + 1)):
+            if not open_can(k):
                 break
-            g.interact('UP')
-            g.handle()
         if g.flag(FLAG_FOUND_BOTH_SWITCHES):
             break
     if not g.flag(FLAG_FOUND_BOTH_SWITCHES):
