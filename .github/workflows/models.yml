@@ -76,10 +76,21 @@ jobs:
           for m in @cf/meta/llama-3.2-3b-instruct @cf/qwen/qwen2.5-coder-32b-instruct; do echo "::notice title=stream probe::$(node ../kernel/scripts/stream-probe.mjs $m 2>&1 | tail -c 900)"; done
           node battle/exp.mjs battle/exp.json battle-results.json 2> battle-log.txt || { echo "::error title=battle::$(tail -c 1500 battle-log.txt | tr '\n' ' ')"; exit 1; }
           while read -r l; do echo "::notice title=battle::$l"; done < battle-log.txt
+      - name: Song experiment (rules/song.mjs: the emitter moves, sung)
+        id: song
+        working-directory: models
+        env:
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          git diff --name-only HEAD~1 HEAD | grep -qx 'models/song-exp.json' || { echo "song-exp.json unchanged; skipping"; exit 0; }
+          echo "ran=1" >> "$GITHUB_OUTPUT"
+          node song-exp.mjs song-exp.json song-results.json 2> song-log.txt || { echo "::error title=song::$(tail -c 1500 song-log.txt | tr '\n' ' ')"; exit 1; }
+          while read -r l; do echo "::notice title=song::$l"; done < song-log.txt
       - name: Publish results
-        if: always() && (steps.probe.outputs.ran || steps.scaffold.outputs.ran || steps.kernel.outputs.ran || steps.battle.outputs.ran)
+        if: always() && (steps.probe.outputs.ran || steps.scaffold.outputs.ran || steps.kernel.outputs.ran || steps.battle.outputs.ran || steps.song.outputs.ran)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view model-probe >/dev/null 2>&1 || gh release create model-probe --prerelease --title "Workers AI model probe" --notes "Outputs of .github/workflows/models.yml. Safe to delete."
-          for f in models/probe-results.json models/probe-log.txt models/scaffold-results.json models/scaffold-log.txt models/kernel-results.json models/kernel-log.txt models/battle-results.json models/battle-log.txt; do [ -f "$f" ] && gh release upload model-probe "$f" --clobber; done
+          for f in models/probe-results.json models/probe-log.txt models/scaffold-results.json models/scaffold-log.txt models/kernel-results.json models/kernel-log.txt models/battle-results.json models/battle-log.txt models/song-results.json models/song-log.txt; do [ -f "$f" ] && gh release upload model-probe "$f" --clobber; done

@@ -203,7 +203,8 @@ export class CodeBattle {
    *  move's type and the judge checks what came out. The panel shows glyphs; the DECODER shows the words. */
   private async sing(req: MoveRequest, t: { started: number; move: Move; side: 0 | 1; attacker: string; target: string; type: TypeName; wild: boolean; budget: number; hot: string; doubt: { called: string | null } | null; notch: number; r: () => number }): Promise<void> {
     const { started, move, side, attacker, target, type, wild, budget, hot, doubt, notch, r } = t
-    const key = EMIT[move.name]!.key(r)
+    let key = EMIT[move.name]!.key(r)
+    if (key === EMIT[move.name]!.example.key) key = EMIT[move.name]!.key(r) // the shape in the prompt must not already be the answer
     const prompt = songPrompt({ self: { name: attacker, level: req.attackerLevel }, target: { name: target, level: req.targetLevel }, move, key, budget, hot })
     this.panel.begin({ side, attacker, target, move: move.name, spec: EMIT[move.name]!.want(key), fn: move.fn, type, tutorial: false, budget, wild, notch, memoryCost: contextCost({ hot }), sung: { noun: EMIT[move.name]!.noun, want: EMIT[move.name]!.want(key) }, ...(doubt ? { doubt } : {}) })
     let text: string | null = null, tries = 0, why = ''

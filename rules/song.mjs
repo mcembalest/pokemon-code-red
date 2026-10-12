@@ -158,47 +158,68 @@ export const toJavaScript = ops => ['let t = []', ...ops.map(({ op, args }) => O
 
 // ---------- what each move must emit (the prototype's five; the table grows from here) ----------
 
-/** A spec: `noun` (what the type emits, shown without the DECODER), the turn's `key` (a number the song must work in: the one thing that changes turn to turn, like the
+/** A spec: `ops` (the ops this move is sung with: the prompt names only these), `noun` (what the type emits, shown
+ *  without the DECODER), the turn's `key` (a number the song must work in: the one thing that changes turn to turn, like the
  *  foe's bytes did), `want(key)` (the words), `ok(tape, key)` (the check), `example` (a song that passes for its
  *  own key, shown in the prompt so the shape is clear). */
 const pick = (r, lo, hi) => lo + Math.floor(r() * (hi - lo + 1))
 export const EMIT = {
   // Normal — a file: it announces its own length and carries the key
-  PING: { noun: 'a file', type: 'Normal', key: r => pick(r, 10, 199), want: k => `a file: 4 to 8 numbers whose first number is how many numbers follow it, and ${k} is one of them`,
+  PING: { ops: ['put'], noun: 'a file', type: 'Normal', key: r => pick(r, 10, 199), want: k => `a file: 4 to 8 numbers whose first number is how many numbers follow it, and ${k} is one of them`,
     example: { key: 77, song: 'put 4\nput 42 13 140 77' },
     ok: (t, k) => t.length >= 5 && t.length <= 9 && t[0] === t.length - 1 && t.slice(1).includes(k) },
   // Water — a stream: it only ever rises, and it passes through the key
-  FLUSH: { noun: 'a stream', type: 'Water', key: r => pick(r, 10, 99), want: k => `a stream: 4 to 8 numbers, each greater than the last, all under 100, one of them ${k}`,
+  FLUSH: { ops: ['stream'], noun: 'a stream', type: 'Water', key: r => pick(r, 10, 99), want: k => `a stream: 4 to 8 numbers, each greater than the last, all under 100, one of them ${k}`,
     example: { key: 40, song: 'stream 3 9 40 88' },
     ok: (t, k) => t.length >= 4 && t.length <= 8 && t.every((x, i) => x < 100 && (i === 0 || x > t[i - 1])) && t.includes(k) },
   // Fire — a write: the key burned over and over
-  BURNDISC: { noun: 'a write', type: 'Fire', key: r => pick(r, 200, 255), want: k => `a write: 4 to 8 copies of ${k}`,
+  BURNDISC: { ops: ['put', 'set'], noun: 'a write', type: 'Fire', key: r => pick(r, 200, 255), want: k => `a write: 4 to 8 copies of ${k}`,
     example: { key: 230, song: 'put 1 1 1 1\nset 230' },
     ok: (t, k) => t.length >= 4 && t.length <= 8 && t.every(x => x === k) },
   // Rock — raw bytes with a checksum at the end, the key among them
-  BOOT: { noun: 'raw bytes', type: 'Rock', key: r => pick(r, 16, 255), want: k => `raw bytes: 4 to 8 numbers with ${k} (hex ${k.toString(16)}) among them, then their sum mod 256 as the last number`,
+  BOOT: { ops: ['raw', 'checksum'], noun: 'raw bytes', type: 'Rock', key: r => pick(r, 16, 255), want: k => `raw bytes: 4 to 8 numbers with ${k} (hex ${k.toString(16)}) among them, then their sum mod 256 as the last number`,
     example: { key: 126, song: 'raw ff 0a 7e 10\nchecksum' },
     ok: (t, k) => t.length >= 5 && t.length <= 9 && t.slice(0, -1).includes(k) && t[t.length - 1] === t.slice(0, -1).reduce((a, x) => a + x, 0) % 256 },
   // Electric — a signal: quiet, then one spike of exactly the key
-  SURGE: { noun: 'a signal', type: 'Electric', key: r => pick(r, 150, 255), want: k => `a signal: 3 to 7 numbers under 40, then one spike of exactly ${k} at the end`,
+  SURGE: { ops: ['put', 'spike'], noun: 'a signal', type: 'Electric', key: r => pick(r, 150, 255), want: k => `a signal: 3 to 7 numbers under 40, then one spike of exactly ${k} at the end`,
     example: { key: 200, song: 'put 5 12 8\nspike 200' },
     ok: (t, k) => t.length >= 4 && t.length <= 8 && t.slice(0, -1).every(x => x < 40) && t[t.length - 1] === k },
 }
 
 // ---------- the prompt and the judge ----------
 
-const OPS_LINE = Object.entries(OPS).map(([k, v]) => `${k}${v.args > 0 ? ' n'.repeat(v.args) : v.args < 0 ? ' n…' : ''}`).join(' · ')
+const OP_HELP = {
+  put: 'append numbers', count: 'append how many numbers there are', take: 'keep the first n', drop: 'drop the first n', rev: 'reverse', dup: 'repeat the tape',
+  stream: 'append numbers, each greater than the last', filter: 'keep numbers < n or > n', flush: 'empty the tape',
+  write: 'set the number at index i to v', add: 'add n to every number', set: 'make every number v',
+  grow: 'repeat the tape n times', sum: 'append the total', peak: 'append the largest', spike: 'append v, which must be the largest', cut: 'remove the largest',
+  raw: 'append hex bytes', checksum: 'append the total mod 256', sort: 'sort', cap: 'cap every number at n', mod: 'every number mod n', mul: 'multiply every number by n',
+  scale: 'divide every number by n', xor: 'xor every number with n', peek: 'append the number at index i', loop: 'repeat the lines up to end n times', end: 'end of loop',
+}
+const opLine = k => `${k}${OPS[k].args > 0 ? ' n'.repeat(OPS[k].args) : OPS[k].args < 0 ? ' n…' : ''}`
 
-/** The prompt for one sung move. No foe data: the Pokémon only emits. */
-export function songPrompt({ self, target, move, key, budget, hot = '' }) {
+/** The prompt for one sung move. No foe data: the Pokémon only emits. `style` (measured 2026-10-12, models/song-exp):
+ *  'lean' (default) names only the move's own ops and the shape to change; 'full' lists the whole language. */
+export function songPrompt({ self, target, move, key, budget, hot = '', style = 'lean' }) {
   const spec = EMIT[move.name]
-  const system = [`You are ${self.name}, a level ${self.level} Pokémon. You fight by singing a short program: a line of ops that leaves numbers on a tape.`,
-    'Ops (one per line, numbers after): ' + OPS_LINE + '.',
-    'put/stream/raw append numbers; stream must rise; spike must be the largest; raw numbers are hex; loop n … end repeats. Numbers are bytes (0–255).',
-    'Reply with only the program, one op per line. No words.'].join('\n')
+  const lines = spec.example.song.split('\n').length
+  if (style === 'full') {
+    const system = [`You are ${self.name}, a level ${self.level} Pokémon. You fight by singing a short program: a line of ops that leaves numbers on a tape.`,
+      'Ops (one per line, numbers after): ' + OP_NAMES.map(opLine).join(' · ') + '.',
+      'put/stream/raw append numbers; stream must rise; spike must be the largest; raw numbers are hex; loop n … end repeats. Numbers are bytes (0–255).',
+      'Reply with only the program, one op per line. No words.'].join('\n')
+    const user = [`Move: ${move.name} (${spec.type}). Sing ${spec.want(key)}.`,
+      `Example that works for ${spec.example.key}:\n${spec.example.song}`,
+      `At most ${budget} characters.`,
+      ...(hot ? [`Your trainer's note: ${hot}`] : []),
+      `Target: ${target.name}, level ${target.level}.`].join('\n')
+    return { system, user }
+  }
+  const system = [`You are ${self.name}, a level ${self.level} Pokémon. You attack by singing a short program: one op per line, numbers after it. Numbers are bytes (0–255).`,
+    `Reply with the program only: exactly ${lines} line${lines === 1 ? '' : 's'}, no words, nothing after it.`].join('\n')
   const user = [`Move: ${move.name} (${spec.type}). Sing ${spec.want(key)}.`,
-    `Example that works for ${spec.example.key}:\n${spec.example.song}`,
-    `At most ${budget} characters.`,
+    'Ops: ' + spec.ops.map(k => `${opLine(k)} (${OP_HELP[k]})`).join('; ') + '.',
+    `This shape works for ${spec.example.key}; change the numbers so it works for ${key}:\n${spec.example.song}`,
     ...(hot ? [`Your trainer's note: ${hot}`] : []),
     `Target: ${target.name}, level ${target.level}.`].join('\n')
   return { system, user }
