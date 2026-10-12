@@ -7,7 +7,7 @@ the cry player (~0.5 s) or animates a 32×32 sprite over the target at 2×. The 
 (AllocateBattleResources / FreeBattleResources); the static symbol gCodeRedPayload is a pointer to it,
 NULL outside battle, so hosts read the pointer first.
 diff --git a/src/battle_util2.c b/src/battle_util2.c
-index 8a5fbccf..359f7eb3 100644
+index 8a5fbcc..359f7eb 100644
 --- a/src/battle_util2.c
 +++ b/src/battle_util2.c
 @@ -6,8 +6,12 @@
@@ -33,7 +33,7 @@ index 8a5fbccf..359f7eb3 100644
      if (gBattleTypeFlags & BATTLE_TYPE_POKEDUDE)
 diff --git a/src/code_red_payload.c b/src/code_red_payload.c
 new file mode 100644
-index 00000000..eca91dfd
+index 0000000..eca91df
 --- /dev/null
 +++ b/src/code_red_payload.c
 @@ -0,0 +1,168 @@

@@ -1,5 +1,5 @@
 diff --git a/data/text/new_game_intro.inc b/data/text/new_game_intro.inc
-index e667b68d..979ee596 100644
+index e667b68..979ee59 100644
 --- a/data/text/new_game_intro.inc
 +++ b/data/text/new_game_intro.inc
 @@ -188,7 +188,6 @@ gPikachuIntro_Text_Page3::

@@ -2,22 +2,12 @@
 //   focus = model temperature (calmer with level) · byte budget = max code size (code + the memory it carries into the prompt)
 //   evolution = a big jump in budget and slots · badges teach (owner, 2026-10-08)
 
-export const GROWTH = {
-  startTemp: 0.8, tempPerLevel: 0.03, minTemp: 0.3,          // focus
-  budgetBase: 300, budgetPerLevel: 10, evolutionBudget: 100,  // byte budget (characters of code, comments included); base 300 (owner, 2026-10-08)
-  slotsBase: 2, levelsPerSlot: 3, evolutionSlots: 3,          // memory slots for readers
-}
-
-/** Badges teach: Boulder Badge = the ROCK and GROUND readers for the whole party; Cascade Badge = +50 bytes. */
-export const BADGES = {
-  BOULDER: {}, // taught the ROCK and GROUND readers until readers went (owner, 2026-10-11)
-  CASCADE: { budget: 50 },
-}
+import { BADGES, BOSS_CLASSES, GROWTH, KNOWLEDGE, NOTCH } from './knobs.mjs'
+export { BADGES, BOSS_CLASSES, GROWTH, KNOWLEDGE, NOTCH }
 
 /** Status moves hit the code (owner, 2026-10-08): stat stages shake or steady the code brain, one notch per stage,
  *  capped at ±2. A notch down makes the writing jittierier (+0.1 temperature) and the byte budget 10% smaller;
  *  a notch up does the reverse. Resets with the stages (switch-out). */
-export const NOTCH = { cap: 2, temp: 0.1, budget: 0.1 }
 /** The notch from the sum of a Pokémon's stat stage offsets (Growl on it: -1; its own Withdraw: +1). */
 export const notchOf = stageSum => Math.max(-NOTCH.cap, Math.min(NOTCH.cap, Math.trunc(stageSum || 0)))
 
@@ -53,9 +43,7 @@ export const stageOf = species => (STAGE_2.includes(species) ? 2 : STAGE_1.inclu
 
 /** RETIRED (owner, 2026-10-11: no readers; every foe writes on pure instinct). Knowledge tiers were the chance a foe's
  *  Pokémon could read any given format: wild 0, trainers 0.5, bosses 1. Kept for the model labs only. */
-export const KNOWLEDGE = { wild: 0, trainer: 0.5, boss: 1 }
 /** FireRed trainer classes that count as bosses: Leader 84, Elite Four 87, Champion 90, rival 81/89, Boss (Giovanni) 83. */
-export const BOSS_CLASSES = new Set([81, 83, 84, 87, 89, 90])
 export const tierOf = (trainerClass, wild) => (wild ? 'wild' : BOSS_CLASSES.has(trainerClass) ? 'boss' : 'trainer')
 /** The formats a foe reads this battle: each format independently, with the tier's chance, seeded by the Pokémon. */
 export function foeDex(tier, personality, formats, chance = KNOWLEDGE[tier]) {

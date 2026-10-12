@@ -3,7 +3,7 @@ words that fit their type family (SCRATCH -> SLICE, GROWL -> ERRORMSG ...); 15 k
 Generated from rules/moves.mjs.
 
 diff --git a/src/data/text/move_names.h b/src/data/text/move_names.h
-index d63ddb87..3b176c42 100644
+index d63ddb8..3b176c4 100644
 --- a/src/data/text/move_names.h
 +++ b/src/data/text/move_names.h
 @@ -1,129 +1,129 @@

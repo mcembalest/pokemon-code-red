@@ -12,7 +12,8 @@
 // No parser dependency: a small scanner that skips strings and comments finds the definitions.
 
 /** Long-term memory cap in characters: 105 at level 5, 180 at 20, 280 at 40 (a level-5 Pokémon can keep about one reader). */
-export const MEMORY = { capBase: 80, capPerLevel: 5, workShare: 0.5, workMin: 200 }
+import { MEMORY } from './knobs.mjs'
+export { MEMORY }
 export const libCap = level => MEMORY.capBase + MEMORY.capPerLevel * Math.max(1, level)
 /** Working memory may hold at most this many characters (half the turn's budget, at least 200: two or three readers);
  *  the oldest helpers drop first. Carrying is free; a helper costs only when called. */

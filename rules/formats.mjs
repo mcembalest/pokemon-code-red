@@ -45,6 +45,7 @@ export const HINTS = {
   DARK: "const nums = data.split('.')[1].split(',').map(Number)",
 }
 
-export const EXAMPLE_BYTES = [42, 13, 140]
+import { EXAMPLE_BYTES } from './knobs.mjs'
+export { EXAMPLE_BYTES }
 export const example = type => FORMATS[type].encode(EXAMPLE_BYTES)
 export const show = v => JSON.stringify(v)

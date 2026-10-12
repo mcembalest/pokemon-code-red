@@ -1,5 +1,5 @@
 # Code Red dev loop. `make help` for the list.
-.PHONY: help setup deps build rom-bundle core-fetch player dev serve test check smoke export baseline patch browser-setup sim-core sim
+.PHONY: help setup deps build rom-bundle core-fetch player dev serve test check smoke export baseline patch browser-setup sim-core sim patches names
 
 help:
 	@echo "setup       fetch pinned pokefirered/agbcc + emulator packages, npm deps"
@@ -10,7 +10,9 @@ help:
 	@echo "dev         build + rom-bundle + player, then serve on :8000"
 	@echo "test        fast tests, no ROM needed (CI runs these)"
 	@echo "check       test + ROM-dependent checks (smoke, native core)"
-	@echo "sim         headless playthrough power-on -> Misty (sim/README.md)"
+	@echo "sim         headless playthrough power-on -> Lt. Surge (sim/README.md)"
+	@echo "patches     rewrite patches/ from the edited sources in .cache/pokefirered (CUSTOMIZING.md)"
+	@echo "names       regenerate the ROM move-name patch (007) and notes/moves.md from rules/moves.mjs"
 
 setup: deps
 	python3 scripts/dev.py setup
@@ -47,3 +49,8 @@ sim-core:
 	sim/build_core.sh
 sim: build sim-core
 	python3 sim/run.py misty --trace
+patches:
+	python3 scripts/regen_patches.py
+names:
+	python3 scripts/move_names.py && python3 scripts/regen_patches.py 007
+	cd models && node battle/export.mjs ../notes/moves.md

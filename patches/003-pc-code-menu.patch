@@ -1,6 +1,6 @@
 
 diff --git a/data/maps/PalletTown_PlayersHouse_2F/scripts.inc b/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
-index edc6ac37..f96699fd 100644
+index edc6ac3..f96699f 100644
 --- a/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
 +++ b/data/maps/PalletTown_PlayersHouse_2F/scripts.inc
 @@ -24,6 +24,23 @@ PalletTown_PlayersHouse_2F_EventScript_NES::
@@ -28,7 +28,7 @@ index edc6ac37..f96699fd 100644
  	msgbox PalletTown_PlayersHouse_2F_Text_PressLRForHelp, MSGBOX_SIGN
  	end
 diff --git a/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc b/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc
-index 12f8ada3..2d0af2df 100644
+index 12f8ada..2d0af2d 100644
 --- a/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc
 +++ b/data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc
 @@ -39,7 +39,11 @@ SaffronCity_CopycatsHouse_2F_EventScript_MimicPlayerFemale::
@@ -45,7 +45,7 @@ index 12f8ada3..2d0af2df 100644
  
  SaffronCity_CopycatsHouse_2F_EventScript_Game::
 diff --git a/data/scripts/flavor_text.inc b/data/scripts/flavor_text.inc
-index ec0f6224..a6579d64 100644
+index ec0f622..a6579d6 100644
 --- a/data/scripts/flavor_text.inc
 +++ b/data/scripts/flavor_text.inc
 @@ -17,7 +17,11 @@ EventScript_VideoGame::
@@ -62,7 +62,7 @@ index ec0f6224..a6579d64 100644
  
  EventScript_ImpressiveMachine::
 diff --git a/data/scripts/pc.inc b/data/scripts/pc.inc
-index 77cf55e6..b24544e7 100644
+index 77cf55e..b24544e 100644
 --- a/data/scripts/pc.inc
 +++ b/data/scripts/pc.inc
 @@ -14,6 +14,7 @@ EventScript_PC::
@@ -127,7 +127,7 @@ index 77cf55e6..b24544e7 100644
 +CodeRed_Text_Result:
 +	.string "JS result: {STR_VAR_1}$"
 diff --git a/include/constants/menu.h b/include/constants/menu.h
-index 7c36f360..78c317c7 100644
+index 7c36f36..78c317c 100644
 --- a/include/constants/menu.h
 +++ b/include/constants/menu.h
 @@ -70,6 +70,8 @@
@@ -140,7 +140,7 @@ index 7c36f360..78c317c7 100644
  
  #define LISTMENU_BADGES                    0
 diff --git a/src/player_pc.c b/src/player_pc.c
-index d4828203..36b5ae76 100644
+index d482820..36b5ae7 100644
 --- a/src/player_pc.c
 +++ b/src/player_pc.c
 @@ -44,6 +44,12 @@ static void Task_TopMenuHandleInput(u8 taskId);
@@ -232,7 +232,7 @@ index d4828203..36b5ae76 100644
  {
      if (gPlayerPcMenuManager.notInRoom == FALSE)
 diff --git a/src/script_menu.c b/src/script_menu.c
-index 41eebd86..be6c654c 100644
+index 41eebd8..be6c654 100644
 --- a/src/script_menu.c
 +++ b/src/script_menu.c
 @@ -502,7 +502,15 @@ static const struct MenuAction sMultichoiceList_Exit[] = {

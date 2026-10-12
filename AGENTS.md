@@ -2,7 +2,7 @@
 
 - Read `README.md` (layout, dev loop) and `notes/` first.
 - Game design is the owner's; don't invent mod design. Build foundation and what's asked.
-- Game source edits → scoped `patches/NNN-*.patch` before ending a session (`.cache/` is not in git).
+- Game source edits → scoped `patches/NNN-*.patch` before ending a session (`.cache/` is not in git): `make patches` writes them (`scripts/regen_patches.py`), `make names` the move-name patch. CI checks both. Every knob, name and text: `CUSTOMIZING.md`.
 - Never track or publish `.gba`, saves, `local/`, `.cache/`, `build/`, proprietary assets. No ROM downloads.
 - Core (`core/`) is ROM-agnostic. Don't add ROM-specific addresses/logic to it; put protocols in `player/src/bridge/`.
 - Save structs: no layout changes without a migration. Enforced by `scripts/save_guard.py` (CI): saved-block sizes vs `save.lock.json`; patches touching save-struct sources need a `Save-Migration:` header.

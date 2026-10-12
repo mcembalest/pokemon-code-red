@@ -5,7 +5,7 @@ and the text box says why (crashed / wrong / too long / no code). Both sides.
 Host-optional: no host, no reply in time, or a cancelled request = plain FireRed.
 Replaces byte battles v1 (damage from script output); damage is FireRed's again.
 diff --git a/data/battle_scripts_1.s b/data/battle_scripts_1.s
-index 8aa0a100..d2b70aad 100644
+index 8aa0a10..d2b70aa 100644
 --- a/data/battle_scripts_1.s
 +++ b/data/battle_scripts_1.s
 @@ -271,6 +271,15 @@ BattleScript_MoveEnd::
@@ -37,7 +37,7 @@ index 8aa0a100..d2b70aad 100644
  	printstring STRINGID_PKMNIGNOREDORDERS
  	waitmessage B_WAIT_TIME_LONG
 diff --git a/include/battle_scripts.h b/include/battle_scripts.h
-index ed2af35f..44be1d24 100644
+index ed2af35..44be1d2 100644
 --- a/include/battle_scripts.h
 +++ b/include/battle_scripts.h
 @@ -5,6 +5,8 @@
@@ -50,7 +50,7 @@ index ed2af35f..44be1d24 100644
  extern const u8 BattleScript_PrintMoveMissed[];
  extern const u8 BattleScript_MoveMissedPause[];
 diff --git a/include/constants/battle_string_ids.h b/include/constants/battle_string_ids.h
-index 24cc01ca..25d1a12f 100644
+index 24cc01c..25d1a12 100644
 --- a/include/constants/battle_string_ids.h
 +++ b/include/constants/battle_string_ids.h
 @@ -384,8 +384,13 @@
@@ -69,7 +69,7 @@ index 24cc01ca..25d1a12f 100644
  // This is the string id that gBattleStringsTable starts with.
  // String ids before this (e.g. STRINGID_INTROMSG) are not in the table,
 diff --git a/src/battle_message.c b/src/battle_message.c
-index a6392be9..3488878e 100644
+index a6392be..3488878 100644
 --- a/src/battle_message.c
 +++ b/src/battle_message.c
 @@ -63,6 +63,11 @@ static const u8 sText_StopLearningMove[] = _("{PAUSE 32}Stop learning\n{B_BUFF2}
@@ -99,7 +99,7 @@ index a6392be9..3488878e 100644
  
  const u16 gMissStringIds[] =
 diff --git a/src/battle_script_commands.c b/src/battle_script_commands.c
-index 67f90a37..7dc3d52f 100644
+index 67f90a3..7dc3d52 100644
 --- a/src/battle_script_commands.c
 +++ b/src/battle_script_commands.c
 @@ -37,6 +37,10 @@
@@ -135,7 +135,7 @@ index 67f90a37..7dc3d52f 100644
          gBattlescriptCurrInstr++;
      }
 diff --git a/src/battle_util.c b/src/battle_util.c
-index bb66a014..e5677588 100644
+index bb66a01..e567758 100644
 --- a/src/battle_util.c
 +++ b/src/battle_util.c
 @@ -3140,6 +3140,8 @@ static bool32 IsBattlerModernFatefulEncounter(u8 battlerId)
@@ -158,7 +158,7 @@ index bb66a014..e5677588 100644
      {
 diff --git a/src/code_red_battle.c b/src/code_red_battle.c
 new file mode 100644
-index 00000000..39ff4b22
+index 0000000..39ff4b2
 --- /dev/null
 +++ b/src/code_red_battle.c
 @@ -0,0 +1,236 @@

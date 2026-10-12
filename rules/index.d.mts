@@ -134,3 +134,7 @@ export interface LastTurn { move: string; type: string; verdict: string; reason?
 export function lastTurnLine(last: LastTurn | null | undefined): string
 export function memoryLines(args: { lib?: Helper[]; work?: Helper[]; type?: string; last?: LastTurn | null }): string[]
 export function withoutCarried(code: string | null, carried: Helper[]): string | null
+
+// knobs.mjs — every tunable number (CUSTOMIZING.md)
+export const PAYLOAD_LIMITS: { sampleRate: number; soundMax: number; imageFrames: number }
+export const TARGET: { minCount: number; maxCount: number; low: number; high: number }
