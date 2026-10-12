@@ -132,7 +132,9 @@ def talk_to(g: World, gfx: str, across_counter: bool = False, policy=None) -> bo
     """Walk next to the first NPC with this sprite on the current map (where it stands now), face it, press A, resolve."""
     live = g.npc_at(gfx_ids()[gfx]) if gfx in gfx_ids() else None
     if live is None:
-        o = next(o for o in objects(g.map()) if o.get('graphics_id') == gfx)
+        o = next((o for o in objects(g.map()) if o.get('graphics_id') == gfx), None)
+        if o is None:
+            return False  # not on this map (we whited out to a Pokémon Center, say)
         live = (o['x'], o['y'])
     x, y = live
     gap = 2 if across_counter else 1
@@ -313,8 +315,8 @@ def to_misty(g: World, starter: str = 'BULBASAUR', log=print, seed: int = 0) -> 
         return heal(g) and grind(g, 13, 'MAP_VIRIDIAN_FOREST', 'MAP_PEWTER_CITY', to_area=('MAP_ROUTE2', forest[2]), to_city=(forest[2],)) \
             and g.travel('MAP_PEWTER_CITY', via=(forest[2],)) and heal(g)
 
-    def brock():
-        return g.travel('MAP_PEWTER_CITY_GYM') and talk_to(g, 'OBJ_EVENT_GFX_BROCK') and g.flag(FLAG_BADGE01_GET)
+    def brock(tries=3):
+        return g.travel('MAP_PEWTER_CITY_GYM') and leader(g, 'OBJ_EVENT_GFX_BROCK', FLAG_BADGE01_GET, lambda g, t: brock(t), tries)
 
     def route4():
         return g.travel('MAP_ROUTE4', avoid=MT_MOON_AVOID) and heal(g)
@@ -322,8 +324,8 @@ def to_misty(g: World, starter: str = 'BULBASAUR', log=print, seed: int = 0) -> 
     def cerulean():
         return mt_moon_fossil(g) and journey(g, 'MAP_CERULEAN_CITY', 'MAP_ROUTE4', MT_MOON_AVOID) and heal(g)
 
-    def misty():
-        return g.travel('MAP_CERULEAN_CITY_GYM') and talk_to(g, 'OBJ_EVENT_GFX_MISTY') and g.flag(FLAG_BADGE02_GET)
+    def misty(tries=3):
+        return g.travel('MAP_CERULEAN_CITY_GYM') and leader(g, 'OBJ_EVENT_GFX_MISTY', FLAG_BADGE02_GET, lambda g, t: misty(t), tries)
 
     leg('opening', lambda: opening(g, starter, title_wait=seed * 7))
     for name, fn in [('rival', rival), ('parcel', parcel), ('pokedex', pokedex), ('pewter', pewter),
@@ -406,6 +408,18 @@ def use_cut(g: World, tree: tuple[int, int]) -> bool:
     return g.walk_to(tx, ty, max_steps=4) and g.pos() == tree
 
 
+def leader(g: World, gfx: str, badge_flag: int, again, tries: int) -> bool:
+    """Challenge the leader standing in front of us. Losing whites out to the Pokémon Center (healed): a player would
+    walk back and try again, so do that, `tries` times in all (the trainers stay beaten)."""
+    talk_to(g, gfx)
+    if g.flag(badge_flag):
+        return True
+    if tries > 1 and g.map().endswith('_POKEMON_CENTER_1F'):
+        g.travel(g.map().replace('_POKEMON_CENTER_1F', ''))
+        return again(g, tries - 1)
+    return False
+
+
 def enter_vermilion_gym(g: World) -> bool:
     """The tree by the gym grows back whenever the city map reloads: cut it on the way in, every time."""
     from .world import clear_obstacle
@@ -418,7 +432,7 @@ def enter_vermilion_gym(g: World) -> bool:
     return entered
 
 
-def vermilion_gym(g: World) -> bool:
+def vermilion_gym(g: World, tries: int = 3) -> bool:
     """The trash cans: the two switch cans are in VAR_TEMP_0 / VAR_TEMP_1 (ids 1-15, five a row from (1,10)). Open
     both locks, beat the two trainers on the way, heal, then Lt. Surge."""
     from .world import clear_obstacle
@@ -449,7 +463,7 @@ def vermilion_gym(g: World) -> bool:
         if not (g.travel('MAP_VERMILION_CITY') and use_cut(g, (19, 24)) and heal(g) and enter_vermilion_gym(g)
                 and g.walk_to(5, 9) and g.walk_to(5, 3)):
             return False
-    return talk_to(g, 'OBJ_EVENT_GFX_LT_SURGE') and g.flag(FLAG_BADGE03_GET)
+    return leader(g, 'OBJ_EVENT_GFX_LT_SURGE', FLAG_BADGE03_GET, vermilion_gym, tries)
 
 
 def to_surge(g: World, log=print, leg=None, rules=None) -> dict:
@@ -496,7 +510,7 @@ FLAG_BADGE04_GET = SYS_FLAGS + 0x23
 ERIKA_AVOID = SAFFRON_AVOID + ('MAP_ROUTE7_EAST_ENTRANCE', 'MAP_ROUTE8_WEST_ENTRANCE')  # every Saffron gate is shut
 
 
-def celadon_gym(g: World) -> bool:
+def celadon_gym(g: World, tries: int = 3) -> bool:
     """Celadon's gym: the tree in the middle path (6,8) must be cut (it grows back on every reload), then the trainers
     in line, then Erika at the top."""
     from .world import clear_obstacle
@@ -512,8 +526,8 @@ def celadon_gym(g: World) -> bool:
     if lead['hp'] < 0.9 * lead['max_hp']:  # heal before the leader; the trainers stay beaten
         if not (g.travel('MAP_CELADON_CITY') and use_cut(g, (40, 35)) and heal(g)):
             return False
-        return celadon_gym(g)
-    return talk_to(g, 'OBJ_EVENT_GFX_ERIKA') and g.flag(FLAG_BADGE04_GET)
+        return celadon_gym(g, tries)
+    return leader(g, 'OBJ_EVENT_GFX_ERIKA', FLAG_BADGE04_GET, celadon_gym, tries)
 
 
 def to_erika(g: World, log=print, leg=None) -> dict:
