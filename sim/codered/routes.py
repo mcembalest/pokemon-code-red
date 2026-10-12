@@ -11,7 +11,7 @@ from .game import ROOT
 from . import world
 from .world import World, map_info
 
-import os
+import os, sys
 CHECKPOINTS = ROOT / 'build/sim/checkpoints' / os.environ.get('CODERED_RUN', '')
 
 
@@ -194,13 +194,27 @@ def grind(g: World, level: int, area: str, city: str, policy=None, max_rounds: i
     return g.party()[0]['level'] >= level
 
 
-def journey(g: World, dest: str, center_city: str, avoid: tuple = (), low: float = 0.4, tries: int = 6, at=None) -> bool:
-    """travel() that retreats to `center_city`'s Pokémon Center whenever the lead drops below `low` HP."""
+def nearest_center(g: World, cities, avoid: tuple = ()) -> str:
+    """Of these cities (each with a Pokémon Center), the one the fewest map hops away from here."""
+    from .world import region_route
+    def hops(city):
+        try:
+            r = region_route(g.map(), g.pos(), city, avoid)
+        except Exception:
+            r = None
+        return len(r) if r is not None else 999
+    return min(cities, key=hops)
+
+
+def journey(g: World, dest: str, center_city, avoid: tuple = (), low: float = 0.4, tries: int = 6, at=None) -> bool:
+    """travel() that retreats to a Pokémon Center whenever the lead drops below `low` HP: `center_city`'s, or the
+    nearest of several (a tuple: on a long route the one behind us is often farther than the one ahead)."""
     hurt = lambda: g.party()[0]['hp'] < low * g.party()[0]['max_hp']
+    centers = (center_city,) if isinstance(center_city, str) else tuple(center_city)
     for _ in range(tries):
         if hurt():
             try:
-                if g.travel(center_city, avoid=avoid):
+                if g.travel(nearest_center(g, centers, avoid), avoid=avoid):
                     heal(g)
             except ValueError:
                 pass  # stranded off the planner's map: the next travel() re-plans from where we are
@@ -215,6 +229,7 @@ def journey(g: World, dest: str, center_city: str, avoid: tuple = (), low: float
 
 
 MT_MOON_AVOID = ('MAP_DIGLETTS_CAVE_NORTH_ENTRANCE', 'MAP_DIGLETTS_CAVE_SOUTH_ENTRANCE')
+TRAINER_FLAGS_START, TRAINER_SUPER_NERD_MIGUEL = 0x500, 170  # include/constants/flags.h, opponents.h
 
 
 def mt_moon_fossil(g: World) -> bool:
@@ -222,10 +237,11 @@ def mt_moon_fossil(g: World) -> bool:
     he then steps aside and the way to the exit ladder opens. data/maps/MtMoon_B2F/scripts.inc"""
     if not journey(g, 'MAP_MT_MOON_B2F', 'MAP_ROUTE4', MT_MOON_AVOID, at=(15, 11)):
         return False
-    if not ready_for_boss(g, 'MAP_ROUTE4', 'MAP_MT_MOON_B2F', MT_MOON_AVOID, spot=(15, 11)):
-        return False
-    g.walk_to(14, 11)
-    g.handle()
+    if not g.flag(TRAINER_FLAGS_START + TRAINER_SUPER_NERD_MIGUEL):  # the walk in can trip his trigger: then he is beaten already
+        if not ready_for_boss(g, 'MAP_ROUTE4', 'MAP_MT_MOON_B2F', MT_MOON_AVOID, spot=(15, 11)):
+            return False
+        g.walk_to(14, 11)
+        g.handle()
     # Either fossil opens the way (the sim has stood under the wrong one and come away empty: 2026-10-11).
     for x in (13, 14):
         if not g.walk_to(x, 8):
@@ -253,14 +269,16 @@ def progress_trace(path=None):
 def ready_for_boss(g: World, center_city: str, back_to: str, avoid: tuple = (), need: float = 0.9,
                    spot: tuple | None = None, tries: int = 8) -> bool:
     """Arrive at `spot` on `back_to` with >= `need` HP: heal and return as often as needed.
-    Trainers on the way stay beaten, so each round costs less HP."""
-    for _ in range(tries):
+    Trainers on the way stay beaten, so each round costs less HP. When the way back keeps costing HP anyway (wild
+    Zubats in Mt. Moon: seed 3 came back under 90% eight times), settle for less each round rather than never arriving."""
+    for i in range(tries):
+        want = need if i < tries // 2 else max(0.5, need - 0.1 * (i - tries // 2 + 1))
         if g.map() == back_to and spot and g.pos() != spot:
             g.walk_to(*spot)
         lead = g.party()[0]
-        if g.map() == back_to and (not spot or g.pos() == spot) and lead['hp'] >= need * lead['max_hp']:
+        if g.map() == back_to and (not spot or g.pos() == spot) and lead['hp'] >= want * lead['max_hp']:
             return True
-        if lead['hp'] < need * lead['max_hp']:
+        if lead['hp'] < want * lead['max_hp']:
             try:
                 reached = g.travel(center_city, avoid=avoid)
             except ValueError:
@@ -279,58 +297,52 @@ SYS_FLAGS = 0x800
 FLAG_BADGE01_GET, FLAG_BADGE02_GET = SYS_FLAGS + 0x20, SYS_FLAGS + 0x21  # include/constants/flags.h
 
 
+FOREST = ('MAP_ROUTE2_VIRIDIAN_FOREST_SOUTH_ENTRANCE', 'MAP_VIRIDIAN_FOREST', 'MAP_ROUTE2_VIRIDIAN_FOREST_NORTH_ENTRANCE')
+
+
+def rival(g: World, log=print) -> bool:
+    g.fast_options()
+    outcomes = g.handle()
+    log(f'               rival battle: {outcomes}')
+    return g.free()  # losing the first rival battle is allowed by the game
+
+
+def parcel(g: World) -> bool:
+    return g.travel('MAP_VIRIDIAN_CITY_MART') and (g.handle() or True) and 'OAKS_PARCEL' in g.bag()
+
+
+def pokedex(g: World) -> bool:
+    return g.travel('MAP_PALLET_TOWN_PROFESSOR_OAKS_LAB') and talk_to(g, 'OBJ_EVENT_GFX_PROF_OAK') and 'OAKS_PARCEL' not in g.bag()
+
+
+def pewter(g: World) -> bool:
+    return g.travel('MAP_VIRIDIAN_CITY') and heal(g) and g.travel('MAP_PEWTER_CITY', via=FOREST)
+
+
+def train_for_brock(g: World) -> bool:
+    return heal(g) and grind(g, 13, 'MAP_VIRIDIAN_FOREST', 'MAP_PEWTER_CITY', to_area=('MAP_ROUTE2', FOREST[2]), to_city=(FOREST[2],)) \
+        and g.travel('MAP_PEWTER_CITY', via=(FOREST[2],)) and heal(g)
+
+
+def brock(g: World, tries: int = 3) -> bool:
+    return g.travel('MAP_PEWTER_CITY_GYM') and leader(g, 'OBJ_EVENT_GFX_BROCK', FLAG_BADGE01_GET, brock, tries)
+
+
+def route4(g: World) -> bool:
+    return g.travel('MAP_ROUTE4', avoid=MT_MOON_AVOID) and heal(g)
+
+
+def cerulean(g: World) -> bool:
+    return mt_moon_fossil(g) and journey(g, 'MAP_CERULEAN_CITY', 'MAP_ROUTE4', MT_MOON_AVOID) and heal(g)
+
+
+def misty(g: World, tries: int = 3) -> bool:
+    return g.travel('MAP_CERULEAN_CITY_GYM') and leader(g, 'OBJ_EVENT_GFX_MISTY', FLAG_BADGE02_GET, misty, tries)
+
+
 def to_misty(g: World, starter: str = 'BULBASAUR', log=print, seed: int = 0) -> dict:
-    """Power-on -> Brock -> Mt. Moon -> Misty, inputs only (plus Options-menu settings and nothing else).
-    Returns a summary; checkpoints are saved after each leg."""
-    forest = ('MAP_ROUTE2_VIRIDIAN_FOREST_SOUTH_ENTRANCE', 'MAP_VIRIDIAN_FOREST', 'MAP_ROUTE2_VIRIDIAN_FOREST_NORTH_ENTRANCE')
-    def leg(name, fn):
-        ok = fn()
-        lead = g.party()[0] if g.party() else {}
-        log(f'{name:<14} {"ok " if ok else "FAIL"} frame {g.frame:>7} ({g.frame / 59.73 / 60:5.1f} game-min) '
-            f'{g.map()} L{lead.get("level")} {lead.get("hp")}/{lead.get("max_hp")}')
-        if not ok:
-            g.screenshot(CHECKPOINTS / f'fail-{name}.png')
-            raise RuntimeError(f'leg {name} failed')
-        save_checkpoint(g, name)
-
-    def rival():
-        g.fast_options()
-        outcomes = g.handle()
-        log(f'               rival battle: {outcomes}')
-        return g.free()  # losing the first rival battle is allowed by the game
-
-    def parcel():
-        return g.travel('MAP_VIRIDIAN_CITY_MART') and (g.handle() or True) and 'OAKS_PARCEL' in g.bag()
-
-    def pokedex():
-        return g.travel('MAP_PALLET_TOWN_PROFESSOR_OAKS_LAB') and talk_to(g, 'OBJ_EVENT_GFX_PROF_OAK') and 'OAKS_PARCEL' not in g.bag()
-
-    def pewter():
-        return g.travel('MAP_VIRIDIAN_CITY') and heal(g) and g.travel('MAP_PEWTER_CITY', via=forest)
-
-    def train_for_brock():
-        return heal(g) and grind(g, 13, 'MAP_VIRIDIAN_FOREST', 'MAP_PEWTER_CITY', to_area=('MAP_ROUTE2', forest[2]), to_city=(forest[2],)) \
-            and g.travel('MAP_PEWTER_CITY', via=(forest[2],)) and heal(g)
-
-    def brock(tries=3):
-        return g.travel('MAP_PEWTER_CITY_GYM') and leader(g, 'OBJ_EVENT_GFX_BROCK', FLAG_BADGE01_GET, lambda g, t: brock(t), tries)
-
-    def route4():
-        return g.travel('MAP_ROUTE4', avoid=MT_MOON_AVOID) and heal(g)
-
-    def cerulean():
-        return mt_moon_fossil(g) and journey(g, 'MAP_CERULEAN_CITY', 'MAP_ROUTE4', MT_MOON_AVOID) and heal(g)
-
-    def misty(tries=3):
-        return g.travel('MAP_CERULEAN_CITY_GYM') and leader(g, 'OBJ_EVENT_GFX_MISTY', FLAG_BADGE02_GET, lambda g, t: misty(t), tries)
-
-    leg('opening', lambda: opening(g, starter, title_wait=seed * 7))
-    for name, fn in [('rival', rival), ('parcel', parcel), ('pokedex', pokedex), ('pewter', pewter),
-                     ('train_brock', train_for_brock), ('brock', brock), ('route4', route4),
-                     ('cerulean', cerulean), ('misty', misty)]:
-        leg(name, fn)
-    return {'frames': g.frame, 'game_minutes': round(g.frame / 59.73 / 60, 1), 'party': g.party(),
-            'badges': [g.flag(FLAG_BADGE01_GET), g.flag(FLAG_BADGE02_GET)]}
+    """Power-on -> Boulder Badge -> Cascade Badge (see LEGS)."""
+    return play(g, to='misty', starter=starter, log=log, seed=seed)
 
 
 # ---- Cerulean -> Lt. Surge (2026-10-11) -------------------------------------------------
@@ -380,49 +392,60 @@ def teach_cut(g: World, rules) -> int:
 
 def use_cut(g: World, tree: tuple[int, int]) -> bool:
     """Stand next to the tree, face it, talk to it: with CUT known the game asks "cut it down?" and the dialog
-    driver says YES. (Fallback: START -> POKéMON -> the lead -> CUT.) True when we can stand where the tree was."""
+    driver says YES. True when we can stand where the tree was."""
     from .world import clear_obstacle
     tx, ty = tree
-    was, world.CAN_CUT = world.CAN_CUT, False  # walking to its side must not plan through the tree (walk_to would call us again)
+    was, world.CAN_CUT = world.CAN_CUT, False  # no planning through this tree while we work on it (walk_to would call us again)
     try:
         for (dx, dy, face) in ((0, -1, 'DOWN'), (0, 1, 'UP'), (1, 0, 'LEFT'), (-1, 0, 'RIGHT')):
             if g.walk_to(tx + dx, ty + dy) and g.pos() == (tx + dx, ty + dy):
                 break
         else:
             return False
+        for _ in range(2):  # the prompt can be missed when a wild battle or a trainer cut in: face it and ask again
+            g.interact(face)
+            g.handle()
+            clear_obstacle(g.map(), tree)  # the planner may walk through it now
+            if g.walk_to(tx, ty, max_steps=4) and g.pos() == tree:
+                return True
+            clear_obstacle(g.map(), tree, cleared=False)
+            if g.pos() != (tx + dx, ty + dy) and not (g.walk_to(tx + dx, ty + dy) and g.pos() == (tx + dx, ty + dy)):
+                break
+        g.screenshot(CHECKPOINTS / f'fail-cut-{g.map()}-{tx}-{ty}.png')
+        return False
     finally:
         world.CAN_CUT = was or g.party_moves(0).count(MOVE_CUT) > 0
-    g.interact(face)
-    g.handle()
-    clear_obstacle(g.map(), tree)  # the planner may walk through it now
-    if g.walk_to(tx, ty, max_steps=4) and g.pos() == tree:
-        return True
-    g.press('START', hold=2, after=30)
-    g.press('DOWN', hold=2, after=10)     # POKéDEX, POKéMON, BAG, <name>, SAVE, OPTION, EXIT
-    g.press('A', hold=2, after=10)        # the party screen (fades in)
-    g.run_until(lambda: g.brightness() > 0.3, 600, 5)
-    g.run(30)
-    g.press('A', hold=2, after=40)        # the lead's menu: SUMMARY, CUT, ITEM, CANCEL
-    g.press('DOWN', hold=2, after=10)
-    g.press('A', hold=2, after=40)        # "VENUSAUR used CUT!" (pressing A here would reopen the menu: just wait)
-    g.run_until(lambda: g.in_overworld() and g.free(), 1200)
-    g.run(30)
-    return g.walk_to(tx, ty, max_steps=4) and g.pos() == tree
 
 
 World.cut = use_cut  # walk_to() cuts a CUTTABLE tree as it reaches it (world.py)
 
 
+# Where to train after losing to a leader: (a route with tall grass near the city, the city, via maps there and back).
+TRAINING = {
+    'BROCK': ('MAP_VIRIDIAN_FOREST', 'MAP_PEWTER_CITY', (FOREST[2],), (FOREST[2],)),
+    'MISTY': ('MAP_ROUTE24', 'MAP_CERULEAN_CITY', (), ()),
+    'LT_SURGE': ('MAP_ROUTE11', 'MAP_VERMILION_CITY', (), ()),
+    'ERIKA': ('MAP_ROUTE7', 'MAP_CELADON_CITY', (), ()),
+}
+
+
 def leader(g: World, gfx: str, badge_flag: int, again, tries: int) -> bool:
     """Challenge the leader standing in front of us. Losing whites out to the Pokémon Center (healed): a player would
-    walk back and try again, so do that, `tries` times in all (the trainers stay beaten)."""
+    train a couple of levels nearby (TRAINING), walk back and try again, so do that, `tries` times in all (the
+    trainers stay beaten). Two stand-in seeds lost to Erika three times running at L40 before training was added."""
     who = gfx.removeprefix('OBJ_EVENT_GFX_')
     g.leader_tries = {**getattr(g, 'leader_tries', {}), who: getattr(g, 'leader_tries', {}).get(who, 0) + 1}  # for the summary
     talk_to(g, gfx)
     if g.flag(badge_flag):
         return True
     if tries > 1 and g.map().endswith('_POKEMON_CENTER_1F'):
-        g.travel(g.map().replace('_POKEMON_CENTER_1F', ''))
+        city = g.map().replace('_POKEMON_CENTER_1F', '')
+        g.travel(city)
+        if who in TRAINING:
+            area, home, to_area, to_city = TRAINING[who]
+            grind(g, g.party()[0]['level'] + 2, area, home, to_area=to_area, to_city=to_city)
+            g.travel(home, via=to_city) if g.map() != home else None
+            heal(g)
         return again(g, tries - 1)
     return False
 
@@ -473,43 +496,27 @@ def vermilion_gym(g: World, tries: int = 3) -> bool:
     return leader(g, 'OBJ_EVENT_GFX_LT_SURGE', FLAG_BADGE03_GET, vermilion_gym, tries)
 
 
-def to_surge(g: World, log=print, leg=None, rules=None) -> dict:
-    """After Misty: Nugget Bridge -> Bill -> the Underground Path -> Vermilion -> S.S. Anne (HM01) -> CUT -> Lt. Surge."""
+def nugget(g: World) -> bool:  # the rival at the bridge, five trainers, the Rocket's offer (declined by walking on)
+    return journey(g, 'MAP_ROUTE25', 'MAP_CERULEAN_CITY')
+
+
+def bill_leg(g: World) -> bool:
+    return bill(g) and journey(g, 'MAP_CERULEAN_CITY', 'MAP_CERULEAN_CITY') and heal(g)
+
+
+def vermilion(g: World) -> bool:
+    return journey(g, 'MAP_VERMILION_CITY', ('MAP_CERULEAN_CITY', 'MAP_VERMILION_CITY'), SAFFRON_AVOID) and heal(g)
+
+
+def cut(g: World) -> bool:
     from .battle import Rules
-    rules = rules or Rules(g)
-    if leg is None:
-        def leg(name, fn):
-            ok = fn()
-            lead = g.party()[0] if g.party() else {}
-            log(f'{name:<14} {"ok " if ok else "FAIL"} frame {g.frame:>7} ({g.frame / 59.73 / 60:5.1f} game-min) '
-                f'{g.map()} L{lead.get("level")} {lead.get("hp")}/{lead.get("max_hp")}')
-            if not ok:
-                g.screenshot(CHECKPOINTS / f'fail-{name}.png')
-                raise RuntimeError(f'leg {name} failed')
-            save_checkpoint(g, name)
-
-    def nugget():  # the rival at the bridge, five trainers, the Rocket's offer (declined by walking on)
-        return journey(g, 'MAP_ROUTE25', 'MAP_CERULEAN_CITY')
-
-    def vermilion():
-        return journey(g, 'MAP_VERMILION_CITY', 'MAP_CERULEAN_CITY', SAFFRON_AVOID) and heal(g)
-
-    def cut():
-        teach_cut(g, rules)
-        return g.travel('MAP_VERMILION_CITY') and use_cut(g, (19, 24)) and heal(g)
-
-    def surge():
-        return vermilion_gym(g)
-
-    for name, fn in [('nugget', nugget), ('bill', bill_leg(g)), ('vermilion', vermilion), ('ss_anne', lambda: ss_anne(g) and heal(g)),
-                     ('cut', cut), ('surge', surge)]:
-        leg(name, fn)
-    return {'frames': g.frame, 'game_minutes': round(g.frame / 59.73 / 60, 1), 'party': g.party(),
-            'badges': [g.flag(FLAG_BADGE01_GET), g.flag(FLAG_BADGE02_GET), g.flag(FLAG_BADGE03_GET)]}
+    teach_cut(g, getattr(g, '_rules', None) or Rules(g))
+    return g.travel('MAP_VERMILION_CITY') and use_cut(g, (19, 24)) and heal(g)
 
 
-def bill_leg(g: World):
-    return lambda: bill(g) and journey(g, 'MAP_CERULEAN_CITY', 'MAP_CERULEAN_CITY') and heal(g)
+def to_surge(g: World, log=print, leg=None, rules=None) -> dict:
+    """After Misty: Nugget Bridge, Bill, Vermilion, the S.S. Anne, CUT, Lt. Surge (see LEGS)."""
+    return play(g, start='misty', to='surge', log=log, leg=leg)
 
 
 # ---- Vermilion -> Erika (2026-10-11) --------------------------------------------------------
@@ -537,9 +544,102 @@ def celadon_gym(g: World, tries: int = 3) -> bool:
     return leader(g, 'OBJ_EVENT_GFX_ERIKA', FLAG_BADGE04_GET, celadon_gym, tries)
 
 
+def route10(g: World) -> bool:
+    if g.map() == 'MAP_VERMILION_CITY_GYM':  # still in the leader's room: the opened door is floor now
+        from .world import clear_obstacle
+        for cell in ((5, 6), (5, 7)):
+            clear_obstacle('MAP_VERMILION_CITY_GYM', cell)
+        g.walk_to(5, 9)
+        g.travel('MAP_VERMILION_CITY')
+    if g.map() == 'MAP_VERMILION_CITY' and g.pos()[1] >= 25:  # inside the gym's fence: the tree grew back
+        use_cut(g, (19, 24))
+    return journey(g, 'MAP_CERULEAN_CITY', 'MAP_VERMILION_CITY', ERIKA_AVOID) and heal(g) \
+        and g.travel('MAP_ROUTE9', avoid=ERIKA_AVOID) and use_cut(g, (2, 8)) \
+        and journey(g, 'MAP_ROUTE10', ('MAP_CERULEAN_CITY', 'MAP_ROUTE10'), ERIKA_AVOID) and heal(g)
+
+
+def lavender(g: World) -> bool:
+    return journey(g, 'MAP_LAVENDER_TOWN', ('MAP_ROUTE10', 'MAP_LAVENDER_TOWN'), ERIKA_AVOID) and heal(g)
+
+
+def celadon(g: World) -> bool:
+    return journey(g, 'MAP_CELADON_CITY', ('MAP_LAVENDER_TOWN', 'MAP_CELADON_CITY'), ERIKA_AVOID) and heal(g)
+
+
 def to_erika(g: World, log=print, leg=None) -> dict:
-    """After Lt. Surge: back to Cerulean, Route 9, Route 10, Rock Tunnel (dark: the planner doesn't mind), Lavender,
-    Route 8, the east-west Underground Path, Route 7, Celadon, Erika."""
+    """After Lt. Surge: Route 9, Route 10, Rock Tunnel (dark: the planner doesn't mind), Lavender, Route 8, the
+    east-west Underground Path, Route 7, Celadon, Erika (see LEGS)."""
+    return play(g, start='surge', to='erika', log=log, leg=leg)
+
+
+# ---- the route, leg by leg -------------------------------------------------------------------
+# Every leg is a function of the world (plus `starter`, `seed`, `log` for the ones that need them). play() runs them
+# in order; each one that passes is saved as build/sim/checkpoints/<run>/<leg>.state, so `python3 sim/leg.py <leg>`
+# replays any single leg from the one before it in seconds instead of a run from power-on.
+def with_ctx(fn):
+    fn.with_ctx = True  # the leg takes (g, ctx) rather than (g)
+    return fn
+
+
+LEGS: list[tuple[str, object]] = [
+    ('opening', with_ctx(lambda g, ctx: opening(g, ctx['starter'], title_wait=ctx['seed'] * 7))),
+    ('rival', with_ctx(lambda g, ctx: rival(g, ctx['log']))),
+    ('parcel', parcel), ('pokedex', pokedex), ('pewter', pewter), ('train_brock', train_for_brock), ('brock', brock),
+    ('route4', route4), ('cerulean', cerulean), ('misty', misty),
+    ('nugget', nugget), ('bill', bill_leg), ('vermilion', vermilion), ('ss_anne', lambda g: ss_anne(g) and heal(g)),
+    ('cut', cut), ('surge', vermilion_gym),
+    ('route10', route10), ('lavender', lavender), ('celadon', celadon), ('erika', celadon_gym),
+]
+LEG_NAMES = [n for n, _ in LEGS]
+BADGE_FLAGS = (FLAG_BADGE01_GET, FLAG_BADGE02_GET, FLAG_BADGE03_GET, FLAG_BADGE04_GET)
+
+
+def save_failure(g: World, name: str) -> None:
+    """A screenshot, the state and what the planner had learned, so the failure can be looked at (sim/leg.py --at)."""
+    import json
+    CHECKPOINTS.mkdir(parents=True, exist_ok=True)
+    g.screenshot(CHECKPOINTS / f'fail-{name}.png')
+    save_checkpoint(g, f'fail-{name}')
+    lead = g.party()[0] if g.party() else {}
+    (CHECKPOINTS / f'fail-{name}.json').write_text(json.dumps({
+        'map': g.map(), 'pos': g.pos(), 'frame': g.frame, 'free': g.free(), 'in_battle': g.in_battle(),
+        'lead': {k: lead.get(k) for k in ('species', 'level', 'hp', 'max_hp', 'moves', 'pp')},
+        'npcs': sorted(g.npc_tiles()), 'bumped': sorted(list(b) for b in g._bumped if b[0] == g.map()),
+        'cleared': {m: sorted(c) for m, c in world.CLEARED.items()}, 'can_cut': world.CAN_CUT, 'battle_log': g.battle_log[-20:],
+    }, indent=1, default=str))
+
+
+def checkpoint_path(name: str) -> Path:
+    return CHECKPOINTS / f'{name}.state'
+
+
+def load_checkpoint(g: World, name: str) -> None:
+    """Load the state saved after leg `name` (this ROM build's: checkpoints of another build are refused)."""
+    path = checkpoint_path(name)
+    if not path.exists():
+        raise FileNotFoundError(f'no checkpoint {path}: run the legs before it first (sim/leg.py --to {name})')
+    stamp = CHECKPOINTS / 'rom.txt'
+    if not stamp.exists():
+        print(f'warning: {CHECKPOINTS} has no rom.txt: these checkpoints may be from another ROM build', file=sys.stderr)
+    elif stamp.read_text().strip() != rom_stamp():
+        raise RuntimeError(f'checkpoints in {CHECKPOINTS} are from another ROM build ({stamp.read_text().strip()} vs {rom_stamp()}): '
+                           f'delete them and run from power-on')
+    g.load_state(path.read_bytes())
+    if g.party_moves(0).count(MOVE_CUT):
+        world.CAN_CUT = True
+
+
+def rom_stamp() -> str:
+    from .game import ROM
+    import hashlib
+    return hashlib.sha1(Path(ROM).read_bytes()).hexdigest()[:12]
+
+
+def play(g: World, to: str = 'erika', start: str | None = None, log=print, leg=None, starter: str = 'BULBASAUR', seed: int = 0) -> dict:
+    """Run the legs after `start` (None: from power-on, the world as it is) through `to`. Each leg that passes is
+    checkpointed; a failing leg is screenshotted and raises RuntimeError. `leg(name, fn)`: your own wrapper."""
+    names = LEG_NAMES[(LEG_NAMES.index(start) + 1 if start else 0):LEG_NAMES.index(to) + 1]
+    ctx = {'starter': starter, 'seed': seed, 'log': log}
     if leg is None:
         def leg(name, fn):
             ok = fn()
@@ -547,30 +647,12 @@ def to_erika(g: World, log=print, leg=None) -> dict:
             log(f'{name:<14} {"ok " if ok else "FAIL"} frame {g.frame:>7} ({g.frame / 59.73 / 60:5.1f} game-min) '
                 f'{g.map()} L{lead.get("level")} {lead.get("hp")}/{lead.get("max_hp")}')
             if not ok:
-                g.screenshot(CHECKPOINTS / f'fail-{name}.png')
+                save_failure(g, name)
                 raise RuntimeError(f'leg {name} failed')
             save_checkpoint(g, name)
-
-    def route10():
-        if g.map() == 'MAP_VERMILION_CITY_GYM':  # still in the leader's room: the opened door is floor now
-            from .world import clear_obstacle
-            for cell in ((5, 6), (5, 7)):
-                clear_obstacle('MAP_VERMILION_CITY_GYM', cell)
-            g.walk_to(5, 9)
-            g.travel('MAP_VERMILION_CITY')
-        if g.map() == 'MAP_VERMILION_CITY' and g.pos()[1] >= 25:  # inside the gym's fence: the tree grew back
-            use_cut(g, (19, 24))
-        return journey(g, 'MAP_CERULEAN_CITY', 'MAP_VERMILION_CITY', ERIKA_AVOID) and heal(g) \
-            and g.travel('MAP_ROUTE9', avoid=ERIKA_AVOID) and use_cut(g, (2, 8)) \
-            and journey(g, 'MAP_ROUTE10', 'MAP_CERULEAN_CITY', ERIKA_AVOID) and heal(g)
-
-    def lavender():
-        return journey(g, 'MAP_LAVENDER_TOWN', 'MAP_ROUTE10', ERIKA_AVOID) and heal(g)
-
-    def celadon():
-        return journey(g, 'MAP_CELADON_CITY', 'MAP_LAVENDER_TOWN', ERIKA_AVOID) and heal(g)
-
-    for name, fn in [('route10', route10), ('lavender', lavender), ('celadon', celadon), ('erika', lambda: celadon_gym(g))]:
-        leg(name, fn)
+            (CHECKPOINTS / 'rom.txt').write_text(rom_stamp())
+    for name, fn in LEGS:
+        if name in names:
+            leg(name, (lambda fn=fn: fn(g, ctx)) if getattr(fn, 'with_ctx', False) else (lambda fn=fn: fn(g)))
     return {'frames': g.frame, 'game_minutes': round(g.frame / 59.73 / 60, 1), 'party': g.party(),
-            'badges': [g.flag(f) for f in (FLAG_BADGE01_GET, FLAG_BADGE02_GET, FLAG_BADGE03_GET, FLAG_BADGE04_GET)]}
+            'badges': [g.flag(f) for f in BADGE_FLAGS]}

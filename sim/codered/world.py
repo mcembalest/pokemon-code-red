@@ -175,7 +175,8 @@ class World(Game):
     def _map_text(self) -> str:
         return (DECOMP / 'pokefirered.map').read_text()
 
-    def text_range(self, obj: str) -> tuple[int, int]:
+    @lru_cache(maxsize=None)
+    def text_range(self, obj: str) -> tuple[int, int]:  # cached: learn_move_screen() asks every battle frame (12% of a run, measured)
         m = re.search(r'^ \.text\s+(0x[0-9a-f]+)\s+(0x[0-9a-f]+)\s+src/' + re.escape(obj) + r'\.o$', self._map_text, re.M)
         start = int(m.group(1), 16)
         return start, start + int(m.group(2), 16)
@@ -471,7 +472,9 @@ class World(Game):
                     return False
                 continue
             if not self.step(d):
-                if self.free():
+                if nxt in self.npc_tiles():  # an NPC wandered into the way since the plan: wait, replan (never learn it as a wall)
+                    self.run(16)
+                elif self.free():
                     self._bumped.add((start_map, here, d))
         return self.pos() == (x, y)
 
@@ -534,12 +537,23 @@ class World(Game):
     def take_warp(self, x: int, y: int) -> bool:
         """Walk onto a warp (door, stairs, exit) and through it. True when the map changed."""
         start = self.map()
+        m = map_info(start)
+        mb = lambda c: m.attrs[c[1] * m.width + c[0]] & 0x1FF if m.attrs and 0 <= c[0] < m.width and 0 <= c[1] < m.height else 0
+        if not 0x60 <= mb((x, y)) <= 0x71:  # not a warp tile itself (a mat is three warp events wide; only one fires):
+            dest = next((w[2] for w in m.warps if (w[0], w[1]) == (x, y)), None)  # take the sibling that does
+            real = [(w[0], w[1]) for w in m.warps if w[2] == dest and 0x60 <= mb((w[0], w[1])) <= 0x71]
+            if real:
+                x, y = min(real, key=lambda c: abs(c[0] - x) + abs(c[1] - y))
         if not self.walk_to(x, y):
             return self.map() != start
         if self.map() != start:
             return True
         here = self.save_state()
-        for d in ('UP', 'DOWN', 'LEFT', 'RIGHT'):
+        # An arrow-warp mat (a Pokémon Center's exit: MB_SOUTH_ARROW_WARP) fires only when walked in its direction:
+        # try that first instead of bumping around (each wrong try cost ~100 frames and a rewind).
+        first = {0x62: 'RIGHT', 0x63: 'LEFT', 0x64: 'UP', 0x65: 'DOWN'}.get(mb((x, y)))
+        order = ([first] if first else []) + [d for d in ('UP', 'DOWN', 'LEFT', 'RIGHT') if d != first]
+        for d in order:
             self.run(16, d)
             if self.run_until(lambda: self.map() != start, 90):
                 self.run_until(self.in_overworld, 300)

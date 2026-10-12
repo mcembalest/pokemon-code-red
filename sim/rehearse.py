@@ -98,11 +98,7 @@ def main():
             legs.append({'leg': line.split()[0], 'ok': ' ok ' in line, 'wall_s': round(time.time() - t0), 'line': line.strip(),
                          'code_turns': len(host.turns)})
     try:
-        result = routes.to_misty(g, seed=args.seed, log=log)
-        if args.to in ('surge', 'erika'):
-            result = routes.to_surge(g, log=log)
-        if args.to == 'erika':
-            result = routes.to_erika(g, log=log)
+        result = routes.play(g, to=args.to, seed=args.seed, log=log)
         result['ok'] = True
     except Exception as e:  # a failed leg, or the brain died
         result = {'ok': False, 'error': f'{type(e).__name__}: {e}', 'frame': g.frame, 'map': g.map(), 'party': g.party()}

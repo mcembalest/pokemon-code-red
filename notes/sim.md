@@ -12,3 +12,18 @@
 ## Mt. Moon leg (2026-10-09, seeds 0/2/3/4 fail since the names change)
 - Fixed: `take_warp` on an arrival tile (step off, step back on); `travel(dest, at=cell)` routes to the area holding `at` (a floor can be several disconnected areas); `heal`/`ready_for_boss`/`journey` survive being stranded off the planner's map (no more `no route … POKEMON_CENTER_1F` crash).
 - Still open: from the seed-0 `route4` checkpoint the lead (L18) reaches B2F at 28/51 HP after wild battles, `walk_to(15, 11)` runs into a Rocket grunt and whites out (walk_to returns True from the Pokémon Center), and the loop grinds to L27 before giving up. Needs a leveling/Repel policy for the Mt. Moon leg, not a planner fix. Repro in 15 s: load `build/sim/checkpoints/seed0/route4.state`, call `mt_moon_fossil`.
+
+## The dev loop after Erika (2026-10-12)
+- Every sim bug this week cost a 40–60 min run from power-on to reproduce. Now: the route is one table (`routes.LEGS`,
+  20 legs power-on → Erika), `play()` checkpoints each leg, and `make leg LEG=route10 [TO=erika]` replays any leg from
+  the checkpoint before it with the stand-in: ~1 min a leg, 8 min Bill → Erika. Checkpoints carry the ROM build's stamp.
+- `python3 sim/results.py <sha7>` reads a rehearsal off the release and says what happened per seed (legs with timings,
+  hit rate by format, leader tries, misses); it flags "N turns at one frame: the game was not advancing", the shape of the
+  bug that burnt 210 model calls. `--file` reads a local summary.
+- Profiled (route10 leg, stand-in): 67% in the GBA core (~820 fps raw), 12% an uncached regex over the link map every
+  battle frame (cached now), 8% the per-frame mailbox service.
+- Fixed with the leg tool: a wandering NPC was learned as a permanent wall; `use_cut`'s START-menu fallback was wrong
+  (it asks twice now); a hurt journey walked back to the far Pokémon Center (nearest of several now); building exits
+  bumped around for ~100 frames each (a mat is three warp events wide but only the arrow tile fires: take that one,
+  in its own direction).
+- CI (`sim.yml`): seeds 0–2 play power-on → Erika with code moves on (stand-in), seeds 3–5 power-on → Misty on plain FireRed.

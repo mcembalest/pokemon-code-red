@@ -1,5 +1,6 @@
 name: sim
-# Headless playthroughs: power-on -> Misty (2nd gym), inputs only, on several RNG seeds.
+# Headless playthroughs on several RNG seeds: seeds 0-2 play power-on -> Erika with code moves on (the stand-in
+# model writes every move: sim/rehearse.py --mock); seeds 3-5 play power-on -> Misty on plain FireRed (sim/run.py).
 on:
   workflow_dispatch:
   schedule:
@@ -11,13 +12,15 @@ permissions:
 jobs:
   play:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 110
     strategy:
       fail-fast: false
       matrix:
         seed: [0, 1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
       - name: System packages
         run: sudo apt-get update && sudo apt-get install -y build-essential binutils-arm-none-eabi libpng-dev
       - name: Cache pinned decomp compiler
@@ -25,11 +28,32 @@ jobs:
         with:
           path: .cache/agbcc
           key: agbcc-${{ hashFiles('upstream.lock.json') }}
+      - name: Base ROM from the decomp (the code brain needs build/rom/rom.json, made from it)
+        if: matrix.seed < 3
+        run: |
+          python3 scripts/dev.py setup
+          python3 scripts/dev.py baseline   # before build: baseline needs the clean checkout
+          mkdir -p local && cp build/baseline.gba local/baserom.gba
       - name: Build ROM (pinned decomp + patches)
         run: python3 scripts/dev.py setup && python3 scripts/dev.py build
       - name: Build simulator core (native)
         run: sim/build_core.sh
-      - name: Play to Misty
+      - name: Play to Erika with code moves (the stand-in model)
+        if: matrix.seed < 3
+        run: |
+          make deps                                  # the page's own battle brain runs in Node (sim/brain.ts)
+          python3 scripts/rom_bundle.py              # build/rom/rom.json: the RAM symbols the brain reads
+          pip install --break-system-packages pillow
+          set +e
+          mkdir -p build/sim
+          CODERED_RUN=seed${{ matrix.seed }} python3 sim/rehearse.py --mock --seed ${{ matrix.seed }} --to erika --out build/sim/rehearsal > build/sim/out.txt 2>&1
+          status=$?
+          grep -v '^ ' build/sim/out.txt | grep -v '^[{}]' | head -40
+          python3 sim/results.py --file build/sim/rehearsal/summary.json | sed 's/^/::notice title=seed ${{ matrix.seed }}::/' || true
+          [ $status -ne 0 ] && echo "::error title=seed ${{ matrix.seed }}::$(grep -v '^ ' build/sim/out.txt | grep -v '^[{}]' | tail -c 1500 | tr '\n' '|')"
+          exit $status
+      - name: Play to Misty on plain FireRed
+        if: matrix.seed >= 3
         run: |
           pip install --break-system-packages pillow
           set +e
