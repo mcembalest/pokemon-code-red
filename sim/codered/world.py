@@ -514,6 +514,16 @@ class World(Game):
                 self.run_until(self.in_overworld, 300)
                 self.run(30)
                 return True
+            if not self.free():
+                # A trainer saw us, or a sign spoke: resolve it here. Never rewind through a battle: the state goes
+                # back but the code brain does not, so it was asked the same move over and over (seed 0, 2026-10-12:
+                # 210 model calls at one frame beside a Rocket grunt on Mt. Moon B2F).
+                self.handle()
+                if self.map() != start:
+                    return True
+                self.walk_to(x, y)
+                here = self.save_state()
+                continue
             if self.pos() != (x, y):  # stepped off a warp we were already standing on (an arrival tile): step back onto it
                 self.walk_to(x, y)
                 if self.run_until(lambda: self.map() != start, 90):

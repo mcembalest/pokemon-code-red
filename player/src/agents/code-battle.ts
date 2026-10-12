@@ -270,7 +270,7 @@ export class CodeBattle {
     const made = v.payload
     if (v.hit && made) this.options.payload?.deliver(made.kind, made.bytes, made.palette) // before the reply: the game plays it as it takes the hit
     await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s code hit!` : missText(attacker, reason ?? 'crashed'), ...(v.got ? { detail: `returned ${v.got}, needed ${v.want}` } : v.error ? { detail: v.error } : {}), ...(kept && kept.some(k => !carried.includes(k)) ? { kept: kept.filter(k => !carried.includes(k)) } : {}) })
-    this.mailbox.reply(req, verdict, reason ?? 'crashed')
+    this.mailbox.reply(req, verdict, v.hit ? undefined : reason ?? 'crashed') // the ROM reads the reason only on a miss
     if (side === 0) this.memory.remember?.(req.attackerPersonality, { at: Date.now(), move: move.name, type, target, verdict, ...(reason ? { reason } : {}), notch, budget, code: (code ?? '').slice(0, 1200) })
     this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}), ...(v.hit && made ? { payload: made.kind } : {}), ...(doubt ? { doubted: doubt.called ?? '?' } : {}), ...(remembers ? { memory: memoryCost + charged.length, carried, usedMemory, ...(kept ? { kept } : {}) } : {}) })
   }

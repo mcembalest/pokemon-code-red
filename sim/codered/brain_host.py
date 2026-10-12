@@ -58,7 +58,7 @@ class BrainHost:
         if res.get('payload') and self.payload.a:
             p = res['payload']
             self.payload.deliver(p['kind'], p['bytes'], p.get('palette'))
-        rec = {**(res.get('record') or {}), 'verdict': res['verdict'], 'reason': res.get('reason'), 'wall': wall,
+        rec = {**(res.get('record') or {}), 'verdict': res['verdict'], 'reason': res.get('reason') if res['verdict'] == 'miss' else None, 'wall': wall,
                'usage': res.get('usage'), 'map': self.g.map(), 'frame': self.g.frame, 'payload_kind': (res.get('payload') or {}).get('kind'),
                'level': r['level'], 'side': r['side'], 'trainer': r['trainer'], 'class': r['class'], 'doubted_slot': req['calledSlot']}
         self.turns.append(rec)

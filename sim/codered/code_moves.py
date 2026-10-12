@@ -20,6 +20,7 @@ class CodeMoveHost:
         self.a = g.sym('gCodeRedMove')
         self.requests: list[dict] = []
         self._due = None
+        self._answered: dict[tuple, tuple] = {}  # a request seen again after a state rewind gets the same answer, no new model call
 
     def enable(self, on: bool = True) -> None:
         g, a = self.g, self.a
@@ -44,7 +45,14 @@ class CodeMoveHost:
             self._due = None
             return
         if self._due is None or self._due[0] != r['id']:
-            verdict, reason = self.decide(r)
+            key = (r['id'], r['move'], r['side'], r['attacker_pid'], r['target_pid'], r['level'], r['frame'])
+            if key in self._answered:
+                verdict, reason = self._answered[key]
+            else:
+                verdict, reason = self.decide(r)
+                self._answered[key] = (verdict, reason)
+                if len(self._answered) > 64:
+                    del self._answered[next(iter(self._answered))]
             r['verdict'], r['reason'] = verdict, reason
             self.requests.append(r)
             self._due = (r['id'], self.g.frame + self.delay, verdict, reason)
