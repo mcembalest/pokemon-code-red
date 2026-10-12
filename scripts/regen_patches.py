@@ -21,9 +21,7 @@ PATCHES = ROOT / 'patches'
 OWNS = {
     '001': (['data/text/new_game_intro.inc'], []),
     '002': (['data/specials.inc'], ['src/code_red.c']),
-    '003': (['data/maps/PalletTown_PlayersHouse_2F/scripts.inc', 'data/maps/SaffronCity_CopycatsHouse_2F/scripts.inc',
-             'data/scripts/flavor_text.inc', 'data/scripts/pc.inc', 'include/constants/menu.h', 'src/player_pc.c', 'src/script_menu.c'], []),
-    '004': (['data/maps/CeladonCity_Condominiums_3F/scripts.inc', 'data/maps/Route25_SeaCottage/scripts.inc'], []),
+    '003': (['data/maps/PalletTown_PlayersHouse_2F/scripts.inc', 'data/scripts/pc.inc', 'src/player_pc.c', 'src/script_menu.c'], []),
     '005': (['src/naming_screen.c'], []),
     '006': (['data/battle_scripts_1.s', 'include/battle_scripts.h', 'include/constants/battle_string_ids.h', 'src/battle_message.c',
              'src/battle_script_commands.c', 'src/battle_util.c'], ['src/code_red_battle.c']),

@@ -98,49 +98,6 @@ def main():
             assert overworld, 'did not reach the overworld after the intro'
             page.locator('canvas').screenshot(path=str(OUT / 'bedroom.png'))
 
-            # Calculation bridge, op 1 (fixed stats-sum in a QuickJS worker), injected via rom.json symbol.
-            rom = json.loads((ROOT / 'build/rom/rom.json').read_text())
-            calc = rom['symbols']['gCodeRedMailbox']['address'] - 0x02000000
-            page.evaluate('''([o, op]) => { const h = ewram(), v = new DataView(h.buffer, h.byteOffset);
-              v.setUint32(o, 0x31445243, true); v.setUint16(o + 4, 1, true); v.setUint32(o + 8, 9001, true); v.setUint32(o + 12, 0, true);
-              v.setUint16(o + 16, op, true); v.setUint16(o + 18, 0, true); [45, 49, 49, 65, 65, 45].forEach((x, i) => v.setUint16(o + 20 + 2 * i, x, true));
-              v.setUint32(o + 32, 0, true); v.setUint16(o + 6, 1, true) }''', [calc, 1])
-            page.wait_for_function('o => new DataView(ewram().buffer, ewram().byteOffset).getUint16(o + 6, true) === 2', arg=calc, timeout=15000)
-            results['calc_op1'] = page.evaluate('o => { const v = new DataView(ewram().buffer, ewram().byteOffset); return { status: v.getUint16(o + 18, true), result: v.getUint32(o + 32, true) } }', calc)
-            assert results['calc_op1'] == {'status': 0, 'result': 318}, results['calc_op1']
-            step('calc op1 ok')
-            page.evaluate('o => { const v = new DataView(ewram().buffer, ewram().byteOffset); v.setUint16(o + 6, 0, true) }', calc)
-
-            # Op 2: scratchpad dialog opens, game pauses, code runs in QuickJS, result returns on close.
-            page.evaluate('''([o, op]) => { const h = ewram(), v = new DataView(h.buffer, h.byteOffset);
-              v.setUint32(o + 8, 9002, true); v.setUint32(o + 12, 0, true); v.setUint16(o + 16, op, true); v.setUint16(o + 6, 1, true) }''', [calc, 2])
-            dialog = page.locator('dialog.code-red-repl[open]')
-            dialog.wait_for(timeout=15000)
-            assert page.evaluate('EJS_emulator.paused'), 'game should pause while scratchpad is open'
-            source = dialog.locator('[data-repl-source]')
-            source.fill('input.stats.reduce((sum, n) => sum + n, 0)'); source.press('Enter')
-            page.wait_for_function('document.querySelector("[data-repl-transcript]").lastElementChild?.lastElementChild?.textContent === "318"', timeout=15000)
-            source.fill('typeof fetch + "," + typeof document'); source.press('Enter')
-            page.wait_for_function('document.querySelector("[data-repl-transcript]").lastElementChild?.lastElementChild?.textContent === "\\"undefined,undefined\\""', timeout=15000)
-            source.fill('300 + 18'); source.press('Enter')
-            page.wait_for_function('document.querySelector("[data-repl-transcript]").lastElementChild?.lastElementChild?.textContent === "318"', timeout=15000)
-            page.screenshot(path=str(OUT / 'scratchpad.png'))
-            source.press('Escape')
-            page.wait_for_function('o => new DataView(ewram().buffer, ewram().byteOffset).getUint16(o + 6, true) === 2', arg=calc, timeout=15000)
-            results['calc_op2'] = page.evaluate('o => { const v = new DataView(ewram().buffer, ewram().byteOffset); return { status: v.getUint16(o + 18, true), result: v.getUint32(o + 32, true) } }', calc)
-            assert results['calc_op2'] == {'status': 0, 'result': 318}, results['calc_op2']
-            assert not page.evaluate('EJS_emulator.paused'), 'game should resume after scratchpad closes'
-            page.evaluate('o => { const v = new DataView(ewram().buffer, ewram().byteOffset); v.setUint16(o + 6, 0, true) }', calc)
-            step('calc op2 (scratchpad) ok')
-
-            # Stale-epoch protection: a request stamped before a reset is cancelled, not answered.
-            page.evaluate('''o => { const v = new DataView(ewram().buffer, ewram().byteOffset);
-              v.setUint32(o + 8, 9003, true); v.setUint32(o + 12, gm.Module._ejs_cr_epoch() + 77, true); v.setUint16(o + 16, 1, true); v.setUint16(o + 6, 1, true) }''', calc)
-            page.wait_for_function('o => new DataView(ewram().buffer, ewram().byteOffset).getUint16(o + 6, true) === 4', arg=calc, timeout=15000)
-            page.evaluate('o => { const v = new DataView(ewram().buffer, ewram().byteOffset); v.setUint16(o + 6, 0, true) }', calc)
-            results['calc_stale_cancelled'] = True
-            step('stale request cancelled ok')
-
             # In-game save: Start -> SAVE (3rd) -> A -> YES. Frame-based, confirmed by SRAM contents.
             page.evaluate('''window.sramWritten = () => { gm.saveSaveFiles(); const a = gm.getSaveFile(false); return a ? a.reduce((n, b) => n + (b !== 0xff ? 1 : 0), 0) : 0 }''')
             page.evaluate('''(async () => { await press(3, 6, 90) })()''')

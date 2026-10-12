@@ -16,8 +16,8 @@ test('rules are browser-safe: no node: imports', () => {
   for (const f of readdirSync(dir).filter(f => f.endsWith('.mjs'))) assert.doesNotMatch(readFileSync(new URL(f, dir), 'utf8'), /from ['"]node:/, f)
 })
 
-test('moves: 156, unique function names, answers never null, FireRed stats attached', () => {
-  assert.equal(MOVES.length, 156)
+test('moves: 212, unique function names, answers never null, FireRed stats attached', () => {
+  assert.equal(MOVES.length, 212)
   assert.equal(new Set(MOVES.map(m => m.fn)).size, MOVES.length)
   const r = rng(1)
   for (let k = 0; k < 50; k++) {
@@ -34,7 +34,9 @@ test('moves: found by the ROM spelling of FireRed names', () => {
   assert.equal(byFireRed('DOUBLESLAP').name, 'UNDO')
   assert.equal(byFireRed('THUNDERSHOCK').name, 'SURGE')
   assert.equal(byFireRed('SELFDESTRUCT').name, 'WIPE')
-  assert.equal(byFireRed('HYPER BEAM'), undefined)
+  assert.equal(byFireRed('HYPER BEAM').name, 'LASER')
+  assert.equal(byFireRed('WILL-O-WISP').name, 'FLICKER')
+  assert.equal(byFireRed('FLY'), undefined)
 })
 
 test('formats: every type round-trips, and its Pokédex reader reads it', async () => {

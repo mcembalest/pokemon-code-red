@@ -1,6 +1,6 @@
 // First agent moment: while Oak asks "So! You want ___?" in the lab, show the
 // starter as a coding agent: its persona and the moves it knows, as the code each one asks for.
-import { byFireRed } from '../../../rules/index.mjs'
+import { BRIEF, byFireRed } from '../../../rules/index.mjs'
 import { STARTERS } from './moves.ts'
 
 export interface LabMemory { u8(a: number): number; u16(a: number): number; u32(a: number): number }
@@ -31,7 +31,7 @@ export function starterCardHtml(species: number): string {
   const esc = (t: string) => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!))
   const moves = s.moves.map(m => {
     const move = byFireRed(m)
-    return move ? `<li><b>▶ ${esc(move.name)}</b> <span>${esc(`function ${move.fn}(data)`)}</span><small>returns ${esc(move.spec)}</small></li>` : ''
+    return move ? `<li><b>▶ ${esc(move.name)}</b> <span>${esc(`function ${move.fn}(data)`)}</span><small>returns ${esc(BRIEF[move.name] ?? move.spec)}</small></li>` : ''
   }).join('')
   return `<div class="code-red-card-head">${esc(s.name)} <span>coding agent</span></div>
 <p>${esc(s.persona)}</p>

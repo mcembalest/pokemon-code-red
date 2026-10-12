@@ -7,9 +7,9 @@ import { CodeBattle, type RememberRecord, localCodeMemory, mockWriter, type Code
 
 const AT = 0x0203f4d0
 const sandbox: Sandbox = { async run(source) { try { return { ok: true, value: new Function(source)() } } catch (e) { return { ok: false, error: String(e) } } } }
-// ROM ids: SCRATCH 10, TACKLE 33, GROWL 45, HYPER BEAM 63 (no code yet). Types: NORMAL 0, FIRE 10, WATER 11, ROCK 5, GROUND 4.
+// ROM ids: SCRATCH 10, TACKLE 33, GROWL 45, FLY 19 (no code: not met before Erika). Types: NORMAL 0, FIRE 10, WATER 11, ROCK 5, GROUND 4.
 const names = {
-  moveName: (id: number) => ({ 10: 'SCRATCH', 33: 'TACKLE', 45: 'GROWL', 63: 'HYPER BEAM' } as Record<number, string>)[id] ?? '?',
+  moveName: (id: number) => ({ 10: 'SCRATCH', 33: 'TACKLE', 45: 'GROWL', 19: 'FLY' } as Record<number, string>)[id] ?? '?',
   speciesName: (id: number) => ({ 4: 'CHARMANDER', 5: 'CHARMELEON', 7: 'SQUIRTLE', 74: 'GEODUDE', 16: 'PIDGEY' } as Record<number, string>)[id] ?? '?',
   typeName: (id: number) => ({ 0: 'NORMAL', 2: 'FLYING', 4: 'GROUND', 5: 'ROCK', 9: 'MYSTERY', 10: 'FIRE', 11: 'WATER', 15: 'ICE' } as Record<number, string>)[id] ?? '???',
 }
@@ -87,7 +87,7 @@ test('moves with no code yet play like plain FireRed; so does a model that fails
   let calls = 0
   const failing: CodeWriter = { async write() { calls++; throw new Error('network') } }
   const b = new CodeBattle(g.mailbox, names, failing, sandbox, panel, store())
-  await b.poll(); g.request({ move: 63 }); await b.poll()
+  await b.poll(); g.request({ move: 19 }); await b.poll()
   assert.deepEqual(g.reply(), { state: 2, verdict: 0, reason: 0 }); assert.equal(calls, 0)
   g.request({ move: 10 }); await b.poll()
   assert.equal(g.reply().verdict, 0); assert.equal(calls, 2, 'retried once')

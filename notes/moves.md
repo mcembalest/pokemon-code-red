@@ -32,7 +32,7 @@ Example numbers: [42, 13, 140]
 | Dark | a signed token: three parts separated by '.', the numbers are the middle part, separated by commas, e.g. 'v1.42,13,140.ok' | `"v1.42,13,140.ok"` | `const nums = data.split('.')[1].split(',').map(Number)` | pick by credential: specific positions, the first match |
 | Steel | encrypted: each number XOR 255 gives the byte | `[213,242,115]` | `const nums = data.map(x => x ^ 255)` | cipher: XOR, hash, mask |
 
-## Moves (156)
+## Moves (212)
 
 S = a starter learns it before Brock · K = FireRed name kept
 
@@ -103,11 +103,34 @@ S = a starter learns it before Brock · K = FireRed name kept
 | PURGE | Swallow | 0/0 | swallow | the number of numbers minus 1 |  |
 | TRIPLE | Tri Attack | 80/100 | tri attack | the first 3 numbers, each times 3 |  |
 | NOISE | Uproar | 50/100 | uproar | the numbers with every one of them doubled, except the first |  |
+| MAGNET | Attract | –/100 | attract | the index of the first even number (-1 if none) |  |
+| HANDOFF | Baton Pass | –/– | baton pass | the second and third numbers (indexes 1 and 2) |  |
+| OVERDRIVE | Belly Drum | –/– | belly drum | the first number times the number of numbers |  |
+| CRUSH | Body Slam | 85/100 | paralyze hit | the sum of all the numbers minus the largest |  |
+| CATCHUP | Endeavor | 1/100 | endeavor | the largest number minus the first number |  |
+| FORMAT | Explosion | 250/100 | explosion | always an empty string ('') |  |
+| DECOY | Fake Out | 40/100 | flinch, first turn | the first number written as a string (42 → '42') |  |
+| SEGFAULT | Guillotine | 1/30 | one-hit KO | always -1 |  |
+| LASER | Hyper Beam | 150/90 | recharge | the sum of the numbers times the number of numbers |  |
+| SHOUT | Hyper Voice | 90/100 | hit | the numbers joined into one string with '!' between them |  |
+| TARGET | Lock On | –/100 | lock on | the index of the last number over 50 (-1 if none) |  |
+| CLONE | Mimic | –/100 | mimic | a list of two copies of the list (a list of two lists) |  |
+| DARKMODE | Moonlight | –/– | heal | every number minus 1 |  |
+| COPYCAT | Psych Up | –/– | copy stat changes | a list of 3 copies of the first number |  |
+| CHECKSUM | Safeguard | –/– | safeguard | the sum of the numbers mod 100 |  |
+| CHEATCODE | Secret Power | 70/100 | secret power | the number at index 3 (the fourth one) |  |
+| HEADER | Skull Bash | 100/100 | charge, defense up | the first number, then how many numbers there are (a list of two) |  |
+| VOLLEY | Spike Cannon | 20/100 | multi hit | a list of 4 copies of the largest number |  |
+| BISECT | Super Fang | 1/90 | half HP | the largest number halved, rounded down |  |
+| HYPE | Swagger | –/90 | confuse, attack up 2 | every number times 3 |  |
+| MORPH | Transform | –/– | transform | the indexes of the numbers, as a list ([0, 1, 2, …]) |  |
+| PINCH | Vice Grip | 55/100 | hit | the smallest number and the largest, as a list of two |  |
 
 ### Fire: writes: change values in place
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| FLICKER | Will O Wisp | –/75 | burn | every number plus 5 |  |
 | BURNDISC | Ember | 40/100 | burn hit | every number plus 1 | S |
 | HOTLOOP | Fire Spin | 15/70 | trap | every number plus its index (the first +0, the second +1…) |  |
 | OVERWRITE | Flamethrower | 95/100 | burn hit | every number replaced by the first number, except the first, which becomes the last |  |
@@ -118,6 +141,9 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| HAMMER | Crabhammer | 90/85 | high critical | the numbers 100 or under, last to first (the ones over 100 dropped) |  |
+| CASCADE | Waterfall | 80/100 | hit | each number minus the one before it; the first stays as it is |  |
+| CLAMP | Clamp | 35/75 | trap | the numbers from 50 to 150 inclusive, in their order | K |
 | FLUSH | Water Gun | 40/100 | hit | an empty list |  |
 | FILTER | Water Pulse | 60/100 | confuse hit | the numbers that are 50 or more (the ones under 50 dropped) |  |
 | BUFFER | Withdraw | –/– | defense up | the last 3 numbers | S |
@@ -131,6 +157,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| BLOOM | Petal Dance | 70/100 | rampage | the sum of the numbers at indexes 0, 3, 6… (every third, starting with the first) |  |
 | CRAWL | Vine Whip | 35/100 | hit | the numbers at even indexes (0, 2, 4…) | S |
 | SLEEP | Sleep Powder | –/75 | sleep | the average number, rounded down |  |
 | STANDBY | Spore | –/100 | sleep | one flat list where each number appears twice in a row ([1, 2] → [1, 1, 2, 2]; not a list of pairs) |  |
@@ -149,6 +176,8 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| OVERLOAD | Thunder | 120/70 | paralyze hit | the largest number times 3 |  |
+| ZAP | Thunder Punch | 75/100 | paralyze hit | the largest number plus the smallest |  |
 | POWERCUT | Thunder Wave | –/100 | paralyze | the numbers in their order, without the largest one |  |
 | SPARK | Spark | 65/100 | paralyze hit | a spark, as a list of 4097 numbers: the first is how many numbers the foe had; then 4 frames: a jagged lightning bolt from the top row to the bottom row, white-hot (15) in the middle and dimmer at its edges, a different bolt in each frame | K |
 | SURGE | Thunder Shock | 40/100 | paralyze hit | the largest number plus 1 |  |
@@ -160,6 +189,8 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| DEFROST | Haze | –/– | haze | a list of zeros as long as the list |  |
+| COLDSTORE | Ice Beam | 95/100 | freeze hit | the numbers sorted smallest to largest, as a list of strings |  |
 | SNAPSHOT | Icicle Spear | 10/100 | multi hit | a copy of the numbers, unchanged |  |
 | FREEZER | Aurora Beam | 65/100 | attack down hit | the 3 smallest numbers, smallest first |  |
 
@@ -167,6 +198,9 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| SMASH | Brick Break | 75/100 | breaks screens | the first number squared |  |
+| CROSSCUT | Cross Chop | 100/80 | high critical | the largest number minus the second-largest |  |
+| BRUTEFORCE | Superpower | 120/100 | attack and defense down | the product of all the numbers, mod 1000 |  |
 | OVERCLOCK | Karate Chop | 50/100 | high critical | the sum of every number squared |  |
 | TWIN | Double Kick | 30/100 | double hit | each number times 2 |  |
 | CALL | Seismic Toss | 1/100 | level damage | the first number times 3 |  |
@@ -177,6 +211,8 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| CORRODE | Acid Armor | –/– | defense up 2 | every number minus its index (the first −0, the second −1…) |  |
+| VIRUS | Sludge Bomb | 90/100 | poison hit | every number plus the last number |  |
 | INJECT | Poison Sting | 15/100 | poison hit | the list with one extra number, 1, appended at the end |  |
 | MALWARE | Sludge | 65/100 | poison hit | every number plus the first number |  |
 | SWARM | Smog | 20/70 | poison hit | the sum of only the numbers greater than 100 |  |
@@ -188,6 +224,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| SPIKES | Spikes | –/– | spikes | each number mod 3 | K |
 | SANDBOX | Sand Attack | –/100 | accuracy down | each number capped at 100 (numbers over 100 become 100) |  |
 | RNG | Magnitude | 1/100 | magnitude | the sum of the numbers mod 10 |  |
 | GROUND | Mud Sport | –/100 | mud sport | each number capped at 128 (numbers over 128 become 128) |  |
@@ -202,6 +239,8 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| DRILL | Drill Peck | 80/100 | hit | each number times 100, divided by the largest, rounded down (the largest becomes 100) |  |
+| RELAY | Mirror Move | –/– | mirror move | the numbers joined into one string with ',' between them |  |
 | FETCH | Peck | 35/100 | hit | the numbers as a JSON string, like [42,13,140] |  |
 | UPLOAD | Wing Attack | 60/100 | hit | the numbers joined into one string with '-' between them |  |
 | SHRINK | Aerial Ace | 60/– | always hit | every number halved, rounded down |  |
@@ -212,6 +251,14 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| FORGET | Amnesia | –/– | special defense up 2 | the numbers without the first 3 |  |
+| SHIELD | Barrier | –/– | defense up 2 | the numbers that are at least the average (the average rounded down), in their order |  |
+| ALIGN | Cosmic Power | –/– | defenses up | each number minus the average (the average rounded down) |  |
+| LOCK | Imprison | –/100 | imprison | how many numbers are greater than the one before them (the first never counts) |  |
+| SCREEN | Light Screen | –/– | light screen | the second-smallest number |  |
+| SLEEPMODE | Rest | –/– | rest | the smallest number plus the largest, halved and rounded down |  |
+| PROXY | Role Play | –/100 | role play | the number at index (smallest number % number of numbers) |  |
+| SWAP | Trick | –/100 | trick | the list with the smallest and the largest numbers swapped |  |
 | SUSPEND | Hypnosis | –/60 | sleep | the index of the largest number |  |
 | GLITCH | Kinesis | –/80 | accuracy down | each number's last digit |  |
 | SCRAMBLE | Confusion | 50/100 | confuse hit | the numbers sorted from largest to smallest |  |
@@ -229,6 +276,9 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| OVERFLOW | Megahorn | 120/85 | hit | every number plus 1, except the last, which stays |  |
+| DOUBLEFREE | Pin Missile | 14/85 | multi hit | the numbers without the first one, with the last one repeated at the end |  |
+| GLITTER | Silver Wind | 60/100 | all stats up hit | the list with the number at index 1 (the second) removed |  |
 | LEAK | Leech Life | 20/100 | absorb | the sum of the last two numbers |  |
 | SKIP | String Shot | –/95 | speed down | the list with its first number added again at the end |  |
 | DOUBLE | Twineedle | 25/100 | twineedle | the first number, twice (a list of two) |  |
@@ -246,6 +296,10 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| PHANTOM | Shadow Ball | 80/100 | sp. defense down hit | the last number minus the second-to-last |  |
+| HAUNT | Destiny Bond | –/– | destiny bond | the last number, repeated as many times as there are numbers |  |
+| GRUDGE | Grudge | –/100 | grudge | the number of numbers minus the index of the largest | K |
+| NIGHTMARE | Nightmare | –/100 | nightmare | the sum of the numbers hidden in the middle (all but the first and the last) | K |
 | POPUP | Astonish | 30/100 | flinch minimize hit | the numbers except the first and the last (the ones hidden in the middle) |  |
 | PEEK | Confuse Ray | 0/100 | confuse | the number hidden at index 2 (the third one) |  |
 | SNOOP | Lick | 20/100 | paralyze hit | the number hidden at index 1 (the second one) plus the last number |  |
@@ -265,6 +319,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| FLATTER | Flatter | –/100 | confuse, sp. attack up | the last number that is under 100 (-1 if none) | K |
 | PHISH | Bite | 60/100 | flinch hit | the second-to-last number |  |
 | TRACE | Pursuit | 40/100 | pursuit | the index of the first number over 100 (-1 if none) |  |
 | BACKDOOR | Faint Attack | 60/0 | always hit | the number at index (last number % number of numbers) |  |
@@ -273,6 +328,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 
 | Move | Was | Power/acc | Effect | The code computes | |
 |---|---|---|---|---|---|
+| IRONMASK | Iron Tail | 100/75 | defense down hit | every number AND 240 (the low 4 bits cleared: 47 becomes 32) |  |
 | HASH | Metal Claw | 50/95 | attack up hit | the sum of the numbers mod 256 | S |
 | JAMMER | Metal Sound | –/85 | special defense down 2 | every number XOR 255 |  |
 

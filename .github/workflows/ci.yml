@@ -35,7 +35,7 @@ jobs:
       - name: Save layout guard (existing player saves must keep loading)
         run: python3 scripts/save_guard.py
       - name: Patches match their sources; move names match the rules (CUSTOMIZING.md)
-        run: python3 scripts/regen_patches.py --check && python3 scripts/move_names.py --check
+        run: python3 scripts/regen_patches.py --check && python3 scripts/move_names.py --check && python3 scripts/inventory.py --missing
       - name: Player
         run: make player
       - name: Unit tests
@@ -44,7 +44,6 @@ jobs:
         run: |
           python3 scripts/smoke.py
           python3 tests/native/naming.py
-          python3 tests/native/pc.py
       - name: Browser end-to-end (Chromium)
         run: |
           pip install --break-system-packages playwright==1.56.0

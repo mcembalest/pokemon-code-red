@@ -1,4 +1,4 @@
-// Code Red moves before Erika. One source of truth for names, specs and answers.
+// Code Red moves: every move a player can meet before Erika (scripts/inventory.py). One source of truth for names, specs and answers.
 // The spine (owner, 2026-10-08): every Pokémon is a system, its type is the kind of system; a move is a program of the
 // move's type run against the target's system. So every move's code belongs to its type's family (rules/families):
 // Normal = file operations · Fire = writes · Water = flow · Grass = grow and gather · Electric = peaks · Ice = freeze ·
@@ -30,7 +30,11 @@ export const FAMILIES = {
   Dark: 'pick by credential: specific positions, the first match', Steel: 'cipher: XOR, hash, mask', Mystery: 'curse',
 }
 
-/** [FireRed name, Code Red name, what the code must compute, answer] */
+/** THE CONTROL PANEL for moves (owner, 2026-10-12: "one place … make the changes I wanna make later on").
+ *  One row per move: [FireRed name, CODE RED NAME, what the code must compute, the answer].
+ *  To rename a move: change the second column, run `make names` (the ROM's name table + notes/moves.md), `make build`.
+ *  To change what it asks for: change the third and fourth columns together, run `make test`.
+ *  Names: 12 characters at most, upper case; a name that is a JS keyword is refused. notes/moves.md is the readable copy. */
 const TABLE = [
   // NORMAL — file operations
   ['Tackle', 'PING', 'how many numbers there are (the length of the list)', b => b.length],
@@ -98,6 +102,64 @@ const TABLE = [
   ['Swallow', 'PURGE', 'the number of numbers minus 1', b => b.length - 1],
   ['Tri Attack', 'TRIPLE', 'the first 3 numbers, each times 3', b => b.slice(0, 3).map(x => x * 3)],
   ['Uproar', 'NOISE', 'the numbers with every one of them doubled, except the first', b => b.map((x, i) => (i === 0 ? x : x * 2))],
+  // the rest of what a player can meet before Erika (2026-10-12, scripts/inventory.py; names mine, flagged):
+  // level-up moves to L45 of every catchable species and evolution, the TMs found or sold on the way, every trainer's moves
+  ['Attract', 'MAGNET', 'the index of the first even number (-1 if none)', b => b.findIndex(x => x % 2 === 0)],
+  ['Baton Pass', 'HANDOFF', 'the second and third numbers (indexes 1 and 2)', b => b.slice(1, 3)],
+  ['Belly Drum', 'OVERDRIVE', 'the first number times the number of numbers', b => b[0] * b.length],
+  ['Body Slam', 'CRUSH', 'the sum of all the numbers minus the largest', b => sum(b) - max(b)],
+  ['Endeavor', 'CATCHUP', 'the largest number minus the first number', b => max(b) - b[0]],
+  ['Explosion', 'FORMAT', "always an empty string ('')", () => ''],
+  ['Fake Out', 'DECOY', "the first number written as a string (42 → '42')", b => String(b[0])],
+  ['Guillotine', 'SEGFAULT', 'always -1', () => -1],
+  ['Hyper Beam', 'LASER', 'the sum of the numbers times the number of numbers', b => sum(b) * b.length],
+  ['Hyper Voice', 'SHOUT', "the numbers joined into one string with '!' between them", b => b.join('!')],
+  ['Lock On', 'TARGET', 'the index of the last number over 50 (-1 if none)', b => b.findLastIndex(x => x > 50)],
+  ['Mimic', 'CLONE', 'a list of two copies of the list (a list of two lists)', b => [[...b], [...b]]],
+  ['Moonlight', 'DARKMODE', 'every number minus 1', b => b.map(x => x - 1)],
+  ['Psych Up', 'COPYCAT', 'a list of 3 copies of the first number', b => Array(3).fill(b[0])],
+  ['Safeguard', 'CHECKSUM', 'the sum of the numbers mod 100', b => sum(b) % 100],
+  ['Secret Power', 'CHEATCODE', 'the number at index 3 (the fourth one)', b => b[3]],
+  ['Skull Bash', 'HEADER', 'the first number, then how many numbers there are (a list of two)', b => [b[0], b.length]],
+  ['Spike Cannon', 'VOLLEY', 'a list of 4 copies of the largest number', b => Array(4).fill(max(b))],
+  ['Super Fang', 'BISECT', 'the largest number halved, rounded down', b => Math.floor(max(b) / 2)],
+  ['Swagger', 'HYPE', 'every number times 3', b => b.map(x => x * 3)],
+  ['Transform', 'MORPH', 'the indexes of the numbers, as a list ([0, 1, 2, …])', b => b.map((_, i) => i)],
+  ['Vice Grip', 'PINCH', 'the smallest number and the largest, as a list of two', b => [min(b), max(b)]],
+  ['Brick Break', 'SMASH', 'the first number squared', b => b[0] * b[0]],
+  ['Cross Chop', 'CROSSCUT', 'the largest number minus the second-largest', b => { const s = asc(b); return s[s.length - 1] - s[s.length - 2] }],
+  ['Superpower', 'BRUTEFORCE', 'the product of all the numbers, mod 1000', b => b.reduce((a, x) => (a * x) % 1000, 1)],
+  ['Crabhammer', 'HAMMER', 'the numbers 100 or under, last to first (the ones over 100 dropped)', b => b.filter(x => x <= 100).reverse()],
+  ['Waterfall', 'CASCADE', 'each number minus the one before it; the first stays as it is', b => b.map((x, i) => (i === 0 ? x : x - b[i - 1]))],
+  ['Clamp', 'CLAMP', 'the numbers from 50 to 150 inclusive, in their order', b => b.filter(x => x >= 50 && x <= 150)],
+  ['Petal Dance', 'BLOOM', 'the sum of the numbers at indexes 0, 3, 6… (every third, starting with the first)', b => sum(b.filter((_, i) => i % 3 === 0))],
+  ['Thunder', 'OVERLOAD', 'the largest number times 3', b => max(b) * 3],
+  ['Thunder Punch', 'ZAP', 'the largest number plus the smallest', b => max(b) + min(b)],
+  ['Haze', 'DEFROST', 'a list of zeros as long as the list', b => b.map(() => 0)],
+  ['Ice Beam', 'COLDSTORE', 'the numbers sorted smallest to largest, as a list of strings', b => asc(b).map(String)],
+  ['Iron Tail', 'IRONMASK', 'every number AND 240 (the low 4 bits cleared: 47 becomes 32)', b => b.map(x => x & 240)],
+  ['Shadow Ball', 'PHANTOM', 'the last number minus the second-to-last', b => b.at(-1) - b.at(-2)],
+  ['Acid Armor', 'CORRODE', 'every number minus its index (the first −0, the second −1…)', b => b.map((x, i) => x - i)],
+  ['Sludge Bomb', 'VIRUS', 'every number plus the last number', b => b.map(x => x + b.at(-1))],
+  ['Amnesia', 'FORGET', 'the numbers without the first 3', b => b.slice(3)],
+  ['Barrier', 'SHIELD', 'the numbers that are at least the average (the average rounded down), in their order', b => { const a = Math.floor(sum(b) / b.length); return b.filter(x => x >= a) }],
+  ['Cosmic Power', 'ALIGN', 'each number minus the average (the average rounded down)', b => { const a = Math.floor(sum(b) / b.length); return b.map(x => x - a) }],
+  ['Imprison', 'LOCK', 'how many numbers are greater than the one before them (the first never counts)', b => b.filter((x, i) => i > 0 && x > b[i - 1]).length],
+  ['Light Screen', 'SCREEN', 'the second-smallest number', b => asc(b)[1]],
+  ['Rest', 'SLEEPMODE', 'the smallest number plus the largest, halved and rounded down', b => Math.floor((min(b) + max(b)) / 2)],
+  ['Role Play', 'PROXY', 'the number at index (smallest number % number of numbers)', b => b[min(b) % b.length]],
+  ['Trick', 'SWAP', 'the list with the smallest and the largest numbers swapped', b => { const i = b.indexOf(min(b)), j = b.indexOf(max(b)); return b.map((x, k) => (k === i ? b[j] : k === j ? b[i] : x)) }],
+  ['Destiny Bond', 'HAUNT', 'the last number, repeated as many times as there are numbers', b => b.map(() => b.at(-1))],
+  ['Grudge', 'GRUDGE', 'the number of numbers minus the index of the largest', b => b.length - b.indexOf(max(b))],
+  ['Nightmare', 'NIGHTMARE', 'the sum of the numbers hidden in the middle (all but the first and the last)', b => sum(b.slice(1, -1))],
+  ['Drill Peck', 'DRILL', 'each number times 100, divided by the largest, rounded down (the largest becomes 100)', b => b.map(x => Math.floor((x * 100) / max(b)))],
+  ['Mirror Move', 'RELAY', "the numbers joined into one string with ',' between them", b => b.join(',')],
+  ['Megahorn', 'OVERFLOW', 'every number plus 1, except the last, which stays', b => b.map((x, i) => (i === b.length - 1 ? x : x + 1))],
+  ['Pin Missile', 'DOUBLEFREE', 'the numbers without the first one, with the last one repeated at the end', b => [...b.slice(1), b.at(-1)]],
+  ['Silver Wind', 'GLITTER', 'the list with the number at index 1 (the second) removed', b => b.filter((_, i) => i !== 1)],
+  ['Spikes', 'SPIKES', 'each number mod 3', b => b.map(x => x % 3)],
+  ['Will O Wisp', 'FLICKER', 'every number plus 5', b => b.map(x => x + 5)],
+  ['Flatter', 'FLATTER', 'the last number that is under 100 (-1 if none)', b => b.findLast(x => x < 100) ?? -1],
   // FIRE — writes
   ['Ember', 'BURNDISC', 'every number plus 1', b => b.map(x => x + 1)],
   ['Fire Spin', 'HOTLOOP', 'every number plus its index (the first +0, the second +1…)', b => b.map((x, i) => x + i)],
@@ -209,6 +271,50 @@ const TABLE = [
   // ??? — curse
   ['Curse', 'ROOTKIT', 'every number minus the smallest', b => b.map(x => x - min(b))],
 ]
+
+/** A short way to say what a move's code returns, for the page (the starter card) when the spec is long. The ROM's
+ *  summary screen keeps FireRed's own descriptions (owner, 2026-10-12). */
+export const BRIEF = {
+  DIM: 'a soft lullaby of 3200 numbers: three notes that swell and fade',
+  ERROR: 'a glitchy growl of 3200 numbers: a buzz sliding down',
+  FEEDBACK: 'a feedback whine of 3200 numbers: a thin wave climbing, then cut',
+  BUZZ: 'a chirping trill of 3200 numbers: two notes flipping',
+  FLASH: 'a flash of 4097 numbers: 4 frames of a bright core with rays',
+  SPARK: 'a spark of 4097 numbers: 4 frames of a jagged bolt',
+  DEADLOCK: 'the middle number (index: the count halved, rounded down)',
+  DISTORTION: 'the second half of the numbers (the split rounded down)',
+  MINIMIZE: 'the list without its middle number (index: count halved)',
+  ECHO: 'the sum of all the numbers, then the sum of that total\'s digits',
+  UPGRADE: 'the list with its length added as one more number at the end',
+  BLOOM: 'the sum of the numbers at indexes 0, 3, 6 and so on',
+  SHIELD: 'the numbers at or above the average (rounded down)',
+  LOCK: 'how many numbers are greater than the one before them',
+  NIGHTMARE: 'the sum of all the numbers but the first and the last',
+  DRILL: 'each number times 100 over the largest, rounded down',
+  DOUBLEFREE: 'the list without its first number, its last one repeated',
+  OVERWRITE: 'every number replaced by the first; the first by the last',
+  HOTSWAP: 'the list with each pair of neighbours swapped',
+  DRIP: 'the numbers at odd indexes (1, 3, 5 and so on)',
+  STREAM: 'the numbers up to the first one over 100 (not it)',
+  'DRAIN PIPE': 'the list with its smallest number removed',
+  FIREHOSE: 'the numbers over 100 first, then the rest, each in order',
+  STANDBY: 'one list with every number repeated twice in a row',
+  SHARDS: 'a list of two lists: the first half, then the second half',
+  REGROW: 'each number repeated its index plus one times',
+  QUICKSAND: 'each number capped at the first number',
+  IDLE: 'the median: the middle of the sorted list (the lower one)',
+  ROLLOUT: 'the running totals: the first, the first two, and so on',
+  POPUP: 'the numbers between the first and the last',
+  SNOOP: 'the number at index 1 plus the last number',
+  MORPH: 'the indexes of the numbers: 0, 1, 2 and so on',
+  CORRODE: 'every number minus its index (the first minus 0)',
+  HOTLOOP: 'every number plus its index (the first plus 0)',
+  FLOOR: 'each number rounded down to a multiple of 10',
+  FETCH: 'the numbers as one JSON string (a bracketed list)',
+  CYCLONE: 'always a list of two numbers: 40 and 40',
+  GHOSTWRITE: 'the second-to-last number',
+  LOOP: 'the counting numbers from 1 up to the length of the list',
+}
 
 /** Function name the code calls: KILL -9 → kill_9, LEECH SEED → leech_seed. */
 const RESERVED = new Set(['break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'let', 'static', 'enum', 'await'])

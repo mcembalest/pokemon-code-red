@@ -11,7 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 MAP = ROOT / '.cache/pokefirered/pokefirered.map'
 OUT = ROOT / 'build/symbols.json'
 WANTED = {
-    'gCodeRedMailbox': 36,
     'gCodeRedNamingMailbox': 60,
     'gSaveBlock1Ptr': 4,
     'gSaveBlock2Ptr': 4,
