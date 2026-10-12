@@ -1,5 +1,7 @@
-// The code panel (owner, 2026-10-08): under the game on phones, beside it on wide screens.
-// Foe's code on top, yours below, both streaming as they're written; a toggle hides it.
+// The code panel (owner, 2026-10-08): beside the game. Foe's code on top, yours below; a toggle hides it.
+// Playtest 1 (owner, 2026-10-12): it rolls out when a battle starts and away when it ends, and only the Pokémon
+// whose turn it is has its code open — the other pane folds to its header, so the turn order reads as the game
+// plays it (your code → your move → the foe's code → its move), never "both writing at once".
 // The first battles replay the code at a readable pace (~2 s); later it shows at real speed;
 // the 10× speed-up shows it at once.
 import type { Panel, TurnInfo, TurnResult } from './code-battle.ts'
@@ -12,8 +14,11 @@ interface Pane { root: HTMLElement; head: HTMLElement; code: HTMLElement; foot: 
 
 export interface CodePanel extends Panel {
   element: HTMLElement
+  /** The user's switch: hidden stays hidden through battles; otherwise the panel follows the battle. */
   setVisible(on: boolean): void
   readonly visible: boolean
+  /** The game entered (true) or left (false) a battle: roll out / fold away unless the user hid it. */
+  setBattle(on: boolean): void
   dispose(): void
 }
 
@@ -48,7 +53,10 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
   const panes = [pane('you'), pane('foe')] as const
   element.append(panes[1].root, panes[0].root) // foe on top
   host.append(element)
-  let turns = 0, visible = true
+  let turns = 0, visible = true, userHid = false, inBattle = false, foldTimer: ReturnType<typeof setTimeout> | null = null
+  const show = (on: boolean) => { visible = on; element.hidden = !on }
+  /** Only the pane whose turn it is stays open; the other folds to its header and verdict line. */
+  const focus = (side: 0 | 1) => { panes[side].root.removeAttribute('data-folded'); panes[1 - side]!.root.dataset.folded = '' }
 
   // Show the code, not the reply's fence lines (```js … ```).
   const render = (p: Pane) => { p.code.textContent = p.queue.slice(0, p.shown).replace(/^\s*```[a-z]*[ \t]*\n?/i, '').replace(/\n?```\s*$/, '') }
@@ -56,9 +64,18 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
   return {
     element,
     get visible() { return visible },
-    setVisible(on) { visible = on; element.hidden = !on },
+    setVisible(on) { userHid = !on; show(on) },
+    setBattle(on) {
+      if (on === inBattle) return
+      inBattle = on
+      if (foldTimer) { clearTimeout(foldTimer); foldTimer = null }
+      if (on) { if (!userHid) show(true) }
+      else foldTimer = setTimeout(() => { if (!inBattle && !userHid) show(false) }, 1500) // the last verdict stays readable a moment
+    },
     begin(info) {
       const p = panes[info.side]
+      if (!userHid && !visible) show(true) // a field move outside a battle (CUT…) rolls it out too
+      focus(info.side)
       p.info = info; p.queue = ''; p.shown = 0
       const d = describe(info)
       p.head.innerHTML = ''

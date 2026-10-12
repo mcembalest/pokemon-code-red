@@ -117,6 +117,7 @@ const TEMPLATE = `
   <p class="code-red-muted code-red-help"><span data-who hidden><span data-who-name></span> · <a href="#" data-account-open>Account</a> · </span>Type names on naming screens. Tap 10× to speed up (or hold Space on a keyboard). Saving in the game saves to your account: log in on another device to pick up where you left off.</p>
   <div class="code-red-stage" data-stage>
     <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>
+    <aside class="code-red-side" data-side hidden></aside>
   </div>
   <div data-eeg-host></div>
   <div class="code-red-toolbar" data-toolbar hidden>
@@ -143,6 +144,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   const eegButton = root.querySelector<HTMLButtonElement>('[data-eeg]')!
   const eegHost = root.querySelector<HTMLElement>('[data-eeg-host]')!
   const stage = root.querySelector<HTMLElement>('[data-stage]')!
+  const side = root.querySelector<HTMLElement>('[data-side]')!
   let fastForward = false
   const joinForm = root.querySelector<HTMLFormElement>('[data-join]')!
   const loginForm = root.querySelector<HTMLFormElement>('[data-login]')!
@@ -365,7 +367,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     // First agent moment: the starter card in Oak's lab.
     const tasks = rom.symbols.gTasks, monPic = rom.symbols['script_menu.Task_ScriptShowMonPic']
     if (tasks && monPic) {
-      const card = createStarterCard(game, () => memory.ready() ? offeredStarter(memory, { gTasks: tasks.address, monPicTask: monPic.address, saveBlock1Ptr: rom.symbols.gSaveBlock1Ptr!.address }) : null,
+      const card = createStarterCard(side, () => memory.ready() ? offeredStarter(memory, { gTasks: tasks.address, monPicTask: monPic.address, saveBlock1Ptr: rom.symbols.gSaveBlock1Ptr!.address }) : null,
         species => backend?.track('starter_card', { species }))
       disposers.push(() => card.dispose())
     }
@@ -398,9 +400,11 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   function startCodeMoves(gm: GameManager, memory: GbaMemory, rom: RomInfo, runner: Sandbox, reader: BattleReader) {
     const sym = rom.symbols.gCodeRedMove
     if (!sym) return // older ROM build
-    const panel = createCodePanel(stage, { fast: () => fastForward })
+    const panel = createCodePanel(side, { fast: () => fastForward })
+    side.hidden = false
     const hidden = (() => { try { return localStorage.getItem('code-red-code-panel') === 'hidden' } catch { return false } })()
     panel.setVisible(!hidden)
+    if (!hidden) panel.element.hidden = true // rolls out with the first battle (setBattle), or a field move
     codeButton.hidden = false
     codeButton.setAttribute('aria-pressed', String(panel.visible))
     codeButton.classList.toggle('code-red-speed-on', panel.visible)
@@ -440,7 +444,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       const eegSym = rom.symbols.gCodeRedEeg
       if (eegSym) {
         const ejs = emulator.EJS_emulator!
-        const editor = createHotEditor(game, {
+        const editor = createHotEditor(side, {
           pause: () => { consoleActive = true; resumeConsole = !ejs.paused; ejs.pause(true) },
           resume,
           budget: pid => { const m = owned.all().find(x => x.personality === pid); return m ? budgetAt(m.level, { stage: stageOf(m.name), badges: badges() }) : null },
@@ -481,6 +485,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
       let now = false
       try { now = reader.inBattle() } catch { /* memory not ready */ }
       if (inBattle && !now) void battle.battleOver() // your Pokémon consolidate their memory (model calls, in the background)
+      if (now !== inBattle) panel.setBattle(now)
       inBattle = now
     }, 16)
     disposers.push(() => { clearInterval(poll); panel.dispose(); codeButton.hidden = true; codeButton.onclick = codeButton.onpointerdown = null })
