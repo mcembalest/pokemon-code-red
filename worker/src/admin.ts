@@ -20,6 +20,7 @@ code{font:12px ui-monospace,monospace}.mut{color:var(--mut)}#err{color:var(--acc
 <div id="app" hidden>
 <h2>Players</h2><section><table id="players"></table></section>
 <p class="mut" id="sel" hidden>Selected: <b id="selname"></b> · <button id="recov" type="button">New recovery code</button> <span id="recovout"></span> <small>(for a player who lost both password and recovery code; send it to them privately — it shows once)</small></p>
+<h2 id="codeh">Code moves · everyone</h2><section id="code"><p class="mut">Loading…</p></section>
 <h2 id="evh">Recent events</h2><section><table id="events"></table></section>
 <h2>Invites</h2><section>
 <form id="mk"><input id="n" type="number" min="1" max="50" value="1" style="width:5em"> codes ×
@@ -48,11 +49,24 @@ function table(el, cols, rows, onclick) {
       cols.map((c) => '<td' + (c[2] ? ' class="' + c[2] + '"' : '') + '>' + esc(c[1](r)) + '</td>').join('') + '</tr>').join('') + '</tbody>';
   if (onclick) el.querySelectorAll('tbody tr').forEach((tr) => tr.onclick = () => onclick(rows[+tr.dataset.i]));
 }
+const pct = (r) => r.n ? Math.round(100 * r.hit / r.n) + '% of ' + r.n : '—';
+function code(c) {
+  const fmt = (o) => Object.entries(o).map(([k, v]) => esc(k) + ' <b>' + pct(v) + '</b>').join(' · ') || '—';
+  const misses = Object.entries(c.misses).map(([k, v]) => esc(k) + ' ' + v).join(', ') || 'none';
+  $('#code').innerHTML = c.turns === 0 ? '<p class="mut">No code moves yet.</p>' :
+    '<p>Yours <b>' + pct(c.yours) + '</b> hit · foes <b>' + pct(c.foes) + '</b> · misses: ' + misses + ' · plain-FireRed fallbacks: ' + c.vanilla +
+    ' · doubted ' + c.doubted + ' · sounds/pictures ' + c.payloads + ' · wait ' + (c.wait_ms.median / 1000).toFixed(1) + 's median, ' + (c.wait_ms.p90 / 1000).toFixed(1) + 's p90</p>' +
+    '<p>By format: ' + fmt(c.by_type) + '</p><p class="mut">Foes by format: ' + fmt(c.foe_by_type) + '</p><p>By move: ' + fmt(c.by_move) + '</p>' +
+    '<p>Memory: a helper called on ' + c.memory.used + ' turns · hits ' + pct(c.memory.with) + ' with, ' + pct(c.memory.without) + ' without</p>' +
+    (c.last_misses.length ? '<details><summary>Last ' + c.last_misses.length + ' misses (click one to see the code)</summary>' +
+      c.last_misses.map((t) => '<details><summary>' + when(t.at) + ' · ' + esc(t.attacker) + ' ' + esc(t.move) + ' on ' + esc(t.type) + ' data vs ' + esc(t.target) + ' · ' + esc(t.verdict) + (t.reason ? ' (' + esc(t.reason) + ')' : '') + '</summary><pre><code>' + esc(t.code || '(no code kept)') + '</code></pre></details>').join('') + '</details>' : '');
+}
 async function load() {
-  const [{ players }, { events }, { invites }] = await Promise.all([api('players'), api('events?limit=200' + (player ? '&player=' + player : '')), api('invites')]);
+  const [{ players }, { events }, { invites }, c] = await Promise.all([api('players'), api('events?limit=200' + (player ? '&player=' + player : '')), api('invites'), api('code' + (player ? '?player=' + player : ''))]);
+  code(c);
   table($('#players'), [['Name', (r) => r.name], ['User', (r) => r.username ?? ''], ['Joined', (r) => when(r.created_at)], ['Last seen', (r) => when(r.last_seen)],
     ['Badges', (r) => r.badges ?? ''], ['Play time', (r) => hms(r.play_s)], ['Where', (r) => r.place ?? ''], ['Party', (r) => party(r.party)], ['Events', (r) => r.events], ['Saves', (r) => r.saves ?? 0], ['Last event', (r) => r.last_event], ['Agent calls', (r) => r.llm_calls], ['Tokens', (r) => r.llm_tokens], ['Invite', (r) => r.invite]],
-    players, (r) => { player = player === r.id ? null : r.id; $('#evh').textContent = player ? 'Events · ' + r.name : 'Recent events'; $('#sel').hidden = !player; $('#selname').textContent = r.name + (r.username ? ' (' + r.username + ')' : ''); $('#recovout').textContent = ''; load(); });
+    players, (r) => { player = player === r.id ? null : r.id; $('#evh').textContent = player ? 'Events · ' + r.name : 'Recent events'; $('#codeh').textContent = player ? 'Code moves · ' + r.name : 'Code moves · everyone'; $('#sel').hidden = !player; $('#selname').textContent = r.name + (r.username ? ' (' + r.username + ')' : ''); $('#recovout').textContent = ''; load(); });
   table($('#events'), [['When', (r) => when(r.at)], ['Player', (r) => r.name], ['Kind', (r) => r.kind], ['Where', (r) => r.place ?? ''], ['Data', (r) => r.data, 'data']], events);
   table($('#invites'), [['Code', (r) => r.code], ['Link', (r) => r.revoked || r.uses >= r.max_uses ? '' : SITE + r.code], ['Uses', (r) => r.uses + '/' + r.max_uses], ['Note', (r) => r.note], ['Created', (r) => when(r.created_at)], ['Revoked', (r) => r.revoked ? 'yes' : '']], invites);
 }

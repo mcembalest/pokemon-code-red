@@ -98,3 +98,12 @@ jobs:
           gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --title "Code Red player $TAG" \
             --notes "player/dist for ROM $ROM at $GITHUB_SHA. Contains no ROM bytes: players supply FireRed USA v1.0." \
             code-red-player.tar.gz code-red-player.tar.gz.sha256
+      - name: Tell the site (pins the new bundle at once instead of on its next schedule)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          SITE_TOKEN: ${{ secrets.SITE_TOKEN }}   # a fine-grained PAT for mcembalest/maxcembalest.com with Actions: write
+        run: |
+          if [ -z "$SITE_TOKEN" ]; then echo "::notice title=site::no SITE_TOKEN secret: the site pins on its own schedule (code-red-update.yml)"; exit 0; fi
+          GH_TOKEN=$SITE_TOKEN gh workflow run code-red-update.yml --repo mcembalest/maxcembalest.com \
+            && echo "::notice title=site::asked maxcembalest.com to pin the new bundle" \
+            || echo "::warning title=site::could not start the site's update workflow; it pins on its own schedule"

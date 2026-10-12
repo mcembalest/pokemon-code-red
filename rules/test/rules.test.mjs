@@ -111,8 +111,8 @@ test('growth: focus calms, budget grows, evolution jumps', () => {
   assert.equal(focusAt(40), 0.3)
   assert.equal(budgetAt(5), 350)
   assert.equal(budgetAt(16, { stage: 1 }), 560)
-  assert.equal(budgetAt(16, { stage: 1, badges: ['BOULDER', 'CASCADE'] }), 610)
-  assert.deepEqual(BADGES.BOULDER, {}, 'badges teach no readers since 2026-10-11')
+  assert.equal(budgetAt(16, { stage: 1, badges: ['BOULDER', 'CASCADE'] }), 640)
+  assert.deepEqual(BADGES.BOULDER, { budget: 30 }, 'badges teach no readers since 2026-10-11: bytes instead')
   assert.deepEqual(BADGES.CASCADE, { budget: 50 })
 })
 

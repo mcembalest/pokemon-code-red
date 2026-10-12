@@ -224,14 +224,16 @@ export class CodeBattle {
     const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, budget, tutorial, hot, memory: remembers ? { lib, work, last } : null })
 
     this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}), ...(doubt ? { doubt } : {}), ...(carried.length ? { recalls: carried } : {}) })
-    let text: string | null = null, tries = 0
+    let text: string | null = null, tries = 0, why = ''
     while (text === null && tries < 2) {
       tries++
       try { text = await this.writer.write({ ...prompt, temperature: focusAt(req.attackerLevel, GROWTH, notch), maxTokens: tokenCapFor(budget), meta: { move, type, tutorial } }, delta => this.panel.text(side, delta)) }
-      catch { if (tries < 2) this.panel.text(side, '\n// connection hiccup, writing again…\n') }
+      catch (e) { why = String((e as Error)?.message ?? e); if (tries < 2) this.panel.text(side, '\n// connection hiccup, writing again…\n') }
     }
     if (text === null) {
-      await this.panel.end(side, { verdict: 'vanilla', text: 'Connection lost: this move plays like plain FireRed.' })
+      // Say what the code service said when it refused, not just "connection lost" (a refusal is not a network fault)
+      const refused = /budget|quota|429|403|turned off|not configured/i.test(why)
+      await this.panel.end(side, { verdict: 'vanilla', text: refused ? `The code service refused (${why.replace(/\s+/g, ' ').slice(0, 80)}): this move plays like plain FireRed.` : 'Connection lost: this move plays like plain FireRed.' })
       this.mailbox.reply(req, 'vanilla')
       this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, verdict: 'vanilla', reason: 'network', ms: Date.now() - started, tries })
       return
