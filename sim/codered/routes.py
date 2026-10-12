@@ -574,6 +574,21 @@ LEG_NAMES = [n for n, _ in LEGS]
 BADGE_FLAGS = (FLAG_BADGE01_GET, FLAG_BADGE02_GET, FLAG_BADGE03_GET, FLAG_BADGE04_GET)
 
 
+def save_failure(g: World, name: str) -> None:
+    """A screenshot, the state and what the planner had learned, so the failure can be looked at (sim/leg.py --at)."""
+    import json
+    CHECKPOINTS.mkdir(parents=True, exist_ok=True)
+    g.screenshot(CHECKPOINTS / f'fail-{name}.png')
+    save_checkpoint(g, f'fail-{name}')
+    lead = g.party()[0] if g.party() else {}
+    (CHECKPOINTS / f'fail-{name}.json').write_text(json.dumps({
+        'map': g.map(), 'pos': g.pos(), 'frame': g.frame, 'free': g.free(), 'in_battle': g.in_battle(),
+        'lead': {k: lead.get(k) for k in ('species', 'level', 'hp', 'max_hp', 'moves', 'pp')},
+        'npcs': sorted(g.npc_tiles()), 'bumped': sorted(list(b) for b in g._bumped if b[0] == g.map()),
+        'cleared': {m: sorted(c) for m, c in world.CLEARED.items()}, 'can_cut': world.CAN_CUT, 'battle_log': g.battle_log[-20:],
+    }, indent=1, default=str))
+
+
 def checkpoint_path(name: str) -> Path:
     return CHECKPOINTS / f'{name}.state'
 
@@ -612,8 +627,7 @@ def play(g: World, to: str = 'erika', start: str | None = None, log=print, leg=N
             log(f'{name:<14} {"ok " if ok else "FAIL"} frame {g.frame:>7} ({g.frame / 59.73 / 60:5.1f} game-min) '
                 f'{g.map()} L{lead.get("level")} {lead.get("hp")}/{lead.get("max_hp")}')
             if not ok:
-                CHECKPOINTS.mkdir(parents=True, exist_ok=True)
-                g.screenshot(CHECKPOINTS / f'fail-{name}.png')
+                save_failure(g, name)
                 raise RuntimeError(f'leg {name} failed')
             save_checkpoint(g, name)
             (CHECKPOINTS / 'rom.txt').write_text(rom_stamp())

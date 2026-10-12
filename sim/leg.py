@@ -8,6 +8,7 @@ script): build/sim/checkpoints/<CODERED_RUN>/<leg>.state.
   python3 sim/leg.py opening --to misty      from power-on (no checkpoint needed)
   python3 sim/leg.py erika --trace           a line + screenshot every 6000 frames (build/sim/trace.png)
   python3 sim/leg.py --list                  the legs, and which have a checkpoint
+  python3 sim/leg.py --at fail-cerulean      load a saved state (a failure's) and drop into a Python prompt with `g`
 
 Fails leave build/sim/checkpoints/<run>/fail-<leg>.png. Real models: --real (needs the Cloudflare env, costs tokens).
 """
@@ -28,7 +29,20 @@ def main() -> int:
     ap.add_argument('--trace', action='store_true')
     ap.add_argument('--real', action='store_true', help='the real models write the code (default: the stand-in)')
     ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--at', help='load this checkpoint (fail-<leg> after a failure) and open a Python prompt')
     args = ap.parse_args()
+    if args.at:
+        g = World()
+        routes.load_checkpoint(g, args.at)
+        host = BrainHost(g, ROOT / 'build/sim/leg-turns.jsonl', mock=not args.real)
+        host.attach()
+        info = routes.checkpoint_path(args.at).with_suffix('.json')
+        print(info.read_text() if info.exists() else f'{g.map()} {g.pos()} frame {g.frame}')
+        import code
+        code.interact(banner='g = the world (g.map(), g.pos(), g.walk_to(x, y), g.screenshot(path), routes.*); Ctrl-D to quit',
+                      local={'g': g, 'routes': routes, 'host': host})
+        host.close()
+        return 0
     if args.list or not args.leg:
         for n in routes.LEG_NAMES:
             print(f'{"✓" if routes.checkpoint_path(n).exists() else " "} {n}')
