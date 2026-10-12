@@ -407,6 +407,8 @@ def use_cut(g: World, tree: tuple[int, int]) -> bool:
 def leader(g: World, gfx: str, badge_flag: int, again, tries: int) -> bool:
     """Challenge the leader standing in front of us. Losing whites out to the Pokémon Center (healed): a player would
     walk back and try again, so do that, `tries` times in all (the trainers stay beaten)."""
+    who = gfx.removeprefix('OBJ_EVENT_GFX_')
+    g.leader_tries = {**getattr(g, 'leader_tries', {}), who: getattr(g, 'leader_tries', {}).get(who, 0) + 1}  # for the summary
     talk_to(g, gfx)
     if g.flag(badge_flag):
         return True
