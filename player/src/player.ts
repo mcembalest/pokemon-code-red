@@ -108,7 +108,7 @@ const TEMPLATE = `
     <button class="code-red-button" data-play-here type="button">Play here instead</button>
   </div>
   <div data-open hidden>
-    <p class="code-red-muted">Open your Pokémon FireRed (USA, v1.0 or v1.1) .gba file once. It stays on this device. Best on a computer: phones may work but are not supported yet.</p>
+    <p class="code-red-muted">Open your Pokémon FireRed (USA, v1.0 or v1.1) .gba file once. It stays on this device. Play on a computer; phones and tablets are not supported.</p>
     <button class="code-red-button" data-choose type="button">Open FireRed file</button>
     <input data-file type="file" accept=".gba,application/octet-stream" hidden />
   </div>

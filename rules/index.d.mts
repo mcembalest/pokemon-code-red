@@ -37,6 +37,8 @@ export function fnName(name: string): string
 export const STARTER_MOVES: Set<string>
 export const FIRERED: Record<string, [string, string, string, string]>
 export const FAMILIES: Record<string, string>
+/** The summary screen's words for a move whose spec is too long for four lines of 20 (Code Red name → text). */
+export const BRIEF: Record<string, string>
 
 export interface Format { short: string; note: string; encode(bytes: number[]): unknown; decode(data: unknown): number[] }
 export const FORMATS: Record<TypeName, Format>
