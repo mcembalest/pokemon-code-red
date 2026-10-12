@@ -30,7 +30,11 @@ export const FAMILIES = {
   Dark: 'pick by credential: specific positions, the first match', Steel: 'cipher: XOR, hash, mask', Mystery: 'curse',
 }
 
-/** [FireRed name, Code Red name, what the code must compute, answer] */
+/** THE CONTROL PANEL for moves (owner, 2026-10-12: "one place … make the changes I wanna make later on").
+ *  One row per move: [FireRed name, CODE RED NAME, what the code must compute, the answer].
+ *  To rename a move: change the second column, run `make names` (the ROM's name table + notes/moves.md), `make build`.
+ *  To change what it asks for: change the third and fourth columns together, run `make test`.
+ *  Names: 12 characters at most, upper case; a name that is a JS keyword is refused. notes/moves.md is the readable copy. */
 const TABLE = [
   // NORMAL — file operations
   ['Tackle', 'PING', 'how many numbers there are (the length of the list)', b => b.length],
@@ -268,8 +272,8 @@ const TABLE = [
   ['Curse', 'ROOTKIT', 'every number minus the smallest', b => b.map(x => x - min(b))],
 ]
 
-/** What the summary screen says a move does (the ROM's move descriptions, patch 007: four lines of about 20
- *  characters). The spec itself when it fits; these shorter words when it does not. Plain ASCII: the GBA font. */
+/** A short way to say what a move's code returns, for the page (the starter card) when the spec is long. The ROM's
+ *  summary screen keeps FireRed's own descriptions (owner, 2026-10-12). */
 export const BRIEF = {
   DIM: 'a soft lullaby of 3200 numbers: three notes that swell and fade',
   ERROR: 'a glitchy growl of 3200 numbers: a buzz sliding down',

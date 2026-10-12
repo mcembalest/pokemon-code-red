@@ -25,7 +25,7 @@ OWNS = {
     '005': (['src/naming_screen.c'], []),
     '006': (['data/battle_scripts_1.s', 'include/battle_scripts.h', 'include/constants/battle_string_ids.h', 'src/battle_message.c',
              'src/battle_script_commands.c', 'src/battle_util.c'], ['src/code_red_battle.c']),
-    '007': (['src/data/text/move_names.h', 'src/move_descriptions.c'], []),   # generated from rules/moves.mjs: scripts/move_names.py
+    '007': (['src/data/text/move_names.h'], []),   # generated from rules/moves.mjs: scripts/move_names.py
     '008': ([], ['src/code_red_eeg.c']),
     '009': (['src/battle_util2.c'], ['src/code_red_payload.c']),
 }
