@@ -1,0 +1,1636 @@
+Code-speak: move descriptions, item descriptions and Pokédex entries, mildly projected (playtest 1, 2026-10-12).
+Generated from rules/text.mjs by scripts/codespeak.py (`make text`); edit the table, not this patch.
+
+diff --git a/src/data/items.json b/src/data/items.json
+index 0a87abb..c490a8f 100644
+--- a/src/data/items.json
++++ b/src/data/items.json
+@@ -54,7 +54,7 @@
+       "price": 600,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A good, quality BALL that offers\\na higher POKéMON catch rate than\\na standard POKé BALL.",
++      "description_english": "A good, quality BALL that offers a\\nhigher POKéMON capture rate than a\\nstandard POKé BALL.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_POKE_BALLS",
+@@ -70,7 +70,7 @@
+       "price": 200,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A BALL thrown to catch a wild\\nPOKéMON. It is designed in a\\ncapsule style.",
++      "description_english": "A BALL thrown to capture a wild\\nPOKéMON. Inside, its system is\\nstored as a capsule.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_POKE_BALLS",
+@@ -102,7 +102,7 @@
+       "price": 1000,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A somewhat different BALL that\\nworks especially well on WATER- and\\nBUG-type POKéMON.",
++      "description_english": "A somewhat different BALL that works\\nespecially well on WATER- and\\nBUG-type POKéMON.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_POKE_BALLS",
+@@ -214,7 +214,7 @@
+       "price": 300,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 20,
+-      "description_english": "A spray-type wound medicine.\\nIt restores the HP of one POKéMON\\nby 20 points.",
++      "description_english": "A spray-type wound medicine. It\\npatches the HP of one POKéMON by 20\\npoints.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -230,7 +230,7 @@
+       "price": 100,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A spray-type medicine.\\nIt heals one POKéMON from a\\npoisoning.",
++      "description_english": "A spray-type medicine. It cleans a\\npoisoning out of one POKéMON's\\nsystem.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -246,7 +246,7 @@
+       "price": 250,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A spray-type medicine.\\nIt heals one POKéMON of a burn.",
++      "description_english": "A spray-type medicine. It cools one\\nPOKéMON of a burn.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -262,7 +262,7 @@
+       "price": 250,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A spray-type medicine.\\nIt defrosts a frozen POKéMON.",
++      "description_english": "A spray-type medicine. It thaws a\\nfrozen POKéMON's system.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -278,7 +278,7 @@
+       "price": 250,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A spray-type medicine.\\nIt awakens a sleeping POKéMON.",
++      "description_english": "A spray-type medicine. It wakes a\\nsleeping POKéMON's system.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -294,7 +294,7 @@
+       "price": 200,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A spray-type medicine.\\nIt heals one POKéMON from\\nparalysis.",
++      "description_english": "A spray-type medicine. It frees one\\nPOKéMON's system from paralysis.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -358,7 +358,7 @@
+       "price": 700,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 50,
+-      "description_english": "A spray-type wound medicine.\\nIt restores the HP of one POKéMON\\nby 50 points.",
++      "description_english": "A spray-type wound medicine. It\\npatches the HP of one POKéMON by 50\\npoints.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -390,7 +390,7 @@
+       "price": 1500,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A medicine that revives a fainted\\nPOKéMON, restoring HP by half the\\nmaximum amount.",
++      "description_english": "A medicine that reboots a fainted\\nPOKéMON, restoring HP by half the\\nmaximum amount.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -422,7 +422,7 @@
+       "price": 200,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 50,
+-      "description_english": "Water with a high mineral content.\\nIt restores the HP of one POKéMON\\nby 50 points.",
++      "description_english": "Water with a high mineral content.\\nIt restores the HP of one POKéMON by\\n50 points.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -438,7 +438,7 @@
+       "price": 300,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 60,
+-      "description_english": "A fizzy soda drink.\\nIt restores the HP of one POKéMON\\nby 60 points.",
++      "description_english": "A fizzy soda drink. It restores the\\nHP of one POKéMON by 60 points.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -454,7 +454,7 @@
+       "price": 350,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 80,
+-      "description_english": "A very sweet drink.\\nIt restores the HP of one POKéMON\\nby 80 points.",
++      "description_english": "A very sweet drink. It restores the\\nHP of one POKéMON by 80 points.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -486,7 +486,7 @@
+       "price": 500,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A very bitter medicine powder.\\nIt restores the HP of one POKéMON\\nby 50 points.",
++      "description_english": "A very bitter medicine powder. It\\nrestores the HP of one POKéMON by 50\\npoints.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -502,7 +502,7 @@
+       "price": 800,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A very bitter root.\\nIt restores the HP of one POKéMON\\nby 200 points.",
++      "description_english": "A very bitter root. It restores the\\nHP of one POKéMON by 200 points.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -518,7 +518,7 @@
+       "price": 450,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A very bitter medicine powder.\\nIt heals all the status problems of\\none POKéMON.",
++      "description_english": "A very bitter medicine powder. It\\nclears all the status problems of\\none POKéMON.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -534,7 +534,7 @@
+       "price": 2800,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A very bitter medicinal herb.\\nIt revives a fainted POKéMON,\\nrestoring HP fully.",
++      "description_english": "A very bitter medicinal herb. It\\nreboots a fainted POKéMON, restoring\\nHP fully.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1014,7 +1014,7 @@
+       "price": 9800,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A nutritious drink for POKéMON.\\nIt raises the base HP of one\\nPOKéMON.",
++      "description_english": "A nutritious drink for POKéMON. It\\nraises the base HP of one POKéMON.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1030,7 +1030,7 @@
+       "price": 9800,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A nutritious drink for POKéMON.\\nIt raises the base ATTACK stat of\\none POKéMON.",
++      "description_english": "A nutritious drink for POKéMON. It\\nraises the base ATTACK stat of one\\nPOKéMON.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1046,7 +1046,7 @@
+       "price": 9800,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A nutritious drink for POKéMON.\\nIt raises the base DEFENSE stat of\\none POKéMON.",
++      "description_english": "A nutritious drink for POKéMON. It\\nraises the base DEFENSE stat of one\\nPOKéMON.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1062,7 +1062,7 @@
+       "price": 9800,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A nutritious drink for POKéMON.\\nIt raises the base SPEED stat of\\none POKéMON.",
++      "description_english": "A nutritious drink for POKéMON. It\\nraises the base SPEED stat of one\\nPOKéMON.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1078,7 +1078,7 @@
+       "price": 9800,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A nutritious drink for POKéMON.\\nIt raises the base SP. ATK stat\\nof one POKéMON.",
++      "description_english": "A nutritious drink for POKéMON. It\\nraises the base SP. ATK stat of one\\nPOKéMON.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1110,7 +1110,7 @@
+       "price": 9800,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "Slightly raises the maximum PP of\\na selected move for one POKéMON.",
++      "description_english": "Slightly raises the maximum PP of a\\nselected move for one POKéMON.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1126,7 +1126,7 @@
+       "price": 9800,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A nutritious drink for POKéMON.\\nIt raises the base SP. DEF stat\\nof one POKéMON.",
++      "description_english": "A nutritious drink for POKéMON. It\\nraises the base SP. DEF stat of one\\nPOKéMON.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1174,7 +1174,7 @@
+       "price": 700,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "An item that prevents stat reduction\\namong party POKéMON for five turns\\nafter use.",
++      "description_english": "An item that blocks stat reduction\\namong party POKéMON for five turns\\nafter use.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1206,7 +1206,7 @@
+       "price": 500,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "Raises the ATTACK stat of POKéMON\\nin battle. Wears off if the POKéMON\\nis withdrawn.",
++      "description_english": "Raises the ATTACK stat of POKéMON in\\nbattle. Wears off if the POKéMON is\\nwithdrawn.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1238,7 +1238,7 @@
+       "price": 350,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "Raises the SPEED stat of POKéMON\\nin battle. Wears off if the POKéMON\\nis withdrawn.",
++      "description_english": "Raises the SPEED stat of POKéMON in\\nbattle. Wears off if the POKéMON is\\nwithdrawn.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1254,7 +1254,7 @@
+       "price": 950,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "Raises the accuracy stat of\\nPOKéMON in battle. Wears off if the\\nPOKéMON is withdrawn.",
++      "description_english": "Raises the accuracy stat of POKéMON\\nin battle. Wears off if the POKéMON\\nis withdrawn.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1270,7 +1270,7 @@
+       "price": 350,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "Raises the SP. ATK stat of\\nPOKéMON in battle. Wears off if the\\nPOKéMON is withdrawn.",
++      "description_english": "Raises the SP. ATK stat of POKéMON\\nin battle. Wears off if the POKéMON\\nis withdrawn.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1286,7 +1286,7 @@
+       "price": 1000,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "An attractive doll.\\nUse it to flee from any battle with\\na wild POKéMON.",
++      "description_english": "An attractive doll. Use it to flee\\nfrom any battle with a wild POKéMON.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1334,7 +1334,7 @@
+       "price": 500,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 200,
+-      "description_english": "Prevents weak wild POKéMON from\\nappearing for 200 steps.",
++      "description_english": "Filters weak wild POKéMON out of\\nappearing for 200 steps.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1366,7 +1366,7 @@
+       "price": 550,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A long, durable rope.\\nUse it to escape instantly from a\\ncave or a dungeon.",
++      "description_english": "A long, durable rope. Use it to exit\\ninstantly from a cave or a dungeon.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1382,7 +1382,7 @@
+       "price": 350,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 100,
+-      "description_english": "Prevents weak wild POKéMON from\\nappearing for 100 steps.",
++      "description_english": "Filters weak wild POKéMON out of\\nappearing for 100 steps.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1526,7 +1526,7 @@
+       "price": 2100,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A peculiar stone that makes certain\\nspecies of POKéMON evolve.\\nIt is colored orange.",
++      "description_english": "A peculiar stone that makes certain\\nspecies of POKéMON evolve. It is\\ncolored orange.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1542,7 +1542,7 @@
+       "price": 2100,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A peculiar stone that makes certain\\nspecies of POKéMON evolve.\\nIt has a thunderbolt pattern.",
++      "description_english": "A peculiar stone that makes certain\\nspecies of POKéMON evolve. It has a\\nthunderbolt pattern.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1558,7 +1558,7 @@
+       "price": 2100,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A peculiar stone that makes certain\\nspecies of POKéMON evolve.\\nIt is a clear light blue.",
++      "description_english": "A peculiar stone that makes certain\\nspecies of POKéMON evolve. It is a\\nclear light blue.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1574,7 +1574,7 @@
+       "price": 2100,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A peculiar stone that makes certain\\nspecies of POKéMON evolve.\\nIt has a leaf pattern.",
++      "description_english": "A peculiar stone that makes certain\\nspecies of POKéMON evolve. It has a\\nleaf pattern.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -1766,7 +1766,7 @@
+       "price": 10000,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A nugget of pure gold that gives\\noff a lustrous gleam.\\nIt can be sold at a high price.",
++      "description_english": "A nugget of pure gold that gives off\\na lustrous gleam. It can be sold at\\na high price.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -3126,7 +3126,7 @@
+       "price": 200,
+       "holdEffect": "HOLD_EFFECT_PREVENT_EVOLVE",
+       "holdEffectParam": 0,
+-      "description_english": "An item to be held by a POKéMON.\\nThe holding POKéMON is prevented\\nfrom evolving.",
++      "description_english": "An item to be held by a POKéMON. The\\nholding POKéMON is locked out of\\nevolving.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -3286,7 +3286,7 @@
+       "price": 100,
+       "holdEffect": "HOLD_EFFECT_GRASS_POWER",
+       "holdEffectParam": 10,
+-      "description_english": "An item to be held by a POKéMON.\\nA seed imbued with life that boosts\\nthe power of GRASS-type moves.",
++      "description_english": "An item to be held by a POKéMON. A\\nseed imbued with life that boosts\\nthe power of GRASS-type moves.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -3350,7 +3350,7 @@
+       "price": 100,
+       "holdEffect": "HOLD_EFFECT_WATER_POWER",
+       "holdEffectParam": 10,
+-      "description_english": "An item to be held by a POKéMON.\\nA teardrop-shaped gem that boosts\\nthe power of WATER-type moves.",
++      "description_english": "An item to be held by a POKéMON. A\\nteardrop-shaped gem that boosts the\\npower of WATER-type moves.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -3446,7 +3446,7 @@
+       "price": 9800,
+       "holdEffect": "HOLD_EFFECT_FIRE_POWER",
+       "holdEffectParam": 10,
+-      "description_english": "An item to be held by a POKéMON.\\nA combustible fuel that boosts the\\npower of FIRE-type moves.",
++      "description_english": "An item to be held by a POKéMON. A\\ncombustible fuel that boosts the\\npower of FIRE-type moves.",
+       "importance": 0,
+       "registrability": 0,
+       "pocket": "POCKET_ITEMS",
+@@ -4166,7 +4166,7 @@
+       "price": 0,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A case for holding COINS obtained\\nat the GAME CORNER.\\nIt holds up to 9,999 COINS.",
++      "description_english": "A case for holding COINS obtained at\\nthe GAME CORNER. It holds up to\\n9,999 COINS.",
+       "importance": 1,
+       "registrability": 0,
+       "pocket": "POCKET_KEY_ITEMS",
+@@ -4182,7 +4182,7 @@
+       "price": 0,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A device used for finding items.\\nIf there is a hidden item nearby\\nwhen it is used, it emits a signal.",
++      "description_english": "A device used for finding items. If\\nthere is a hidden item nearby when\\nit is used, it pings.",
+       "importance": 1,
+       "registrability": 1,
+       "pocket": "POCKET_KEY_ITEMS",
+@@ -4198,7 +4198,7 @@
+       "price": 0,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "An old and beat-up fishing rod.\\nUse it by any body of water to \\nfish for wild POKéMON.",
++      "description_english": "An old and beat-up fishing rod. Use\\nit by any body of water to fish for\\nwild POKéMON.",
+       "importance": 1,
+       "registrability": 1,
+       "pocket": "POCKET_KEY_ITEMS",
+@@ -4246,7 +4246,7 @@
+       "price": 0,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "The ticket required for sailing on\\nthe ferry S.S. ANNE.\\nIt has a drawing of a ship on it.",
++      "description_english": "The ticket required for sailing on\\nthe ferry S.S. ANNE. It has a\\ndrawing of a ship on it.",
+       "importance": 1,
+       "registrability": 0,
+       "pocket": "POCKET_KEY_ITEMS",
+@@ -5696,7 +5696,7 @@
+       "price": 0,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "Take this voucher to the BIKE SHOP\\nin CERULEAN CITY and exchange it\\nfor a bicycle.",
++      "description_english": "Take this voucher to the BIKE SHOP\\nin CERULEAN CITY and exchange it for\\na bicycle.",
+       "importance": 1,
+       "registrability": 0,
+       "pocket": "POCKET_KEY_ITEMS",
+@@ -5776,7 +5776,7 @@
+       "price": 0,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A fossil of an ancient, seafloor-\\ndwelling POKéMON. It appears to be\\npart of a seashell.",
++      "description_english": "A fossil of an ancient, seafloor-\\ndwelling POKéMON. Its data appears\\nto be part of a seashell.",
+       "importance": 1,
+       "registrability": 0,
+       "pocket": "POCKET_KEY_ITEMS",
+@@ -5792,7 +5792,7 @@
+       "price": 0,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A fossil of an ancient, seafloor-\\ndwelling POKéMON. It appears to be\\npart of a shell.",
++      "description_english": "A fossil of an ancient, seafloor-\\ndwelling POKéMON. Its data appears\\nto be part of a shell.",
+       "importance": 1,
+       "registrability": 0,
+       "pocket": "POCKET_KEY_ITEMS",
+@@ -5824,7 +5824,7 @@
+       "price": 0,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A folding bicycle that allows\\nfaster movement than the RUNNING\\nSHOES.",
++      "description_english": "A folding bicycle that allows faster\\nmovement than the RUNNING SHOES.",
+       "importance": 1,
+       "registrability": 1,
+       "pocket": "POCKET_KEY_ITEMS",
+@@ -5840,7 +5840,7 @@
+       "price": 0,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A very convenient map that can be\\nviewed anytime. It even shows your \\npresent location.",
++      "description_english": "A very convenient map that can be\\nviewed anytime. It even shows your\\npresent location.",
+       "importance": 1,
+       "registrability": 1,
+       "pocket": "POCKET_KEY_ITEMS",
+@@ -5872,7 +5872,7 @@
+       "price": 0,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A device that enables you to\\nrecall what you've heard and seen\\nabout famous people.",
++      "description_english": "A device that logs what you've heard\\nand seen about famous people, for\\nrecall anytime.",
+       "importance": 1,
+       "registrability": 1,
+       "pocket": "POCKET_KEY_ITEMS",
+@@ -5920,7 +5920,7 @@
+       "price": 0,
+       "holdEffect": "HOLD_EFFECT_NONE",
+       "holdEffectParam": 0,
+-      "description_english": "A television set that is tuned to\\na program with useful tips for\\nnovice TRAINERS.",
++      "description_english": "A television set that is tuned to a\\nprogram with useful tips for novice\\nTRAINERS.",
+       "importance": 1,
+       "registrability": 1,
+       "pocket": "POCKET_KEY_ITEMS",
+diff --git a/src/data/pokemon/pokedex_text_fr.h b/src/data/pokemon/pokedex_text_fr.h
+index e2ed936..db7c709 100644
+--- a/src/data/pokemon/pokedex_text_fr.h
++++ b/src/data/pokemon/pokedex_text_fr.h
+@@ -7,35 +7,35 @@ const u8 gDummyPokedexTextUnused[] = _("");
+ 
+ const u8 gBulbasaurPokedexText[] = _(
+     "There is a plant seed on its back right\n"
+-    "from the day this POKéMON is born.\n"
+-    "The seed slowly grows larger.");
++    "from the day this POKéMON boots up. The\n"
++    "seed slowly grows larger.");
+ 
+ const u8 gBulbasaurPokedexTextUnused[] = _("");
+ 
+ const u8 gIvysaurPokedexText[] = _(
+-    "There is a plant bulb on its back.\n"
+-    "When it absorbs nutrients, the bulb is said\n"
+-    "to blossom into a large flower.");
++    "There is a plant bulb on its back. When it\n"
++    "absorbs nutrients, the bulb is said to\n"
++    "blossom into a large flower.");
+ 
+ const u8 gIvysaurPokedexTextUnused[] = _("");
+ 
+ const u8 gVenusaurPokedexText[] = _(
+     "A bewitching aroma wafts from its flower.\n"
+-    "The fragrance becalms those engaged in\n"
+-    "a battle.");
++    "The fragrance becalms those engaged in a\n"
++    "battle.");
+ 
+ const u8 gVenusaurPokedexTextUnused[] = _("");
+ 
+ const u8 gCharmanderPokedexText[] = _(
+-    "From the time it is born, a flame burns\n"
+-    "at the tip of its tail. Its life would end\n"
+-    "if the flame were to go out.");
++    "From the time it boots up, a flame burns at\n"
++    "the tip of its tail. Its life would end if\n"
++    "the flame were to go out.");
+ 
+ const u8 gCharmanderPokedexTextUnused[] = _("");
+ 
+ const u8 gCharmeleonPokedexText[] = _(
+-    "It lashes about with its tail to knock\n"
+-    "down its foe. It then tears up the fallen\n"
++    "It lashes about with its tail to knock down\n"
++    "its foe. It then tears up the fallen\n"
+     "opponent with sharp claws.");
+ 
+ const u8 gCharmeleonPokedexTextUnused[] = _("");
+@@ -49,36 +49,36 @@ const u8 gCharizardPokedexTextUnused[] = _("");
+ 
+ const u8 gSquirtlePokedexText[] = _(
+     "When it retracts its long neck into its\n"
+-    "shell, it squirts out water with vigorous\n"
+-    "force.");
++    "shell, it squirts out a stream of water\n"
++    "with vigorous force.");
+ 
+ const u8 gSquirtlePokedexTextUnused[] = _("");
+ 
+ const u8 gWartortlePokedexText[] = _(
+-    "This POKéMON is very popular as a pet.\n"
+-    "Its fur-covered tail is a symbol of its\n"
++    "This POKéMON is very popular as a pet. Its\n"
++    "fur-covered tail is a symbol of its\n"
+     "longevity.");
+ 
+ const u8 gWartortlePokedexTextUnused[] = _("");
+ 
+ const u8 gBlastoisePokedexText[] = _(
+-    "It crushes its foe under its heavy body\n"
+-    "to cause fainting. In a pinch, it will\n"
++    "It crushes its foe under its heavy body to\n"
++    "cause fainting. In a pinch, it will\n"
+     "withdraw inside its shell.");
+ 
+ const u8 gBlastoisePokedexTextUnused[] = _("");
+ 
+ const u8 gCaterpiePokedexText[] = _(
+     "It is covered with a green skin. When it\n"
+-    "grows, it sheds the skin, covers itself\n"
+-    "with silk, and becomes a cocoon.");
++    "grows, it sheds the skin, wraps itself in\n"
++    "silk, and becomes a cocoon.");
+ 
+ const u8 gCaterpiePokedexTextUnused[] = _("");
+ 
+ const u8 gMetapodPokedexText[] = _(
+     "Even though it is encased in a sturdy\n"
+-    "shell, the body inside is tender.\n"
+-    "It can't withstand a harsh attack.");
++    "shell, the body inside is tender. It can't\n"
++    "withstand a harsh attack.");
+ 
+ const u8 gMetapodPokedexTextUnused[] = _("");
+ 
+@@ -90,16 +90,16 @@ const u8 gButterfreePokedexText[] = _(
+ const u8 gButterfreePokedexTextUnused[] = _("");
+ 
+ const u8 gWeedlePokedexText[] = _(
+-    "Often found in forests and grasslands.\n"
+-    "It has a sharp, toxic barb of around two\n"
++    "Often found in forests and grasslands. It\n"
++    "has a sharp, toxic barb of around two\n"
+     "inches on top of its head.");
+ 
+ const u8 gWeedlePokedexTextUnused[] = _("");
+ 
+ const u8 gKakunaPokedexText[] = _(
+-    "This POKéMON is in a temporary stage\n"
+-    "while making its body. It is almost\n"
+-    "completely unable to move on its own.");
++    "This POKéMON is in a temporary stage while\n"
++    "compiling its body. It is almost completely\n"
++    "unable to move on its own.");
+ 
+ const u8 gKakunaPokedexTextUnused[] = _("");
+ 
+@@ -111,16 +111,16 @@ const u8 gBeedrillPokedexText[] = _(
+ const u8 gBeedrillPokedexTextUnused[] = _("");
+ 
+ const u8 gPidgeyPokedexText[] = _(
+-    "Does not like to fight. It hides in\n"
+-    "tall grass and so on, foraging for food\n"
+-    "such as small bugs.");
++    "Does not like to fight. It hides in tall\n"
++    "grass and so on, foraging for food such as\n"
++    "small bugs.");
+ 
+ const u8 gPidgeyPokedexTextUnused[] = _("");
+ 
+ const u8 gPidgeottoPokedexText[] = _(
+     "The claws on its feet are well developed.\n"
+-    "It can carry prey such as an EXEGGCUTE\n"
+-    "to its nest over 60 miles away.");
++    "It can carry prey such as an EXEGGCUTE to\n"
++    "its nest over 60 miles away.");
+ 
+ const u8 gPidgeottoPokedexTextUnused[] = _("");
+ 
+@@ -132,23 +132,23 @@ const u8 gPidgeotPokedexText[] = _(
+ const u8 gPidgeotPokedexTextUnused[] = _("");
+ 
+ const u8 gRattataPokedexText[] = _(
+-    "Its fangs are long and very sharp.\n"
+-    "They grow continuously, so it gnaws on\n"
+-    "hard things to whittle them down.");
++    "Its fangs are long and very sharp. They\n"
++    "grow continuously, so it gnaws on hard\n"
++    "things to whittle them down.");
+ 
+ const u8 gRattataPokedexTextUnused[] = _("");
+ 
+ const u8 gRaticatePokedexText[] = _(
+-    "Its rear feet have three toes each.\n"
+-    "They are webbed, enabling it to swim\n"
+-    "across rivers.");
++    "Its rear feet have three toes each. They\n"
++    "are webbed, enabling it to swim across\n"
++    "rivers.");
+ 
+ const u8 gRaticatePokedexTextUnused[] = _("");
+ 
+ const u8 gSpearowPokedexText[] = _(
+-    "It busily flits around here and there.\n"
+-    "Even if it is frail, it can be a tough\n"
+-    "foe that uses MIRROR MOVE.");
++    "It busily flits around here and there. Even\n"
++    "if it is frail, it can be a tough foe that\n"
++    "uses RELAY.");
+ 
+ const u8 gSpearowPokedexTextUnused[] = _("");
+ 
+@@ -160,8 +160,8 @@ const u8 gFearowPokedexText[] = _(
+ const u8 gFearowPokedexTextUnused[] = _("");
+ 
+ const u8 gEkansPokedexText[] = _(
+-    "A very common sight in grassland, etc.\n"
+-    "It flicks its tongue in and out to sense\n"
++    "A very common sight in grassland, etc. It\n"
++    "flicks its tongue in and out to scan for\n"
+     "danger in its surroundings.");
+ 
+ const u8 gEkansPokedexTextUnused[] = _("");
+@@ -175,29 +175,29 @@ const u8 gArbokPokedexTextUnused[] = _("");
+ 
+ const u8 gPikachuPokedexText[] = _(
+     "It has small electric sacs on both its\n"
+-    "cheeks. If threatened, it looses electric\n"
+-    "charges from the sacs.");
++    "cheeks. If threatened, it discharges a\n"
++    "burst of signal from the sacs.");
+ 
+ const u8 gPikachuPokedexTextUnused[] = _("");
+ 
+ const u8 gRaichuPokedexText[] = _(
+-    "Its electric charges can reach even\n"
+-    "100,000 volts. Careless contact can cause\n"
+-    "even an Indian elephant to faint.");
++    "Its electric charges can reach even 100,000\n"
++    "volts. Careless contact can cause even an\n"
++    "Indian elephant to faint.");
+ 
+ const u8 gRaichuPokedexTextUnused[] = _("");
+ 
+ const u8 gSandshrewPokedexText[] = _(
+-    "It burrows and lives underground.\n"
+-    "If threatened, it curls itself up into a\n"
+-    "ball for protection.");
++    "It burrows and lives underground. If\n"
++    "threatened, it curls itself up into a ball\n"
++    "for protection.");
+ 
+ const u8 gSandshrewPokedexTextUnused[] = _("");
+ 
+ const u8 gSandslashPokedexText[] = _(
+-    "It is adept at attacking with the spines\n"
+-    "on its back and its sharp claws while\n"
+-    "quickly scurrying about.");
++    "It is adept at attacking with the spines on\n"
++    "its back and its sharp claws while quickly\n"
++    "scurrying about.");
+ 
+ const u8 gSandslashPokedexTextUnused[] = _("");
+ 
+@@ -209,23 +209,23 @@ const u8 gNidoranFPokedexText[] = _(
+ const u8 gNidoranFPokedexTextUnused[] = _("");
+ 
+ const u8 gNidorinaPokedexText[] = _(
+-    "The female has a gentle temperament.\n"
+-    "It emits ultrasonic cries that have the\n"
+-    "power to befuddle foes.");
++    "The female has a gentle temperament. It\n"
++    "emits ultrasonic cries that have the power\n"
++    "to befuddle foes.");
+ 
+ const u8 gNidorinaPokedexTextUnused[] = _("");
+ 
+ const u8 gNidoqueenPokedexText[] = _(
+-    "The body is covered by stiff, needle-\n"
+-    "like scales. If it becomes excited,\n"
+-    "the needles bristle outwards.");
++    "The body is covered by stiff, needle- like\n"
++    "scales. If it becomes excited, the needles\n"
++    "bristle outwards.");
+ 
+ const u8 gNidoqueenPokedexTextUnused[] = _("");
+ 
+ const u8 gNidoranMPokedexText[] = _(
+-    "Its large ears are flapped like wings\n"
+-    "when it is listening to distant sounds.\n"
+-    "It extends toxic barbs when angered.");
++    "Its large ears are flapped like wings when\n"
++    "it is listening to distant signals. It\n"
++    "extends toxic barbs when angered.");
+ 
+ const u8 gNidoranMPokedexTextUnused[] = _("");
+ 
+@@ -237,9 +237,9 @@ const u8 gNidorinoPokedexText[] = _(
+ const u8 gNidorinoPokedexTextUnused[] = _("");
+ 
+ const u8 gNidokingPokedexText[] = _(
+-    "It is recognized by its rock-hard hide\n"
+-    "and its extended horn. Be careful with\n"
+-    "the horn as it contains venom.");
++    "It is recognized by its rock-hard hide and\n"
++    "its extended horn. Be careful with the horn\n"
++    "as it contains venom.");
+ 
+ const u8 gNidokingPokedexTextUnused[] = _("");
+ 
+@@ -265,16 +265,15 @@ const u8 gVulpixPokedexText[] = _(
+ const u8 gVulpixPokedexTextUnused[] = _("");
+ 
+ const u8 gNinetalesPokedexText[] = _(
+-    "It has nine long tails and fur that \n"
+-    "gleams gold. It is said to live for \n"
+-    "1,000 years.");
++    "It has nine long tails and fur that gleams\n"
++    "gold. It is said to run for 1,000 years.");
+ 
+ const u8 gNinetalesPokedexTextUnused[] = _("");
+ 
+ const u8 gJigglypuffPokedexText[] = _(
+     "It captivates foes with its huge, round\n"
+-    "eyes, then lulls them to sleep by singing\n"
+-    "a soothing melody.");
++    "eyes, then lulls them to sleep by singing a\n"
++    "soothing melody.");
+ 
+ const u8 gJigglypuffPokedexTextUnused[] = _("");
+ 
+@@ -336,15 +335,15 @@ const u8 gParasectPokedexTextUnused[] = _("");
+ 
+ const u8 gVenonatPokedexText[] = _(
+     "Its eyes act as radar, enabling it to be\n"
+-    "active in darkness. The eyes can also\n"
+-    "shoot powerful beams.");
++    "active in darkness. The eyes can also shoot\n"
++    "powerful beams.");
+ 
+ const u8 gVenonatPokedexTextUnused[] = _("");
+ 
+ const u8 gVenomothPokedexText[] = _(
+-    "The wings are covered with dustlike\n"
+-    "scales. Every time it flaps its wings, it\n"
+-    "looses highly toxic dust.");
++    "The wings are covered with dustlike scales.\n"
++    "Every time it flaps its wings, it looses\n"
++    "highly toxic dust.");
+ 
+ const u8 gVenomothPokedexTextUnused[] = _("");
+ 
+@@ -363,8 +362,8 @@ const u8 gDugtrioPokedexText[] = _(
+ const u8 gDugtrioPokedexTextUnused[] = _("");
+ 
+ const u8 gMeowthPokedexText[] = _(
+-    "All it does is sleep during the daytime.\n"
+-    "At night, it patrols its territory with its\n"
++    "All it does is sleep during the daytime. At\n"
++    "night, it patrols its territory with its\n"
+     "eyes aglow.");
+ 
+ const u8 gMeowthPokedexTextUnused[] = _("");
+@@ -379,14 +378,14 @@ const u8 gPersianPokedexTextUnused[] = _("");
+ const u8 gPsyduckPokedexText[] = _(
+     "It is constantly wracked by a headache.\n"
+     "When the headache turns intense, it begins\n"
+-    "using mysterious powers.");
++    "running mysterious powers.");
+ 
+ const u8 gPsyduckPokedexTextUnused[] = _("");
+ 
+ const u8 gGolduckPokedexText[] = _(
+-    "The forelegs are webbed, helping to make\n"
+-    "it an adept swimmer. It can be seen\n"
+-    "swimming elegantly in lakes, etc.");
++    "The forelegs are webbed, helping to make it\n"
++    "an adept swimmer. It can be seen swimming\n"
++    "elegantly in lakes, etc.");
+ 
+ const u8 gGolduckPokedexTextUnused[] = _("");
+ 
+@@ -399,36 +398,36 @@ const u8 gMankeyPokedexTextUnused[] = _("");
+ 
+ const u8 gPrimeapePokedexText[] = _(
+     "It is always outrageously furious. If it\n"
+-    "gives chase, it will tenaciously track the\n"
++    "gives chase, it will tenaciously trace the\n"
+     "target no matter how far.");
+ 
+ const u8 gPrimeapePokedexTextUnused[] = _("");
+ 
+ const u8 gGrowlithePokedexText[] = _(
+-    "Very friendly and faithful to people.\n"
+-    "It will try to repel enemies by barking\n"
+-    "and biting.");
++    "Very friendly and faithful to people. It\n"
++    "will try to repel enemies by barking and\n"
++    "biting.");
+ 
+ const u8 gGrowlithePokedexTextUnused[] = _("");
+ 
+ const u8 gArcaninePokedexText[] = _(
+     "A POKéMON that is described in Chinese\n"
+     "legends. It is said to race at an\n"
+-    "unbelievable speed.");
++    "unbelievable clock speed.");
+ 
+ const u8 gArcaninePokedexTextUnused[] = _("");
+ 
+ const u8 gPoliwagPokedexText[] = _(
+-    "Its slick black skin is thin and damp.\n"
+-    "A part of its internal organs can be seen\n"
++    "Its slick black skin is thin and damp. A\n"
++    "part of its internal organs can be seen\n"
+     "through the skin as a spiral pattern.");
+ 
+ const u8 gPoliwagPokedexTextUnused[] = _("");
+ 
+ const u8 gPoliwhirlPokedexText[] = _(
+-    "Its two legs are well developed.\n"
+-    "Even though it can live on the ground,\n"
+-    "it prefers living in water.");
++    "Its two legs are well developed. Even\n"
++    "though it can live on the ground, it\n"
++    "prefers living in water.");
+ 
+ const u8 gPoliwhirlPokedexTextUnused[] = _("");
+ 
+@@ -440,8 +439,8 @@ const u8 gPoliwrathPokedexText[] = _(
+ const u8 gPoliwrathPokedexTextUnused[] = _("");
+ 
+ const u8 gAbraPokedexText[] = _(
+-    "It sleeps for 18 hours a day. It uses a\n"
+-    "variety of extrasensory powers even\n"
++    "It sleeps for 18 hours a day. It runs a\n"
++    "variety of extrasensory processes even\n"
+     "while asleep.");
+ 
+ const u8 gAbraPokedexTextUnused[] = _("");
+@@ -482,37 +481,37 @@ const u8 gMachampPokedexText[] = _(
+ const u8 gMachampPokedexTextUnused[] = _("");
+ 
+ const u8 gBellsproutPokedexText[] = _(
+-    "Its bud looks like a human face. Because\n"
+-    "of the bud, it is rumored to be a type of\n"
++    "Its bud looks like a human face. Because of\n"
++    "the bud, it is rumored to be a type of\n"
+     "legendary mandrake plant.");
+ 
+ const u8 gBellsproutPokedexTextUnused[] = _("");
+ 
+ const u8 gWeepinbellPokedexText[] = _(
+-    "The leafy parts act as cutters for\n"
+-    "slashing foes. It spits a fluid that\n"
+-    "dissolves everything.");
++    "The leafy parts act as cutters for slashing\n"
++    "foes. It spits a fluid that dissolves\n"
++    "everything.");
+ 
+ const u8 gWeepinbellPokedexTextUnused[] = _("");
+ 
+ const u8 gVictreebelPokedexText[] = _(
+     "Lures prey into its mouth with a honeylike\n"
+-    "aroma. The helpless prey is melted with\n"
+-    "a dissolving fluid.");
++    "aroma. The helpless prey is melted with a\n"
++    "dissolving fluid.");
+ 
+ const u8 gVictreebelPokedexTextUnused[] = _("");
+ 
+ const u8 gTentacoolPokedexText[] = _(
+     "Its eyes are as transparent as crystals.\n"
+-    "From them, it shoots mysterious\n"
+-    "beams of light.");
++    "From them, it shoots mysterious beams of\n"
++    "light.");
+ 
+ const u8 gTentacoolPokedexTextUnused[] = _("");
+ 
+ const u8 gTentacruelPokedexText[] = _(
+-    "It has 80 tentacles that move about\n"
+-    "freely. They can sting, causing poisoning\n"
+-    "and sharp, stabbing pain.");
++    "It has 80 tentacles that move about freely.\n"
++    "They can sting, causing poisoning and\n"
++    "sharp, stabbing pain.");
+ 
+ const u8 gTentacruelPokedexTextUnused[] = _("");
+ 
+@@ -553,8 +552,8 @@ const u8 gRapidashPokedexTextUnused[] = _("");
+ 
+ const u8 gSlowpokePokedexText[] = _(
+     "It is always vacantly lost in thought, but\n"
+-    "no one knows what it is thinking about.\n"
+-    "It is good at fishing with its tail.");
++    "no one knows what it is processing. It is\n"
++    "good at fishing with its tail.");
+ 
+ const u8 gSlowpokePokedexTextUnused[] = _("");
+ 
+@@ -566,16 +565,16 @@ const u8 gSlowbroPokedexText[] = _(
+ const u8 gSlowbroPokedexTextUnused[] = _("");
+ 
+ const u8 gMagnemitePokedexText[] = _(
+-    "It moves while constantly hovering.\n"
+-    "It discharges THUNDER WAVE and so on\n"
+-    "from the units at its sides.");
++    "It moves while constantly hovering. It\n"
++    "discharges POWERCUT and so on from the\n"
++    "units at its sides.");
+ 
+ const u8 gMagnemitePokedexTextUnused[] = _("");
+ 
+ const u8 gMagnetonPokedexText[] = _(
+     "A linked cluster formed of several\n"
+-    "MAGNEMITE. It discharges powerful\n"
+-    "magnetic waves at high voltage.");
++    "MAGNEMITE. It discharges powerful magnetic\n"
++    "waves at high voltage.");
+ 
+ const u8 gMagnetonPokedexTextUnused[] = _("");
+ 
+@@ -617,7 +616,7 @@ const u8 gDewgongPokedexTextUnused[] = _("");
+ const u8 gGrimerPokedexText[] = _(
+     "Sludge exposed to X rays from the moon\n"
+     "transformed into GRIMER. It loves feeding\n"
+-    "on filthy things.");
++    "on corrupted things.");
+ 
+ const u8 gGrimerPokedexTextUnused[] = _("");
+ 
+@@ -671,16 +670,16 @@ const u8 gOnixPokedexText[] = _(
+ const u8 gOnixPokedexTextUnused[] = _("");
+ 
+ const u8 gDrowzeePokedexText[] = _(
+-    "A descendent of the legendary animal\n"
+-    "baku, which is said to eat dreams. It is\n"
+-    "skilled at hypnotism.");
++    "A descendent of the legendary animal baku,\n"
++    "which is said to eat dreams. It is skilled\n"
++    "at hypnotism.");
+ 
+ const u8 gDrowzeePokedexTextUnused[] = _("");
+ 
+ const u8 gHypnoPokedexText[] = _(
+     "It carries a pendulum-like device. There\n"
+-    "once was an incident in which it took \n"
+-    "away a child it hypnotized.");
++    "once was an incident in which it took away\n"
++    "a child it hypnotized.");
+ 
+ const u8 gHypnoPokedexTextUnused[] = _("");
+ 
+@@ -693,22 +692,21 @@ const u8 gKrabbyPokedexTextUnused[] = _("");
+ 
+ const u8 gKinglerPokedexText[] = _(
+     "Its large and hard pincer has 10,000-\n"
+-    "horsepower strength. However, being so\n"
+-    "big, it is unwieldy to move.");
++    "horsepower strength. However, being so big,\n"
++    "it is unwieldy to move.");
+ 
+ const u8 gKinglerPokedexTextUnused[] = _("");
+ 
+ const u8 gVoltorbPokedexText[] = _(
+-    "A life-form whose identity is unknown.\n"
+-    "It is said to SCREECH or suddenly\n"
+-    "SELFDESTRUCT.");
++    "A life-form whose identity is unknown. It\n"
++    "is said to DISTORTION or suddenly WIPE.");
+ 
+ const u8 gVoltorbPokedexTextUnused[] = _("");
+ 
+ const u8 gElectrodePokedexText[] = _(
+     "It explodes in response to even minor\n"
+-    "stimuli. It is feared, with the nickname\n"
+-    "of “The Bomb Ball.”");
++    "input. It is feared, with the nickname of\n"
++    "“The Bomb Ball.”");
+ 
+ const u8 gElectrodePokedexTextUnused[] = _("");
+ 
+@@ -832,23 +830,23 @@ const u8 gGoldeenPokedexText[] = _(
+ const u8 gGoldeenPokedexTextUnused[] = _("");
+ 
+ const u8 gSeakingPokedexText[] = _(
+-    "The horn on its head is sharp like a\n"
+-    "drill. It bores a hole in a boulder to\n"
+-    "make its nest.");
++    "The horn on its head is sharp like a drill.\n"
++    "It bores a hole in a boulder to make its\n"
++    "nest.");
+ 
+ const u8 gSeakingPokedexTextUnused[] = _("");
+ 
+ const u8 gStaryuPokedexText[] = _(
+     "It appears in large numbers by seashores.\n"
+-    "At night, its central core flashes with a\n"
++    "At night, its central core blinks with a\n"
+     "red light.");
+ 
+ const u8 gStaryuPokedexTextUnused[] = _("");
+ 
+ const u8 gStarmiePokedexText[] = _(
+-    "This POKéMON has a geometric body.\n"
+-    "Because of its body, the locals suspect\n"
+-    "that it is an alien creature.");
++    "This POKéMON has a geometric body. Because\n"
++    "of its body, the locals suspect that it is\n"
++    "an alien creature.");
+ 
+ const u8 gStarmiePokedexTextUnused[] = _("");
+ 
+@@ -874,9 +872,9 @@ const u8 gJynxPokedexText[] = _(
+ const u8 gJynxPokedexTextUnused[] = _("");
+ 
+ const u8 gElectabuzzPokedexText[] = _(
+-    "It loves to feed on strong electricity.\n"
+-    "It occasionally appears around large\n"
+-    "power plants and so on.");
++    "It loves to feed on strong electricity. It\n"
++    "occasionally appears around large power\n"
++    "plants and so on.");
+ 
+ const u8 gElectabuzzPokedexTextUnused[] = _("");
+ 
+@@ -909,9 +907,9 @@ const u8 gMagikarpPokedexText[] = _(
+ const u8 gMagikarpPokedexTextUnused[] = _("");
+ 
+ const u8 gGyaradosPokedexText[] = _(
+-    "It has an extremely aggressive nature.\n"
+-    "The HYPER BEAM it shoots from its mouth\n"
+-    "totally incinerates all targets.");
++    "It has an extremely aggressive nature. The\n"
++    "LASER it shoots from its mouth totally\n"
++    "incinerates all targets.");
+ 
+ const u8 gGyaradosPokedexTextUnused[] = _("");
+ 
+@@ -924,15 +922,14 @@ const u8 gLaprasPokedexTextUnused[] = _("");
+ 
+ const u8 gDittoPokedexText[] = _(
+     "It can freely recombine its own cellular\n"
+-    "structure to transform into other life-\n"
+-    "forms.");
++    "code to transform into other life- forms.");
+ 
+ const u8 gDittoPokedexTextUnused[] = _("");
+ 
+ const u8 gEeveePokedexText[] = _(
+-    "An extremely rare POKéMON that may\n"
+-    "evolve in a number of different ways\n"
+-    "depending on stimuli.");
++    "An extremely rare POKéMON that may evolve\n"
++    "in a number of different ways depending on\n"
++    "its input.");
+ 
+ const u8 gEeveePokedexTextUnused[] = _("");
+ 
+diff --git a/src/move_descriptions.c b/src/move_descriptions.c
+index 8ece0e1..e905070 100644
+--- a/src/move_descriptions.c
++++ b/src/move_descriptions.c
+@@ -1,169 +1,169 @@
+ #include "global.h"
+ #include "constants/moves.h"
+ 
+-const u8 gMoveDescription_Pound[] = _("A physical attack\ndelivered with a\nlong tail or a\nforeleg, etc.");
+-const u8 gMoveDescription_KarateChop[] = _("The foe is attacked\nwith a sharp chop.\nIt has a high\ncritical-hit ratio.");
+-const u8 gMoveDescription_DoubleSlap[] = _("The foe is slapped\nrepeatedly, back\nand forth, two to\nfive times.");
++const u8 gMoveDescription_Pound[] = _("A physical attack\ndelivered with a long\ntail or a foreleg,\netc.");
++const u8 gMoveDescription_KarateChop[] = _("The foe is attacked\nwith a sharp chop. It\nhas a high\ncritical-hit ratio.");
++const u8 gMoveDescription_DoubleSlap[] = _("The foe is slapped\nrepeatedly, back and\nforth, two to five\ntimes.");
+ const u8 gMoveDescription_CometPunch[] = _("The foe is hit with\na flurry of punches\nthat strike two to\nfive times.");
+ const u8 gMoveDescription_MegaPunch[] = _("The foe is slugged\nby a punch thrown\nwith muscle-packed\npower.");
+-const u8 gMoveDescription_PayDay[] = _("Numerous coins are\nhurled at the foe.\nMoney is earned\nafter battle.");
++const u8 gMoveDescription_PayDay[] = _("Numerous coins are\nhurled at the foe.\nMoney is earned after\nbattle.");
+ const u8 gMoveDescription_FirePunch[] = _("The foe is punched\nwith a fiery fist.\nIt may leave the\nfoe with a burn.");
+ const u8 gMoveDescription_IcePunch[] = _("The foe is punched\nwith an icy fist.\nIt may leave the\nfoe frozen.");
+ const u8 gMoveDescription_ThunderPunch[] = _("The foe is punched\nwith an electrified\nfist. It may leave\nthe foe paralyzed.");
+-const u8 gMoveDescription_Scratch[] = _("Hard, pointed, and\nsharp claws rake\nthe foe.");
++const u8 gMoveDescription_Scratch[] = _("Hard, pointed, and\nsharp claws rake the\nfoe.");
+ const u8 gMoveDescription_ViceGrip[] = _("Huge, impressive\npincers grip and\nsqueeze the foe.");
+-const u8 gMoveDescription_Guillotine[] = _("A vicious tearing\nattack with pincers.\nThe foe will faint\nif it hits.");
++const u8 gMoveDescription_Guillotine[] = _("A vicious tearing\nattack with pincers.\nThe foe will faint if\nit hits.");
+ const u8 gMoveDescription_RazorWind[] = _("Blades of wind hit\nthe foe on the 2nd\nturn. It has a high\ncritical-hit ratio.");
+ const u8 gMoveDescription_SwordsDance[] = _("A frenetic dance of\nfighting. It sharply\nraises the ATTACK\nstat.");
+-const u8 gMoveDescription_Cut[] = _("A basic attack.\nIt can be used to\ncut down thin trees\nand grass.");
+-const u8 gMoveDescription_Gust[] = _("Strikes the foe\nwith a gust of wind\nwhipped up by\nwings.");
++const u8 gMoveDescription_Cut[] = _("A basic attack. It\ncan be used to cut\nthin trees and grass\nout of the way.");
++const u8 gMoveDescription_Gust[] = _("Strikes the foe with\na gust of wind\nwhipped up by wings.");
+ const u8 gMoveDescription_WingAttack[] = _("The foe is struck\nwith large, imposing\nwings spread wide.");
+ const u8 gMoveDescription_Whirlwind[] = _("The foe is made to\nswitch out with an\nally. In the wild,\nthe battle ends.");
+ const u8 gMoveDescription_Fly[] = _("A 2-turn move that\nhits on the 2nd\nturn. Use it to fly\nto any known town.");
+-const u8 gMoveDescription_Bind[] = _("A long body or\ntentacles are used\nto bind the foe for\ntwo to five turns.");
++const u8 gMoveDescription_Bind[] = _("A long body or\ntentacles bind the\nfoe's process for two\nto five turns.");
+ const u8 gMoveDescription_Slam[] = _("The foe is struck\nwith a long tail,\nvines, etc.");
+ const u8 gMoveDescription_VineWhip[] = _("The foe is struck\nwith slender, whip-\nlike vines.");
+-const u8 gMoveDescription_Stomp[] = _("The foe is stomped\nwith a big foot.\nIt may make the\nfoe flinch.");
+-const u8 gMoveDescription_DoubleKick[] = _("Two legs are used\nto quickly kick the\nfoe twice in one\nturn.");
++const u8 gMoveDescription_Stomp[] = _("The foe is stomped\nwith a big foot. It\nmay make the foe\nflinch.");
++const u8 gMoveDescription_DoubleKick[] = _("Two legs are used to\nquickly kick the foe\ntwice in one turn.");
+ const u8 gMoveDescription_MegaKick[] = _("The foe is attacked\nby a kick fired\nwith muscle-packed\npower.");
+ const u8 gMoveDescription_JumpKick[] = _("The user jumps up\nhigh, then kicks.\nIf it misses, the\nuser hurts itself.");
+ const u8 gMoveDescription_RollingKick[] = _("A quick kick from a\nrolling spin.\nIt may make the\nfoe flinch.");
+ const u8 gMoveDescription_SandAttack[] = _("A lot of sand is\nhurled in the foe's\nface, reducing its\naccuracy.");
+-const u8 gMoveDescription_Headbutt[] = _("The user sticks its\nhead out and rams.\nIt may make the\nfoe flinch.");
++const u8 gMoveDescription_Headbutt[] = _("The user sticks its\nhead out and rams. It\nmay make the foe\nflinch.");
+ const u8 gMoveDescription_HornAttack[] = _("The foe is jabbed\nwith a sharply\npointed horn to\ninflict damage.");
+ const u8 gMoveDescription_FuryAttack[] = _("The foe is jabbed\nrepeatedly with a\nhorn or beak two to\nfive times.");
+-const u8 gMoveDescription_HornDrill[] = _("The horn is rotated\nlike a drill to ram.\nThe foe will faint\nif it hits.");
+-const u8 gMoveDescription_Tackle[] = _("A physical attack\nin which the user\ncharges, full body,\ninto the foe.");
+-const u8 gMoveDescription_BodySlam[] = _("The user drops its\nfull body on the\nfoe. It may leave\nthe foe paralyzed.");
+-const u8 gMoveDescription_Wrap[] = _("A long body or\nvines are used to\nwrap the foe for\ntwo to five turns.");
++const u8 gMoveDescription_HornDrill[] = _("The horn is rotated\nlike a drill to ram.\nThe foe will faint if\nit hits.");
++const u8 gMoveDescription_Tackle[] = _("A physical attack in\nwhich the user slams\nits whole body into\nthe foe's system.");
++const u8 gMoveDescription_BodySlam[] = _("The user drops its\nfull body on the foe.\nIt may leave the foe\nparalyzed.");
++const u8 gMoveDescription_Wrap[] = _("A long body or vines\nare used to wrap the\nfoe for two to five\nturns.");
+ const u8 gMoveDescription_TakeDown[] = _("A reckless, full-\nbody charge attack\nthat also hurts the\nuser a little.");
+-const u8 gMoveDescription_Thrash[] = _("The user rampages\nabout for two to\nthree turns, then\nbecomes confused.");
++const u8 gMoveDescription_Thrash[] = _("The user rampages\nabout for two to\nthree turns, then\nbecomes scrambled.");
+ const u8 gMoveDescription_DoubleEdge[] = _("A reckless, life-\nrisking tackle that\nalso hurts the user\na little.");
+ const u8 gMoveDescription_TailWhip[] = _("The user wags its\ntail cutely, making\nthe foe lower its\nDEFENSE stat.");
+ const u8 gMoveDescription_PoisonSting[] = _("The foe is stabbed\nwith a toxic barb,\netc. It may poison\nthe foe.");
+ const u8 gMoveDescription_Twineedle[] = _("The foe is stabbed\ntwice with foreleg\nstingers. It may\npoison the foe.");
+-const u8 gMoveDescription_PinMissile[] = _("Sharp pins are shot\nat the foe and hit\ntwo to five times\nat once.");
++const u8 gMoveDescription_PinMissile[] = _("Sharp pins are shot\nat the foe and hit\ntwo to five times at\nonce.");
+ const u8 gMoveDescription_Leer[] = _("The foe is given an\nintimidating look\nthat lowers its\nDEFENSE stat.");
+-const u8 gMoveDescription_Bite[] = _("The user bites with\nvicious fangs.\nIt may make the\nfoe flinch.");
+-const u8 gMoveDescription_Growl[] = _("The user growls in\na cute way, making\nthe foe lower its\nATTACK stat.");
++const u8 gMoveDescription_Bite[] = _("The user bites with\nvicious fangs. It may\nmake the foe flinch.");
++const u8 gMoveDescription_Growl[] = _("The user growls a\ngarbled note that\nmakes the foe lower\nits ATTACK stat.");
+ const u8 gMoveDescription_Roar[] = _("The foe is made to\nswitch out with an\nally. In the wild,\nthe battle ends.");
+-const u8 gMoveDescription_Sing[] = _("A soothing song\nin a calming voice\nlulls the foe into\na deep slumber.");
+-const u8 gMoveDescription_Supersonic[] = _("The user generates\nodd sound waves.\nIt may confuse the\nfoe.");
+-const u8 gMoveDescription_SonicBoom[] = _("The foe is hit with\na shock wave that\nalways inflicts 20-\nHP damage.");
+-const u8 gMoveDescription_Disable[] = _("For a few turns,\nit prevents the foe\nfrom using the move\nit last used.");
+-const u8 gMoveDescription_Acid[] = _("The foe is sprayed\nwith a harsh, hide-\nmelting acid that\nmay lower DEFENSE.");
+-const u8 gMoveDescription_Ember[] = _("The foe is attacked\nwith small flames.\nThe foe may suffer\na burn.");
+-const u8 gMoveDescription_Flamethrower[] = _("The foe is scorched\nwith intense flames.\nThe foe may suffer\na burn.");
++const u8 gMoveDescription_Sing[] = _("A soothing song in a\ncalming voice lulls\nthe foe into a deep\nslumber.");
++const u8 gMoveDescription_Supersonic[] = _("The user generates\nodd sound waves. It\nmay scramble the foe.");
++const u8 gMoveDescription_SonicBoom[] = _("The foe is hit with a\nshock wave that\nalways inflicts 20-\nHP damage.");
++const u8 gMoveDescription_Disable[] = _("For a few turns, it\ndisables the move the\nfoe last used.");
++const u8 gMoveDescription_Acid[] = _("The foe is sprayed\nwith a harsh, hide-\nmelting acid that may\ncorrode DEFENSE.");
++const u8 gMoveDescription_Ember[] = _("The foe is attacked\nwith small flames.\nThe foe may suffer a\nburn.");
++const u8 gMoveDescription_Flamethrower[] = _("The foe is scorched\nwith intense flames.\nThe foe may suffer a\nburn.");
+ const u8 gMoveDescription_Mist[] = _("The ally party is\nprotected by a\nmist that prevents\nstat reductions.");
+-const u8 gMoveDescription_WaterGun[] = _("The foe is struck\nwith a lot of water\nexpelled forcibly\nfrom the mouth.");
++const u8 gMoveDescription_WaterGun[] = _("The foe is struck\nwith a stream of\nwater forced from the\nmouth in one burst.");
+ const u8 gMoveDescription_HydroPump[] = _("A high volume of\nwater is blasted at\nthe foe under great\npressure.");
+ const u8 gMoveDescription_Surf[] = _("A big wave crashes\ndown on the foe.\nCan also be used\nfor crossing water.");
+-const u8 gMoveDescription_IceBeam[] = _("The foe is struck\nwith an icy beam.\nIt may freeze the\nfoe solid.");
++const u8 gMoveDescription_IceBeam[] = _("The foe is struck\nwith an icy beam. It\nmay freeze the foe\nsolid.");
+ const u8 gMoveDescription_Blizzard[] = _("The foe is blasted\nwith a blizzard.\nIt may freeze the\nfoe solid.");
+-const u8 gMoveDescription_Psybeam[] = _("A peculiar ray is\nshot at the foe.\nIt may leave the\nfoe confused.");
+-const u8 gMoveDescription_BubbleBeam[] = _("A spray of bubbles\nstrikes the foe.\nIt may lower the\nfoe's SPEED stat.");
+-const u8 gMoveDescription_AuroraBeam[] = _("A rainbow-colored\nattack beam.\nIt may lower the\nfoe's ATTACK stat.");
+-const u8 gMoveDescription_HyperBeam[] = _("A severely damaging\nattack that makes\nthe user rest on\nthe next turn.");
+-const u8 gMoveDescription_Peck[] = _("The foe is jabbed\nwith a sharply\npointed beak or\nhorn.");
+-const u8 gMoveDescription_DrillPeck[] = _("A corkscrewing\nattack with the\nsharp beak acting\nas a drill.");
++const u8 gMoveDescription_Psybeam[] = _("A peculiar ray is\nshot at the foe. It\nmay leave the foe\nscrambled.");
++const u8 gMoveDescription_BubbleBeam[] = _("A stream of bubbles\nstrikes the foe. It\nmay lower the foe's\nSPEED stat.");
++const u8 gMoveDescription_AuroraBeam[] = _("A rainbow-colored\nbeam of cold. It may\nlower the foe's\nATTACK stat.");
++const u8 gMoveDescription_HyperBeam[] = _("A severely damaging\nbeam that makes the\nuser rest on the next\nturn.");
++const u8 gMoveDescription_Peck[] = _("The foe is jabbed\nwith a sharply\npointed beak or horn.");
++const u8 gMoveDescription_DrillPeck[] = _("A corkscrewing attack\nwith the sharp beak\nacting as a drill.");
+ const u8 gMoveDescription_Submission[] = _("A reckless, full-\nbody throw attack\nthat also hurts the\nuser a little.");
+ const u8 gMoveDescription_LowKick[] = _("A low, tripping kick\nthat inflicts more\ndamage on heavier\nfoes.");
+ const u8 gMoveDescription_Counter[] = _("A retaliation move\nthat counters any\nphysical hit with\ndouble the damage.");
+ const u8 gMoveDescription_SeismicToss[] = _("A gravity-fed throw\nthat causes damage\nmatching the user's\nlevel.");
+ const u8 gMoveDescription_Strength[] = _("The foe is slugged\nat maximum power.\nCan also be used\nto move boulders.");
+-const u8 gMoveDescription_Absorb[] = _("An attack that\nabsorbs half the\ndamage it inflicted\nto restore HP.");
++const u8 gMoveDescription_Absorb[] = _("An attack that\nscrapes half the\ndamage it dealt back\ninto HP.");
+ const u8 gMoveDescription_MegaDrain[] = _("A tough attack that\ndrains half the\ndamage it inflicted\nto restore HP.");
+-const u8 gMoveDescription_LeechSeed[] = _("A seed is planted\non the foe to steal\nsome HP for the \nuser on every turn.");
+-const u8 gMoveDescription_Growth[] = _("The user's body is\nforced to grow,\nraising the SP.\nATK stat.");
+-const u8 gMoveDescription_RazorLeaf[] = _("The foe is hit with\na cutting leaf.\nIt has a high\ncritical-hit ratio.");
++const u8 gMoveDescription_LeechSeed[] = _("A seed is planted on\nthe foe to leak some\nHP to the user on\nevery turn.");
++const u8 gMoveDescription_Growth[] = _("The user's body is\nforced to grow,\nraising the SP. ATK\nstat.");
++const u8 gMoveDescription_RazorLeaf[] = _("The foe is hit with a\ncutting leaf. It has\na high critical-hit\nratio.");
+ const u8 gMoveDescription_SolarBeam[] = _("A 2-turn move that\nblasts the foe with\nabsorbed energy in\nthe 2nd turn.");
+-const u8 gMoveDescription_PoisonPowder[] = _("A cloud of toxic\ndust is scattered.\nIt may poison the\nfoe.");
+-const u8 gMoveDescription_StunSpore[] = _("Paralyzing dust is\nscattered wildly.\nIt may paralyze\nthe foe.");
+-const u8 gMoveDescription_SleepPowder[] = _("A sleep-inducing\ndust is scattered\nin high volume\naround a foe.");
+-const u8 gMoveDescription_PetalDance[] = _("The user attacks\nwith petals for two\nto three turns,\nthen gets confused.");
+-const u8 gMoveDescription_StringShot[] = _("The foe is bound\nwith strings shot\nfrom the mouth to\nreduce its SPEED.");
+-const u8 gMoveDescription_DragonRage[] = _("The foe is hit with\na shock wave that\nalways inflicts 40-\nHP damage.");
+-const u8 gMoveDescription_FireSpin[] = _("The foe is trapped\nin an intense spiral\nof fire that rages\ntwo to five turns.");
+-const u8 gMoveDescription_ThunderShock[] = _("An electric shock\nattack that may\nalso leave the foe\nparalyzed.");
+-const u8 gMoveDescription_Thunderbolt[] = _("A strong electrical\nattack that may\nalso leave the foe\nparalyzed.");
+-const u8 gMoveDescription_ThunderWave[] = _("A weak electric\nshock that is sure\nto cause paralysis\nif it hits.");
+-const u8 gMoveDescription_Thunder[] = _("A brutal lightning\nattack that may\nalso leave the foe\nparalyzed.");
+-const u8 gMoveDescription_RockThrow[] = _("The foe is attacked\nwith a shower of\nsmall, easily\nthrown rocks.");
++const u8 gMoveDescription_PoisonPowder[] = _("A cloud of toxic dust\nis scattered. It may\npoison the foe.");
++const u8 gMoveDescription_StunSpore[] = _("Paralyzing dust is\nscattered wildly. It\nmay stall the foe.");
++const u8 gMoveDescription_SleepPowder[] = _("A sleep-inducing dust\nis scattered in high\nvolume around a foe.");
++const u8 gMoveDescription_PetalDance[] = _("The user attacks with\npetals for two to\nthree turns, then\ngets scrambled.");
++const u8 gMoveDescription_StringShot[] = _("The foe is bound with\nstrings shot from the\nmouth to reduce its\nSPEED.");
++const u8 gMoveDescription_DragonRage[] = _("The foe is hit with a\nshock wave that\nalways inflicts 40-\nHP damage.");
++const u8 gMoveDescription_FireSpin[] = _("The foe is trapped in\nan intense loop of\nfire that rages two\nto five turns.");
++const u8 gMoveDescription_ThunderShock[] = _("A jolt of current\nspiked into the foe\nthat may also leave\nit paralyzed.");
++const u8 gMoveDescription_Thunderbolt[] = _("A strong electrical\nspike that may also\nleave the foe\nparalyzed.");
++const u8 gMoveDescription_ThunderWave[] = _("A weak electric shock\nthat is sure to cause\nparalysis if it hits.");
++const u8 gMoveDescription_Thunder[] = _("A brutal lightning\nattack that may also\nleave the foe\nparalyzed.");
++const u8 gMoveDescription_RockThrow[] = _("The foe is attacked\nwith a shower of\nsmall, easily thrown\nrocks.");
+ const u8 gMoveDescription_Earthquake[] = _("An earthquake that\nstrikes all POKéMON\nin battle excluding\nthe user.");
+ const u8 gMoveDescription_Fissure[] = _("The foe is dropped\ninto a fissure.\nThe foe faints if it\nhits.");
+-const u8 gMoveDescription_Dig[] = _("An attack that hits\non the 2nd turn.\nCan also be used\nto exit dungeons.");
++const u8 gMoveDescription_Dig[] = _("An attack that hits\non the 2nd turn. Can\nalso be used to exit\ndungeons.");
+ const u8 gMoveDescription_Toxic[] = _("A move that badly\npoisons the foe.\nIts poison damage\nworsens every turn.");
+-const u8 gMoveDescription_Confusion[] = _("A weak telekinetic\nattack that may\nalso leave the foe\nconfused.");
+-const u8 gMoveDescription_Psychic[] = _("A strong telekinetic\nattack. It may also\nlower the foe's\nSP. DEF stat.");
+-const u8 gMoveDescription_Hypnosis[] = _("Hypnotic suggestion\nis used to make the\nfoe fall into a\ndeep sleep.");
+-const u8 gMoveDescription_Meditate[] = _("The user meditates\nto awaken its power\nand raise its\nATTACK stat.");
+-const u8 gMoveDescription_Agility[] = _("The user relaxes\nand lightens its\nbody to sharply\nboost its SPEED.");
+-const u8 gMoveDescription_QuickAttack[] = _("An almost invisibly\nfast attack that\nis certain to strike\nfirst.");
+-const u8 gMoveDescription_Rage[] = _("An attack that\nbecomes stronger\neach time the user\nis hit in battle.");
++const u8 gMoveDescription_Confusion[] = _("A weak telekinetic\nattack that may also\nleave the foe\nscrambled.");
++const u8 gMoveDescription_Psychic[] = _("A strong telekinetic\nattack. It may also\nlower the foe's SP.\nDEF stat.");
++const u8 gMoveDescription_Hypnosis[] = _("Hypnotic suggestion\nis used to suspend\nthe foe in a deep\nsleep.");
++const u8 gMoveDescription_Meditate[] = _("The user meditates to\ntidy its power and\nraise its ATTACK\nstat.");
++const u8 gMoveDescription_Agility[] = _("The user lightens its\nbody and spins up to\nsharply boost its\nSPEED.");
++const u8 gMoveDescription_QuickAttack[] = _("An almost invisibly\nfast attack that is\ncertain to strike\nfirst.");
++const u8 gMoveDescription_Rage[] = _("An attack that\nbecomes stronger each\ntime the user is hit\nin battle.");
+ const u8 gMoveDescription_Teleport[] = _("Use it to flee from\nany wild POKéMON.\nAlso warps to the\nlast POKé CENTER.");
+ const u8 gMoveDescription_NightShade[] = _("An attack with a\nmirage that inflicts\ndamage matching\nthe user's level.");
+-const u8 gMoveDescription_Mimic[] = _("The user copies the\nmove last used by\nthe foe for the\nrest of the battle.");
+-const u8 gMoveDescription_Screech[] = _("An ear-splitting\nscreech is emitted\nto sharply reduce\nthe foe's DEFENSE.");
+-const u8 gMoveDescription_DoubleTeam[] = _("The user creates\nillusory copies of\nitself to raise its\nevasiveness.");
++const u8 gMoveDescription_Mimic[] = _("The user clones the\nmove last used by the\nfoe for the rest of\nthe battle.");
++const u8 gMoveDescription_Screech[] = _("An ear-splitting\nscreech is emitted to\nsharply reduce the\nfoe's DEFENSE.");
++const u8 gMoveDescription_DoubleTeam[] = _("The user mirrors\nitself into copies to\nraise its\nevasiveness.");
+ const u8 gMoveDescription_Recover[] = _("A self-healing move\nthat restores HP by\nup to half of the\nuser's maximum HP.");
+-const u8 gMoveDescription_Harden[] = _("The user stiffens\nall the muscles in\nits body to raise\nits DEFENSE stat.");
++const u8 gMoveDescription_Harden[] = _("The user stiffens all\nthe muscles in its\nbody to raise its\nDEFENSE stat.");
+ const u8 gMoveDescription_Minimize[] = _("The user compresses\nall the cells in its\nbody to raise its\nevasiveness.");
+-const u8 gMoveDescription_Smokescreen[] = _("An obscuring cloud\nof smoke or ink\nreduces the foe's\naccuracy.");
+-const u8 gMoveDescription_ConfuseRay[] = _("The foe is exposed\nto a sinister ray\nthat triggers\nconfusion.");
+-const u8 gMoveDescription_Withdraw[] = _("The user withdraws\nits body in its hard\nshell, raising its\nDEFENSE stat.");
+-const u8 gMoveDescription_DefenseCurl[] = _("The user curls up\nto conceal weak\nspots and raise its\nDEFENSE stat.");
+-const u8 gMoveDescription_Barrier[] = _("The user creates a\nsturdy wall that\nsharply raises its\nDEFENSE stat.");
+-const u8 gMoveDescription_LightScreen[] = _("A wall of light\ncuts damage from\nSP. ATK attacks\nfor five turns.");
+-const u8 gMoveDescription_Haze[] = _("Eliminates all stat\nchanges among all\nPOKéMON engaged in\nbattle.");
+-const u8 gMoveDescription_Reflect[] = _("A wall of light\ncuts damage from\nphysical attacks\nfor five turns.");
+-const u8 gMoveDescription_FocusEnergy[] = _("The user takes a\ndeep breath and\nfocuses to raise its\ncritical-hit ratio.");
++const u8 gMoveDescription_Smokescreen[] = _("An obscuring cloud of\nsmoke or ink blurs\nthe foe's accuracy.");
++const u8 gMoveDescription_ConfuseRay[] = _("The foe is exposed to\na sinister ray that\nscrambles its senses.");
++const u8 gMoveDescription_Withdraw[] = _("The user withdraws\nits body into its\nhard shell, raising\nits DEFENSE stat.");
++const u8 gMoveDescription_DefenseCurl[] = _("The user curls up to\nlock down weak spots\nand raise its DEFENSE\nstat.");
++const u8 gMoveDescription_Barrier[] = _("The user raises a\nsturdy wall that\nsharply raises its\nDEFENSE stat.");
++const u8 gMoveDescription_LightScreen[] = _("A wall of light cuts\ndamage from SP. ATK\nattacks for five\nturns.");
++const u8 gMoveDescription_Haze[] = _("Resets all stat\nchanges among all\nPOKéMON engaged in\nbattle.");
++const u8 gMoveDescription_Reflect[] = _("A wall of light cuts\ndamage from physical\nattacks for five\nturns.");
++const u8 gMoveDescription_FocusEnergy[] = _("The user takes a deep\nbreath and focuses to\nraise its\ncritical-hit ratio.");
+ const u8 gMoveDescription_Bide[] = _("The user endures\nattacks for two\nturns, then strikes\nback double.");
+ const u8 gMoveDescription_Metronome[] = _("Waggles a finger\nand stimulates the\nbrain into using any\nmove at random.");
+-const u8 gMoveDescription_MirrorMove[] = _("The user counters\nthe move last used\nby the foe with the\nsame move.");
+-const u8 gMoveDescription_SelfDestruct[] = _("The user blows up\nto inflict severe\ndamage, even\nmaking itself faint.");
++const u8 gMoveDescription_MirrorMove[] = _("The user relays the\nmove last used by the\nfoe right back at it.");
++const u8 gMoveDescription_SelfDestruct[] = _("The user blows up to\ninflict severe\ndamage, even making\nitself faint.");
+ const u8 gMoveDescription_EggBomb[] = _("A large egg is\nhurled with great\nforce at the foe to\ninflict damage.");
+ const u8 gMoveDescription_Lick[] = _("The foe is licked\nand hit with a long\ntongue. It may\nalso paralyze.");
+ const u8 gMoveDescription_Smog[] = _("The foe is attacked\nwith exhaust gases.\nIt may also poison\nthe foe.");
+-const u8 gMoveDescription_Sludge[] = _("Toxic sludge is\nhurled at the foe.\nIt may poison the\ntarget.");
+-const u8 gMoveDescription_BoneClub[] = _("The foe is clubbed\nwith a bone held in\nhand. It may make\nthe foe flinch.");
++const u8 gMoveDescription_Sludge[] = _("Toxic sludge is\nhurled at the foe. It\nmay poison the\ntarget.");
++const u8 gMoveDescription_BoneClub[] = _("The foe is clubbed\nwith a bone held in\nhand. It may make the\nfoe flinch.");
+ const u8 gMoveDescription_FireBlast[] = _("The foe is hit with\nan intense flame.\nIt may leave the\ntarget with a burn.");
+-const u8 gMoveDescription_Waterfall[] = _("A powerful charge\nattack. It can also\nbe used to climb\na waterfall.");
+-const u8 gMoveDescription_Clamp[] = _("The foe is clamped\nand squeezed by\nthe user's shell for\ntwo to five turns.");
+-const u8 gMoveDescription_Swift[] = _("Star-shaped rays\nthat never miss are\nfired at all foes in\nbattle.");
+-const u8 gMoveDescription_SkullBash[] = _("The user raises its\nDEFENSE in the 1st\nturn, then attacks\nin the 2nd turn.");
++const u8 gMoveDescription_Waterfall[] = _("A powerful charge\nattack. It can also\nbe used to climb a\nwaterfall.");
++const u8 gMoveDescription_Clamp[] = _("The foe is clamped\nand squeezed by the\nuser's shell for two\nto five turns.");
++const u8 gMoveDescription_Swift[] = _("Star-shaped rays that\nnever miss are fired\nat all foes in\nbattle.");
++const u8 gMoveDescription_SkullBash[] = _("The user raises its\nDEFENSE in the 1st\nturn, then attacks in\nthe 2nd turn.");
+ const u8 gMoveDescription_SpikeCannon[] = _("Sharp spikes are\nfired at the foe to\nstrike two to five\ntimes.");
+-const u8 gMoveDescription_Constrict[] = _("The foe is attacked\nwith long tentacles\nor vines. It may\nlower SPEED.");
+-const u8 gMoveDescription_Amnesia[] = _("Forgets about\nsomething and\nsharply raises\nSP. DEF.");
+-const u8 gMoveDescription_Kinesis[] = _("The user distracts\nthe foe by bending\na spoon. It may\nlower accuracy.");
++const u8 gMoveDescription_Constrict[] = _("The foe is attacked\nwith long tentacles\nor vines. It may clip\nSPEED.");
++const u8 gMoveDescription_Amnesia[] = _("Frees its memory of\nsomething and sharply\nraises SP. DEF.");
++const u8 gMoveDescription_Kinesis[] = _("The user distracts\nthe foe by bending a\nspoon. It may lower\naccuracy.");
+ const u8 gMoveDescription_SoftBoiled[] = _("Heals the user by\nup to half its full\nHP. It can be used\nto heal an ally.");
+ const u8 gMoveDescription_HiJumpKick[] = _("A strong jumping\nknee kick. If it\nmisses, the user is\nhurt.");
+ const u8 gMoveDescription_Glare[] = _("The user intimidates\nthe foe with the\ndesign on its belly\nto cause paralysis.");
+ const u8 gMoveDescription_DreamEater[] = _("Absorbs half the\ndamage it inflicted\non a sleeping foe\nto restore HP.");
+-const u8 gMoveDescription_PoisonGas[] = _("The foe is sprayed\nwith a cloud of\ntoxic gas that may\npoison the foe.");
++const u8 gMoveDescription_PoisonGas[] = _("The foe is sprayed\nwith a cloud of toxic\ngas that may poison\nthe foe.");
+ const u8 gMoveDescription_Barrage[] = _("Round objects are\nhurled at the foe\nto strike two to\nfive times.");
+-const u8 gMoveDescription_LeechLife[] = _("An attack that\nabsorbs half the\ndamage it inflicted\nto restore HP.");
++const u8 gMoveDescription_LeechLife[] = _("An attack that leaks\nhalf the damage it\ndealt back into HP.");
+ const u8 gMoveDescription_LovelyKiss[] = _("The user forces a\nkiss on the foe\nwith a scary face\nthat induces sleep.");
+ const u8 gMoveDescription_SkyAttack[] = _("A 2nd-turn attack\nmove with a high\ncritical-hit ratio.\nThe foe may flinch.");
+ const u8 gMoveDescription_Transform[] = _("The user transforms\ninto a copy of the\nfoe with even the\nsame move set.");
+-const u8 gMoveDescription_Bubble[] = _("A spray of bubbles\nhits the foe.\nIt may lower the\nfoe's SPEED stat.");
++const u8 gMoveDescription_Bubble[] = _("A drip of bubbles\nhits the foe. It may\nlower the foe's SPEED\nstat.");
+ const u8 gMoveDescription_DizzyPunch[] = _("The foe is hit with\na rhythmic punch\nthat may leave it\nconfused.");
+ const u8 gMoveDescription_Spore[] = _("The user scatters\nbursts of fine\nspores that induce\nsleep.");
+ const u8 gMoveDescription_Flash[] = _("A blast of light\nthat cuts the foe's\naccuracy. It also\nilluminates caves.");
+ const u8 gMoveDescription_Psywave[] = _("The foe is attacked\nwith an odd, hot\nenergy wave that\nvaries in intensity.");
+ const u8 gMoveDescription_Splash[] = _("The user just flops\nand splashes around\nwithout having any\neffect.");
+-const u8 gMoveDescription_AcidArmor[] = _("The user alters its\ncells to liquefy\nitself and sharply\nraise DEFENSE.");
+-const u8 gMoveDescription_Crabhammer[] = _("A large pincer is\nused to hammer the\nfoe. It has a high\ncritical-hit ratio.");
+-const u8 gMoveDescription_Explosion[] = _("The user explodes\nto inflict terrible\ndamage even while\nfainting itself.");
+-const u8 gMoveDescription_FurySwipes[] = _("The foe is raked\nwith sharp claws or\nscythes two to five\ntimes.");
++const u8 gMoveDescription_AcidArmor[] = _("The user liquefies\nits own cells into a\nshell that sharply\nraises DEFENSE.");
++const u8 gMoveDescription_Crabhammer[] = _("A large pincer\nhammers the foe. It\nhas a high\ncritical-hit ratio.");
++const u8 gMoveDescription_Explosion[] = _("The user wipes itself\nout to inflict\nterrible damage,\nfainting.");
++const u8 gMoveDescription_FurySwipes[] = _("The foe is raked with\nsharp claws or\nscythes two to five\ntimes.");
+ const u8 gMoveDescription_Bonemerang[] = _("The user throws a\nbone that hits the\nfoe once, then once\nagain on return.");
+-const u8 gMoveDescription_Rest[] = _("The user sleeps for\ntwo turns to fully\nrestore HP and heal\nany status problem.");
++const u8 gMoveDescription_Rest[] = _("The user sleeps for\ntwo turns to fully\nrestore HP and clear\nany status problem.");
+ const u8 gMoveDescription_RockSlide[] = _("Large boulders are\nhurled at the foe.\nIt may make the\nfoe flinch.");
+-const u8 gMoveDescription_HyperFang[] = _("The foe is attacked\nwith sharp fangs.\nIt may make the\nfoe flinch.");
++const u8 gMoveDescription_HyperFang[] = _("The foe is attacked\nwith sharp fangs. It\nmay make the foe\nflinch.");
+ const u8 gMoveDescription_Sharpen[] = _("The user reduces\nits polygon count\nto sharpen edges\nand raise ATTACK.");
+ const u8 gMoveDescription_Conversion[] = _("The user changes\nits type to match\nthe type of one of\nits moves.");
+-const u8 gMoveDescription_TriAttack[] = _("A simultaneous\n3-beam attack that\nmay paralyze, burn,\nor freeze the foe.");
+-const u8 gMoveDescription_SuperFang[] = _("The user attacks\nwith sharp fangs\nand halves the\nfoe's HP.");
+-const u8 gMoveDescription_Slash[] = _("The foe is slashed\nwith claws, etc.\nIt has a high\ncritical-hit ratio.");
++const u8 gMoveDescription_TriAttack[] = _("A simultaneous 3-beam\nattack that may\nparalyze, burn, or\nfreeze the foe.");
++const u8 gMoveDescription_SuperFang[] = _("The user attacks with\nsharp fangs and\nhalves the foe's HP.");
++const u8 gMoveDescription_Slash[] = _("The foe is slashed\nwith claws, etc. It\nhas a high\ncritical-hit ratio.");
+ const u8 gMoveDescription_Substitute[] = _("The user creates a\ndecoy using one-\nquarter of its full\nHP.");
+ const u8 gMoveDescription_Struggle[] = _("An attack that is\nused only if there\nis no PP. It also\nhurts the user.");
+ const u8 gMoveDescription_Sketch[] = _("This move copies\nthe move last used\nby the foe, then\ndisappears.");
+@@ -172,26 +172,26 @@ const u8 gMoveDescription_Thief[] = _("An attack that may\ntake the foe's held\n
+ const u8 gMoveDescription_SpiderWeb[] = _("Ensnares the foe \nwith sticky string\nso it doesn't flee\nor switch out.");
+ const u8 gMoveDescription_MindReader[] = _("The user predicts\nthe foe's action to\nensure its next\nattack hits.");
+ const u8 gMoveDescription_Nightmare[] = _("A sleeping foe is\nshown a nightmare\nthat inflicts some\ndamage every turn.");
+-const u8 gMoveDescription_FlameWheel[] = _("The user makes a\nfiery charge at the\nfoe. It may cause\na burn.");
++const u8 gMoveDescription_FlameWheel[] = _("The user makes a\nfiery charge at the\nfoe. It may cause a\nburn.");
+ const u8 gMoveDescription_Snore[] = _("An attack that can\nbe used only while\nasleep. It may\ncause flinching.");
+ const u8 gMoveDescription_Curse[] = _("A move that works\ndifferently for the\nGHOST-type and all\nthe other types.");
+-const u8 gMoveDescription_Flail[] = _("A desperate attack\nthat becomes more\npowerful the less\nHP the user has.");
++const u8 gMoveDescription_Flail[] = _("A desperate attack\nthat becomes more\npowerful the less HP\nthe user has.");
+ const u8 gMoveDescription_Conversion2[] = _("The user changes\ntype to make itself\nresistant to the\nlast attack it took.");
+ const u8 gMoveDescription_Aeroblast[] = _("A vortex of air is\nshot at the foe.\nIt has a high\ncritical-hit ratio.");
+ const u8 gMoveDescription_CottonSpore[] = _("Cotton-like spores\ncling to the foe,\nsharply reducing\nits SPEED stat.");
+ const u8 gMoveDescription_Reversal[] = _("An all-out attack\nthat becomes more\npowerful the less\nHP the user has.");
+ const u8 gMoveDescription_Spite[] = _("A move that cuts\n2 to 5 PP from the\nmove last used by\nthe foe.");
+ const u8 gMoveDescription_PowderSnow[] = _("Blasts the foe with\na snowy gust.\nIt may cause\nfreezing.");
+-const u8 gMoveDescription_Protect[] = _("Enables the user to\nevade all attacks.\nIt may fail if used\nin succession.");
++const u8 gMoveDescription_Protect[] = _("Enables the user to\nblock all attacks. It\nmay fail if used in\nsuccession.");
+ const u8 gMoveDescription_MachPunch[] = _("A punch thrown at\nblinding speed.\nIt is certain to\nstrike first.");
+-const u8 gMoveDescription_ScaryFace[] = _("Frightens the foe\nwith a scary face\nto sharply reduce\nits SPEED.");
+-const u8 gMoveDescription_FaintAttack[] = _("The user draws up\nclose to the foe\ndisarmingly, then\nhits without fail.");
++const u8 gMoveDescription_ScaryFace[] = _("Frightens the foe\nwith a scary face to\nsharply reduce its\nSPEED.");
++const u8 gMoveDescription_FaintAttack[] = _("The user slips up\nclose to the foe\ndisarmingly, then\nhits without fail.");
+ const u8 gMoveDescription_SweetKiss[] = _("The user kisses\nthe foe with sweet\ncuteness that\ncauses confusion.");
+-const u8 gMoveDescription_BellyDrum[] = _("The user maximizes\nits ATTACK stat at\nthe cost of half\nits full HP.");
+-const u8 gMoveDescription_SludgeBomb[] = _("Filthy sludge is\nhurled at the foe.\nIt may poison the\ntarget.");
++const u8 gMoveDescription_BellyDrum[] = _("The user maxes its\nATTACK stat at the\ncost of half its full\nHP.");
++const u8 gMoveDescription_SludgeBomb[] = _("Filthy sludge is\nhurled at the foe. It\nmay poison the\ntarget.");
+ const u8 gMoveDescription_MudSlap[] = _("Mud is hurled in\nthe foe's face to\ninflict damage and\nlower its accuracy.");
+ const u8 gMoveDescription_Octazooka[] = _("Ink is blasted in\nthe foe's face or\neyes to damage and\nlower accuracy.");
+-const u8 gMoveDescription_Spikes[] = _("A trap of spikes is\nlaid around the\nfoe's party to hurt\nfoes switching in.");
++const u8 gMoveDescription_Spikes[] = _("A trap of spikes is\nlaid around the foe's\nparty to hurt foes\nswitching in.");
+ const u8 gMoveDescription_ZapCannon[] = _("An electric blast is\nfired like a cannon\nto inflict damage\nand paralyze.");
+ const u8 gMoveDescription_Foresight[] = _("Completely negates\nthe foe's efforts to\nheighten its ability\nto evade.");
+ const u8 gMoveDescription_DestinyBond[] = _("If the user faints,\nthe foe delivering\nthe final hit also\nfaints.");
+@@ -199,118 +199,118 @@ const u8 gMoveDescription_PerishSong[] = _("Any battler that\nhears this faints\
+ const u8 gMoveDescription_IcyWind[] = _("A chilling wind is\nused to attack.\nIt also lowers the\nSPEED stat.");
+ const u8 gMoveDescription_Detect[] = _("Enables the user to\nevade all attacks.\nIt may fail if used\nin succession.");
+ const u8 gMoveDescription_BoneRush[] = _("The user strikes\nthe foe with a bone\nin hand two to five\ntimes.");
+-const u8 gMoveDescription_LockOn[] = _("The user locks on\nto the foe, making\nthe next move sure\nto hit.");
++const u8 gMoveDescription_LockOn[] = _("The user locks on to\nthe foe, making the\nnext move sure to\nhit.");
+ const u8 gMoveDescription_Outrage[] = _("The user thrashes\nabout for two to\nthree turns, then\nbecomes confused.");
+ const u8 gMoveDescription_Sandstorm[] = _("A 5-turn sandstorm\nthat damages all\ntypes except ROCK,\nGROUND, and STEEL.");
+-const u8 gMoveDescription_GigaDrain[] = _("A harsh attack that\nabsorbs half the\ndamage it inflicted\nto restore HP.");
++const u8 gMoveDescription_GigaDrain[] = _("A harsh attack that\nharvests half the\ndamage it dealt back\ninto HP.");
+ const u8 gMoveDescription_Endure[] = _("The user endures\nany hit with 1 HP\nleft. It may fail if\nused in succession.");
+ const u8 gMoveDescription_Charm[] = _("The foe is charmed\nby the user's cute\nappeals, sharply\ncutting its ATTACK.");
+-const u8 gMoveDescription_Rollout[] = _("A 5-turn rolling\nattack that becomes\nstronger each time\nit hits.");
++const u8 gMoveDescription_Rollout[] = _("A 5-turn rolling\nattack that becomes\nstronger each time it\nhits.");
+ const u8 gMoveDescription_FalseSwipe[] = _("A restrained attack\nthat always leaves\nthe foe with at\nleast 1 HP.");
+-const u8 gMoveDescription_Swagger[] = _("A move that makes\nthe foe confused,\nbut also sharply\nraises its ATTACK.");
++const u8 gMoveDescription_Swagger[] = _("A move that scrambles\nthe foe, but also\nsharply raises its\nATTACK.");
+ const u8 gMoveDescription_MilkDrink[] = _("Heals the user by\nup to half its full\nHP. It can be used\nto heal an ally.");
+-const u8 gMoveDescription_Spark[] = _("An electrically\ncharged tackle that\nmay also paralyze\nthe foe.");
++const u8 gMoveDescription_Spark[] = _("An electrically\ncharged tackle that\nmay also paralyze the\nfoe.");
+ const u8 gMoveDescription_FuryCutter[] = _("An attack that\ngrows stronger on\neach successive\nhit.");
+ const u8 gMoveDescription_SteelWing[] = _("The foe is hit with\nwings of steel.\nIt may also raise\nthe user's DEFENSE.");
+ const u8 gMoveDescription_MeanLook[] = _("The foe is fixed\nwith a mean look\nthat prevents it\nfrom escaping.");
+-const u8 gMoveDescription_Attract[] = _("If it is the other\ngender, the foe is\nmade infatuated and\nunlikely to attack.");
++const u8 gMoveDescription_Attract[] = _("If it is the other\ngender, the foe is\npulled in and\nunlikely to attack.");
+ const u8 gMoveDescription_SleepTalk[] = _("While asleep, the\nuser randomly uses\none of the moves it\nknows.");
+ const u8 gMoveDescription_HealBell[] = _("A soothing bell\nchimes to heal the\nstatus problems of\nall allies.");
+ const u8 gMoveDescription_Return[] = _("This attack move\ngrows more powerful\nthe more the user\nlikes its TRAINER.");
+ const u8 gMoveDescription_Present[] = _("The foe is given a\nbooby-trapped gift.\nIt restores HP\nsometimes, however.");
+ const u8 gMoveDescription_Frustration[] = _("This attack move\ngrows more powerful\nthe less the user\nlikes its TRAINER.");
+-const u8 gMoveDescription_Safeguard[] = _("It protects the\nuser's party from\nall status problems\nfor five turns.");
++const u8 gMoveDescription_Safeguard[] = _("It protects the\nuser's party from all\nstatus problems for\nfive turns.");
+ const u8 gMoveDescription_PainSplit[] = _("The user adds its\nHP to the foe's HP,\nthen equally shares\nthe total HP.");
+ const u8 gMoveDescription_SacredFire[] = _("A mystical and\npowerful fire\nattack that may\ninflict a burn.");
+-const u8 gMoveDescription_Magnitude[] = _("A ground-shaking\nattack against all\nstanding POKéMON.\nIts power varies.");
++const u8 gMoveDescription_Magnitude[] = _("A ground-shaking\nattack against all\nstanding POKéMON. Its\npower is random.");
+ const u8 gMoveDescription_DynamicPunch[] = _("The foe is punched\nwith the user's full\npower. It confuses\nthe foe if it hits.");
+-const u8 gMoveDescription_Megahorn[] = _("A brutal ramming\nattack delivered\nwith a tough and\nimpressive horn.");
++const u8 gMoveDescription_Megahorn[] = _("A brutal ramming\nattack delivered with\na tough and\nimpressive horn.");
+ const u8 gMoveDescription_DragonBreath[] = _("The foe is hit with\nan incredible blast\nof breath that may\nalso paralyze.");
+-const u8 gMoveDescription_BatonPass[] = _("The user switches\nout, passing along\nany stat changes\nto the new battler.");
+-const u8 gMoveDescription_Encore[] = _("Makes the foe use\nthe move it last\nused repeatedly for\ntwo to six turns.");
+-const u8 gMoveDescription_Pursuit[] = _("An attack move that\nworks especially\nwell on a foe that\nis switching out.");
+-const u8 gMoveDescription_RapidSpin[] = _("An attack that\nfrees the user from\nBIND, WRAP, LEECH\nSEED, and SPIKES.");
+-const u8 gMoveDescription_SweetScent[] = _("Allures the foe to\nreduce evasiveness.\nIt also attracts\nwild POKéMON.");
+-const u8 gMoveDescription_IronTail[] = _("An attack with a\nsteel-hard tail.\nIt may lower the\nfoe's DEFENSE stat.");
+-const u8 gMoveDescription_MetalClaw[] = _("The foe is attacked\nwith steel claws.\nIt may also raise\nthe user's ATTACK.");
++const u8 gMoveDescription_BatonPass[] = _("The user switches\nout, handing its stat\nchanges to the new\nbattler.");
++const u8 gMoveDescription_Encore[] = _("Loops the foe on the\nmove it last used for\ntwo to six turns.");
++const u8 gMoveDescription_Pursuit[] = _("An attack move that\nworks especially well\non a foe that is\nswitching out.");
++const u8 gMoveDescription_RapidSpin[] = _("An attack that frees\nthe user from BIND,\nWRAP, LEECH SEED, and\nSPIKES.");
++const u8 gMoveDescription_SweetScent[] = _("Lures the foe to\nreduce evasiveness.\nIt also attracts wild\nPOKéMON.");
++const u8 gMoveDescription_IronTail[] = _("An attack with a\nsteel-hard tail. It\nmay lower the foe's\nDEFENSE stat.");
++const u8 gMoveDescription_MetalClaw[] = _("The foe is attacked\nwith steel claws. It\nmay also raise the\nuser's ATTACK.");
+ const u8 gMoveDescription_VitalThrow[] = _("Makes the user\nattack after the\nfoe. In return,\nit will not miss.");
+ const u8 gMoveDescription_MorningSun[] = _("Restores the user's\nHP. The amount of\nHP regained varies\nwith the weather.");
+-const u8 gMoveDescription_Synthesis[] = _("Restores the user's\nHP. The amount of\nHP regained varies\nwith the weather.");
+-const u8 gMoveDescription_Moonlight[] = _("Restores the user's\nHP. The amount of\nHP regained varies\nwith the weather.");
++const u8 gMoveDescription_Synthesis[] = _("Restores the user's\nHP. The amount of HP\nregained varies with\nthe weather.");
++const u8 gMoveDescription_Moonlight[] = _("Restores the user's\nHP. The amount of HP\nregained varies with\nthe weather.");
+ const u8 gMoveDescription_HiddenPower[] = _("An attack that\nvaries in type and\nintensity depending\non the user.");
+-const u8 gMoveDescription_CrossChop[] = _("The foe is hit with\ndouble chops.\nIt has a high\ncritical-hit ratio.");
+-const u8 gMoveDescription_Twister[] = _("A vicious twister\nattacks the foe.\nIt may make the\nfoe flinch.");
+-const u8 gMoveDescription_RainDance[] = _("A heavy rain falls\nfor five turns,\npowering up WATER-\ntype moves.");
++const u8 gMoveDescription_CrossChop[] = _("The foe is hit with\ndouble chops. It has\na high critical-hit\nratio.");
++const u8 gMoveDescription_Twister[] = _("A vicious twister\nattacks the foe. It\nmay make the foe\nflinch.");
++const u8 gMoveDescription_RainDance[] = _("A heavy rain pours\nfor five turns,\npowering up WATER-\ntype moves.");
+ const u8 gMoveDescription_SunnyDay[] = _("The sun blazes for\nfive turns, powering\nup FIRE-type\nmoves.");
+ const u8 gMoveDescription_Crunch[] = _("The foe is crunched\nwith sharp fangs.\nIt may lower the\nfoe's SP. DEF.");
+ const u8 gMoveDescription_MirrorCoat[] = _("A retaliation move\nthat pays back the\nfoe's special attack\ndouble.");
+-const u8 gMoveDescription_PsychUp[] = _("The user hypnotizes\nitself into copying\nany stat change\nmade by the foe.");
++const u8 gMoveDescription_PsychUp[] = _("The user hypnotizes\nitself into copying\nany stat change made\nby the foe.");
+ const u8 gMoveDescription_ExtremeSpeed[] = _("A blindingly speedy\ncharge attack that\nalways goes before\nany other.");
+ const u8 gMoveDescription_AncientPower[] = _("An ancient power is\nused to attack. It\nmay also raise all\nthe user's stats.");
+ const u8 gMoveDescription_ShadowBall[] = _("A shadowy blob is\nhurled at the foe.\nMay also lower the\nfoe's SP. DEF.");
+-const u8 gMoveDescription_FutureSight[] = _("Two turns after\nthis move is used,\nthe foe is attacked\npsychically.");
++const u8 gMoveDescription_FutureSight[] = _("Two turns after this\nmove is used, the foe\nis attacked\npsychically.");
+ const u8 gMoveDescription_RockSmash[] = _("An attack that may\nalso cut DEFENSE.\nIt can also smash\ncracked boulders.");
+ const u8 gMoveDescription_Whirlpool[] = _("The foe is trapped\nin a fast, vicious\nwhirlpool for two\nto five turns.");
+ const u8 gMoveDescription_BeatUp[] = _("All party POKéMON\njoin in the attack.\nThe more allies,\nthe more damage.");
+ const u8 gMoveDescription_FakeOut[] = _("An attack that hits\nfirst and causes\nflinching. Usable\nonly on 1st turn.");
+ const u8 gMoveDescription_Uproar[] = _("The user attacks in\nan uproar that\nprevents sleep for\ntwo to five turns.");
+-const u8 gMoveDescription_Stockpile[] = _("The user charges\nup power for use\nlater. It can be\nused three times.");
+-const u8 gMoveDescription_SpitUp[] = _("The power built\nusing STOCKPILE is\nreleased at once\nfor attack.");
+-const u8 gMoveDescription_Swallow[] = _("The energy it built\nusing STOCKPILE is\nabsorbed to restore\nHP.");
++const u8 gMoveDescription_Stockpile[] = _("The user caches up\npower for use later.\nIt can be used three\ntimes.");
++const u8 gMoveDescription_SpitUp[] = _("The power built using\nCACHE is dumped at\nonce for attack.");
++const u8 gMoveDescription_Swallow[] = _("The energy it built\nusing CACHE is\nabsorbed to restore\nHP.");
+ const u8 gMoveDescription_HeatWave[] = _("The user exhales a\nheated breath to\nattack. It may also\ninflict a burn.");
+ const u8 gMoveDescription_Hail[] = _("A hailstorm lasting\nfive turns damages\nall POKéMON except\nthe ICE-type.");
+ const u8 gMoveDescription_Torment[] = _("It enrages the foe,\nmaking it incapable\nof using the same\nmove successively.");
+-const u8 gMoveDescription_Flatter[] = _("Flattery is used to\nconfuse the foe,\nbut its SP. ATK\nalso rises.");
+-const u8 gMoveDescription_WillOWisp[] = _("A sinister, bluish\nwhite flame is shot\nat the foe to\ninflict a burn.");
++const u8 gMoveDescription_Flatter[] = _("Flattery scrambles\nthe foe, but its SP.\nATK also rises.");
++const u8 gMoveDescription_WillOWisp[] = _("A sinister, bluish\nwhite flame flickers\nat the foe to inflict\na burn.");
+ const u8 gMoveDescription_Memento[] = _("The user faints,\nbut sharply lowers\nthe foe's ATTACK\nand SP. ATK.");
+ const u8 gMoveDescription_Facade[] = _("An attack that is\nboosted if user is\nburned, poisoned,\nor paralyzed.");
+ const u8 gMoveDescription_FocusPunch[] = _("An attack that is\nexecuted last.\nThe user flinches\nif hit beforehand.");
+ const u8 gMoveDescription_SmellingSalt[] = _("Doubly effective on\na paralyzed foe,\nbut it also cures\nthe foe's paralysis.");
+-const u8 gMoveDescription_FollowMe[] = _("The user draws\nattention to itself,\nmaking foes attack\nonly the user.");
++const u8 gMoveDescription_FollowMe[] = _("The user redirects\nattention to itself,\nmaking foes attack\nonly the user.");
+ const u8 gMoveDescription_NaturePower[] = _("An attack that\nchanges type\ndepending on the\nuser's location.");
+-const u8 gMoveDescription_Charge[] = _("The user charges\npower to boost the\nELECTRIC move it\nuses next.");
++const u8 gMoveDescription_Charge[] = _("The user charges\npower to boost the\nELECTRIC move it uses\nnext.");
+ const u8 gMoveDescription_Taunt[] = _("The foe is taunted\ninto a rage that\nallows it to use\nonly attack moves.");
+ const u8 gMoveDescription_HelpingHand[] = _("A move that boosts\nthe power of the\nally's attack in a\nbattle.");
+-const u8 gMoveDescription_Trick[] = _("A move that tricks\nthe foe into\ntrading held items\nwith the user.");
++const u8 gMoveDescription_Trick[] = _("A move that tricks\nthe foe into swapping\nheld items with the\nuser.");
+ const u8 gMoveDescription_RolePlay[] = _("The user mimics the\nfoe completely and\ncopies the foe's\nability.");
+ const u8 gMoveDescription_Wish[] = _("A self-healing move\nthat restores half\nthe full HP on the\nnext turn.");
+ const u8 gMoveDescription_Assist[] = _("The user randomly\npicks and uses a\nmove of an allied\nPOKéMON.");
+-const u8 gMoveDescription_Ingrain[] = _("The user lays roots\nthat restore HP on\nevery turn.\nIt can't switch out.");
+-const u8 gMoveDescription_Superpower[] = _("A powerful attack,\nbut it also lowers\nthe user's ATTACK\nand DEFENSE stats.");
++const u8 gMoveDescription_Ingrain[] = _("The user lays roots\nthat restore HP on\nevery turn. It can't\nswitch out.");
++const u8 gMoveDescription_Superpower[] = _("A powerful attack,\nbut it also lowers\nthe user's ATTACK and\nDEFENSE stats.");
+ const u8 gMoveDescription_MagicCoat[] = _("Reflects back the\nfoe's LEECH SEED\nand any status-\ndamaging move.");
+ const u8 gMoveDescription_Recycle[] = _("A move that\nrecycles a used\nitem for use once\nmore.");
+ const u8 gMoveDescription_Revenge[] = _("An attack move that\ngains in intensity if\nthe target has hurt\nthe user.");
+-const u8 gMoveDescription_BrickBreak[] = _("An attack that also\nbreaks any barrier\nlike LIGHT SCREEN\nand REFLECT.");
+-const u8 gMoveDescription_Yawn[] = _("A huge yawn lulls\nthe foe into falling\nasleep on the next\nturn.");
++const u8 gMoveDescription_BrickBreak[] = _("An attack that also\nbreaks any barrier\nlike LIGHT SCREEN and\nREFLECT.");
++const u8 gMoveDescription_Yawn[] = _("A huge yawn lulls the\nfoe into falling\nasleep on the next\nturn.");
+ const u8 gMoveDescription_KnockOff[] = _("Knocks down the\nfoe's held item to\nprevent its use\nduring the battle.");
+-const u8 gMoveDescription_Endeavor[] = _("Gains power the\nfewer HP the user\nhas compared with\nthe foe.");
++const u8 gMoveDescription_Endeavor[] = _("Gains power the fewer\nHP the user has\ncompared with the\nfoe.");
+ const u8 gMoveDescription_Eruption[] = _("The higher the\nuser's HP, the more\npowerful this\nattack becomes.");
+ const u8 gMoveDescription_SkillSwap[] = _("The user employs\nits psychic power\nto swap abilities\nwith the foe.");
+-const u8 gMoveDescription_Imprison[] = _("Prevents foes from\nusing any move\nthat is also known\nby the user.");
++const u8 gMoveDescription_Imprison[] = _("Locks foes out of any\nmove that is also\nknown by the user.");
+ const u8 gMoveDescription_Refresh[] = _("A self-healing move\nthat cures the user\nof a poisoning,\nburn, or paralysis.");
+-const u8 gMoveDescription_Grudge[] = _("If the user faints,\nthis move deletes\nthe PP of the move\nthat finished it.");
++const u8 gMoveDescription_Grudge[] = _("If the user faints,\nthis move deletes the\nPP of the move that\nfinished it.");
+ const u8 gMoveDescription_Snatch[] = _("Steals the effects\nof the foe's\nhealing or status-\nchanging move.");
+ const u8 gMoveDescription_SecretPower[] = _("An attack that may\nhave an additional\neffect that varies\nwith the terrain.");
+ const u8 gMoveDescription_Dive[] = _("The user dives\nunderwater on the\nfirst turn and\nstrikes next turn.");
+ const u8 gMoveDescription_ArmThrust[] = _("A quick flurry of\nstraight-arm\npunches that hit\ntwo to five times.");
+-const u8 gMoveDescription_Camouflage[] = _("Alters the user's\ntype depending on\nthe location's\nterrain.");
++const u8 gMoveDescription_Camouflage[] = _("Spoofs the user's\ntype depending on the\nlocation's terrain.");
+ const u8 gMoveDescription_TailGlow[] = _("The user flashes a\nlight that sharply\nraises its SP. ATK\nstat.");
+ const u8 gMoveDescription_LusterPurge[] = _("A burst of light\ninjures the foe. It\nmay also lower the\nfoe's SP. DEF.");
+ const u8 gMoveDescription_MistBall[] = _("A flurry of down\nhits the foe. It\nmay also lower the\nfoe's SP. ATK.");
+-const u8 gMoveDescription_FeatherDance[] = _("The foe is covered\nwith a mass of down\nthat sharply cuts\nthe ATTACK stat.");
++const u8 gMoveDescription_FeatherDance[] = _("The foe is covered\nwith a mass of down\nthat sharply dampens\nATTACK.");
+ const u8 gMoveDescription_TeeterDance[] = _("A wobbly dance\nthat confuses all\nthe POKéMON in\nbattle.");
+ const u8 gMoveDescription_BlazeKick[] = _("A fiery kick with a\nhigh critical-hit\nratio. It may also\nburn the foe.");
+-const u8 gMoveDescription_MudSport[] = _("Weakens ELECTRIC-\ntype attacks while\nthe user is in the\nbattle.");
++const u8 gMoveDescription_MudSport[] = _("Grounds ELECTRIC-type\nattacks while the\nuser is in the\nbattle.");
+ const u8 gMoveDescription_IceBall[] = _("A 5-turn rolling\nattack that becomes\nstronger each time\nit rolls.");
+ const u8 gMoveDescription_NeedleArm[] = _("An attack using\nthorny arms.\nIt may make the\nfoe flinch.");
+ const u8 gMoveDescription_SlackOff[] = _("The user slacks off\nand restores its HP\nby half its full\nHP.");
+-const u8 gMoveDescription_HyperVoice[] = _("The user lets loose\na horribly loud\nshout with the\npower to damage.");
++const u8 gMoveDescription_HyperVoice[] = _("The user lets loose a\nhorribly loud shout\nwith the power to\ndamage.");
+ const u8 gMoveDescription_PoisonFang[] = _("The foe is bitten\nwith toxic fangs.\nIt may also badly\npoison the foe.");
+ const u8 gMoveDescription_CrushClaw[] = _("The foe is attacked\nwith sharp claws.\nIt may also lower\nthe foe's DEFENSE.");
+ const u8 gMoveDescription_BlastBurn[] = _("The foe is hit with\na huge explosion.\nThe user can't move\non the next turn.");
+ const u8 gMoveDescription_HydroCannon[] = _("The foe is hit with\na watery cannon.\nThe user can't move\non the next turn.");
+ const u8 gMoveDescription_MeteorMash[] = _("The foe is hit with\na hard, fast punch.\nIt may also raise\nthe user's ATTACK.");
+-const u8 gMoveDescription_Astonish[] = _("An attack using a\nstartling shout.\nIt also may make\nthe foe flinch.");
++const u8 gMoveDescription_Astonish[] = _("An attack using a\nstartling shout. It\nalso may make the foe\nflinch.");
+ const u8 gMoveDescription_WeatherBall[] = _("An attack that\nvaries in power and\ntype depending on\nthe weather.");
+ const u8 gMoveDescription_Aromatherapy[] = _("A soothing scent is\nreleased to heal\nall status problems\nin the user's party.");
+ const u8 gMoveDescription_FakeTears[] = _("The user feigns\ncrying to sharply\nlower the foe's\nSP. DEF stat.");
+@@ -318,22 +318,22 @@ const u8 gMoveDescription_AirCutter[] = _("The foe is hit with\nrazor-like wind.
+ const u8 gMoveDescription_Overheat[] = _("An intense attack\nthat also sharply\nreduces the user's\nSP. ATK stat.");
+ const u8 gMoveDescription_OdorSleuth[] = _("Completely negates\nthe foe's efforts to\nheighten its ability\nto evade.");
+ const u8 gMoveDescription_RockTomb[] = _("Boulders are hurled\nat the foe. It also\nlowers the foe's\nSPEED if it hits.");
+-const u8 gMoveDescription_SilverWind[] = _("The foe is attacked\nwith a silver dust.\nIt may raise all\nthe user's stats.");
++const u8 gMoveDescription_SilverWind[] = _("The foe is attacked\nwith a silver dust.\nIt may raise all the\nuser's stats.");
+ const u8 gMoveDescription_MetalSound[] = _("A horrible metallic\nscreech is used to\nsharply lower the\nfoe's SP. DEF.");
+ const u8 gMoveDescription_GrassWhistle[] = _("A pleasant melody\nis played to lull\nthe foe into a deep\nsleep.");
+ const u8 gMoveDescription_Tickle[] = _("The foe is made to\nlaugh, reducing its\nATTACK and DEFENSE\nstats.");
+-const u8 gMoveDescription_CosmicPower[] = _("The user absorbs a\nmystic power to\nraise its DEFENSE\nand SP. DEF.");
++const u8 gMoveDescription_CosmicPower[] = _("The user absorbs a\nmystic power to raise\nits DEFENSE and SP.\nDEF.");
+ const u8 gMoveDescription_WaterSpout[] = _("The higher the\nuser's HP, the more\npowerful this\nattack becomes.");
+ const u8 gMoveDescription_SignalBeam[] = _("The foe is hit with\na flashing beam\nthat may also\ncause confusion.");
+ const u8 gMoveDescription_ShadowPunch[] = _("The user throws a\npunch from the\nshadows. It cannot\nbe evaded.");
+ const u8 gMoveDescription_Extrasensory[] = _("The user attacks\nwith an odd power\nthat may make the\nfoe flinch.");
+ const u8 gMoveDescription_SkyUppercut[] = _("The user attacks\nwith an uppercut\nthrown skywards\nwith force.");
+-const u8 gMoveDescription_SandTomb[] = _("The foe is trapped\ninside a painful\nsandstorm for two\nto five turns.");
++const u8 gMoveDescription_SandTomb[] = _("The foe is trapped\ninside a painful\nsandstorm for two to\nfive turns.");
+ const u8 gMoveDescription_SheerCold[] = _("The foe is attacked\nwith ultimate cold\nthat causes fainting\nif it hits.");
+ const u8 gMoveDescription_MuddyWater[] = _("The user attacks\nwith muddy water.\nIt may also lower\nthe foe's accuracy.");
+ const u8 gMoveDescription_BulletSeed[] = _("The user shoots\nseeds at the foe.\nTwo to five seeds\nare shot at once.");
+-const u8 gMoveDescription_AerialAce[] = _("An extremely fast\nattack against one\ntarget. It can't be\nevaded.");
+-const u8 gMoveDescription_IcicleSpear[] = _("Sharp icicles are\nfired at the foe.\nIt strikes two to\nfive times.");
++const u8 gMoveDescription_AerialAce[] = _("A fast, small attack\nagainst one target.\nIt can't be evaded.");
++const u8 gMoveDescription_IcicleSpear[] = _("Sharp icicles are\nfired at the foe. It\nstrikes two to five\ntimes.");
+ const u8 gMoveDescription_IronDefense[] = _("The user hardens\nits body's surface\nto sharply raise its\nDEFENSE stat.");
+ const u8 gMoveDescription_Block[] = _("The user blocks the\nfoe's way with arms\nspread wide to\nprevent escape.");
+ const u8 gMoveDescription_Howl[] = _("The user howls to\nraise its spirit and\nboost its ATTACK\nstat.");
+@@ -341,18 +341,18 @@ const u8 gMoveDescription_DragonClaw[] = _("Sharp, huge claws\nhook and slash th
+ const u8 gMoveDescription_FrenzyPlant[] = _("The foe is hit with\nan enormous branch.\nThe user can't move\non the next turn.");
+ const u8 gMoveDescription_BulkUp[] = _("The user bulks up\nits body to boost\nboth its ATTACK and\nDEFENSE stats.");
+ const u8 gMoveDescription_Bounce[] = _("The user bounces\non the foe on the\n2nd turn. It may\nparalyze the foe.");
+-const u8 gMoveDescription_MudShot[] = _("The user attacks by\nhurling mud.\nIt also reduces the\nfoe's SPEED.");
++const u8 gMoveDescription_MudShot[] = _("The user attacks by\nhurling mud. It also\nreduces the foe's\nSPEED.");
+ const u8 gMoveDescription_PoisonTail[] = _("An attack with a\nhigh critical-hit\nratio. It may also\npoison the foe.");
+ const u8 gMoveDescription_Covet[] = _("A cutely executed\nattack that also\nsteals the foe's\nhold item.");
+ const u8 gMoveDescription_VoltTackle[] = _("The user throws an\nelectrified tackle.\nIt hurts the user\na little.");
+ const u8 gMoveDescription_MagicalLeaf[] = _("The foe is attacked\nwith a strange leaf\nthat cannot be\nevaded.");
+-const u8 gMoveDescription_WaterSport[] = _("Weakens FIRE-type\nattacks while the\nuser is in the\nbattle.");
+-const u8 gMoveDescription_CalmMind[] = _("The user focuses\nits mind to raise\nthe SP. ATK and\nSP. DEF stats.");
++const u8 gMoveDescription_WaterSport[] = _("Throttles FIRE-type\nattacks while the\nuser is in the\nbattle.");
++const u8 gMoveDescription_CalmMind[] = _("The user idles its\nmind to raise the SP.\nATK and SP. DEF\nstats.");
+ const u8 gMoveDescription_LeafBlade[] = _("The foe is slashed\nwith a sharp leaf.\nIt has a high\ncritical-hit ratio.");
+ const u8 gMoveDescription_DragonDance[] = _("A mystic, powerful\ndance that boosts\nthe user's ATTACK\nand SPEED stats.");
+-const u8 gMoveDescription_RockBlast[] = _("The user hurls two\nto five hard rocks\nat the foe to\nattack.");
+-const u8 gMoveDescription_ShockWave[] = _("A rapid jolt of\nelectricity strikes\nthe foe. It can't\nbe evaded.");
+-const u8 gMoveDescription_WaterPulse[] = _("An attack with a\npulsing blast of\nwater. It may also\nconfuse the foe.");
++const u8 gMoveDescription_RockBlast[] = _("The user hurls two to\nfive hard rocks at\nthe foe to attack.");
++const u8 gMoveDescription_ShockWave[] = _("A rapid jolt of\nelectricity strikes\nthe foe. It can't be\nevaded.");
++const u8 gMoveDescription_WaterPulse[] = _("An attack with a\npulsing blast of\nwater. It may also\nscramble the foe.");
+ const u8 gMoveDescription_DoomDesire[] = _("A move that attacks\nthe foe with a\nblast of light two\nturns after use.");
+ const u8 gMoveDescription_PsychoBoost[] = _("An intense attack\nthat also sharply\nreduces the user's\nSP. ATK stat.");
+ 

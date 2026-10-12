@@ -28,6 +28,7 @@ OWNS = {
     '007': (['src/data/text/move_names.h'], []),   # generated from rules/moves.mjs: scripts/move_names.py
     '008': ([], ['src/code_red_eeg.c']),
     '009': (['src/battle_util2.c'], ['src/code_red_payload.c']),
+    '010': (['src/move_descriptions.c', 'src/data/items.json', 'src/data/pokemon/pokedex_text_fr.h'], []),   # generated from rules/text.mjs: scripts/codespeak.py
 }
 
 
