@@ -2,5 +2,7 @@
  "seeds": [
   0
  ],
- "note": "Live half through Erika on the new bundle, take 2: the stand-in now cuts Route 9's tree again after a heal detour."
+ "to": "misty",
+ "song": true,
+ "note": "Song prototype, take 2: lean prompt, the coder model sings (SONG.coder). Take 1 (3B, full prompt) sang PING right 1% of the time."
 }

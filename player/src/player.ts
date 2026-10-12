@@ -19,7 +19,7 @@ import { createHotEditor, createPokeeg } from './agents/pokeeg.ts'
 import { EegMailbox } from './bridge/eeg.ts'
 import { PayloadMailbox } from './bridge/payload.ts'
 import { EegLink } from './agents/eeg-link.ts'
-import { budgetAt, byFireRed, formatOf, stageOf } from '../../rules/index.mjs'
+import { SONG, budgetAt, byFireRed, formatOf, stageOf } from '../../rules/index.mjs'
 import type { TypeName } from '../../rules/index.mjs'
 import { ProgressWatcher, readSnapshot } from './progress.ts'
 import { Agent } from './agents/agent.ts'
@@ -123,6 +123,7 @@ const TEMPLATE = `
   <div class="code-red-toolbar" data-toolbar hidden>
     <button class="code-red-speed" data-code type="button" aria-pressed="true" hidden>Code</button>
     <button class="code-red-speed" data-eeg type="button" aria-pressed="false" hidden>PokÉEG</button>
+    <button class="code-red-speed" data-decoder type="button" aria-pressed="false" hidden>Decoder</button>
     <button class="code-red-speed" data-agent type="button" aria-pressed="false" hidden>Agent</button>
     <button class="code-red-speed" data-speed type="button" aria-pressed="false">10×</button>
   </div>`
@@ -142,6 +143,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   const speedButton = root.querySelector<HTMLButtonElement>('[data-speed]')!
   const codeButton = root.querySelector<HTMLButtonElement>('[data-code]')!
   const eegButton = root.querySelector<HTMLButtonElement>('[data-eeg]')!
+  const decoderButton = root.querySelector<HTMLButtonElement>('[data-decoder]')!
   const eegHost = root.querySelector<HTMLElement>('[data-eeg-host]')!
   const stage = root.querySelector<HTMLElement>('[data-stage]')!
   const side = root.querySelector<HTMLElement>('[data-side]')!
@@ -402,6 +404,14 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     if (!sym) return // older ROM build
     const panel = createCodePanel(side, { fast: () => fastForward })
     side.hidden = false
+    // The song prototype (rules/song.mjs): ?song=1 turns it on; ?decoder=1 pretends the trainer holds the DECODER.
+    const params = new URLSearchParams(location.search)
+    if (params.get('song') === '1') SONG.enabled = true
+    if (params.get('decoder') === '1') panel.setDecoder(true)
+    decoderButton.hidden = !SONG.enabled
+    decoderButton.setAttribute('aria-pressed', String(panel.decoder))
+    decoderButton.onpointerdown = event => event.preventDefault()
+    decoderButton.onclick = () => { panel.setDecoder(!panel.decoder); decoderButton.setAttribute('aria-pressed', String(panel.decoder)); decoderButton.classList.toggle('code-red-speed-on', panel.decoder) }
     const hidden = (() => { try { return localStorage.getItem('code-red-code-panel') === 'hidden' } catch { return false } })()
     panel.setVisible(!hidden)
     if (!hidden) panel.element.hidden = true // rolls out with the first battle (setBattle), or a field move
@@ -685,7 +695,7 @@ function cloudWriter(assets: string, api: string, token: () => string): CodeWrit
   return {
     async write(prompt, onText) {
       const { k, models } = await load()
-      const modelId = prompt.meta.move?.payload ? k.PAYLOAD_MODEL : k.BATTLE_MODEL // payload moves: a bigger coder
+      const modelId = prompt.meta.move?.payload || (prompt.meta.sung && SONG.coder) ? k.PAYLOAD_MODEL : k.BATTLE_MODEL // payload moves (and sung ones, measured 2026-10-12): the bigger coder
       const { text } = await k.writeCode({ models, model: { provider: k.GAME_PROVIDER, modelId }, system: prompt.system, user: prompt.user, temperature: prompt.temperature, maxTokens: prompt.maxTokens, onText })
       return text
     },
