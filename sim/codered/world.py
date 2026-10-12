@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 from collections import deque
+
+HM_MOVES = {15, 19, 57, 70, 127, 148, 249}  # CUT, FLY, SURF, STRENGTH, WATERFALL, FLASH, ROCK SMASH (include/constants/moves.h)
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -61,11 +63,22 @@ class MapInfo:
             return False
         if (x, y) in CLEARED.get(self.name, set()):  # a tree cut, a door opened by a script
             return True
+        if CAN_CUT and (x, y) in CUTTABLE.get(self.name, ()):  # a tree we will cut when we get to it (walk_to)
+            return True
         return not (self.blocks[y * self.width + x] & COLLISION_MASK) and (x, y) not in self.obstacles
 
 
 # Obstacles the player has cleared this run (a tree cut, a boulder pushed): map name -> cells, now passable.
 CLEARED: dict[str, set] = {}
+# Trees on the way that CUT clears. They grow back whenever the map reloads, so the planner treats them as passable
+# once CUT is known (CAN_CUT) and walk_to() cuts one as it reaches it (World.cut, set by routes.py), every time.
+CUTTABLE: dict[str, frozenset] = {
+    'MAP_VERMILION_CITY': frozenset({(19, 24)}),    # in front of the gym
+    'MAP_ROUTE9': frozenset({(2, 8)}),               # the west entrance
+    'MAP_CELADON_CITY': frozenset({(40, 35)}),       # the gym's south path
+    'MAP_CELADON_CITY_GYM': frozenset({(6, 8)}),     # the middle path
+}
+CAN_CUT = False
 
 
 def clear_obstacle(map_name: str, cell: tuple[int, int], cleared: bool = True) -> None:
@@ -194,6 +207,8 @@ class World(Game):
         known = self.party_moves(0)
         new = self.u16(self.sym('gMoveToLearn'))
         def value(mid):
+            if mid in HM_MOVES:  # the game refuses to forget an HM move ("HM moves can't be forgotten now"); the route needs CUT
+                return 1e9
             m = rules.moves[mid]
             return m.power * 1.5 if m.power else self.STATUS_VALUE.get(m.name, 0)
         slots = known + [new]
@@ -255,10 +270,19 @@ class World(Game):
     def pos(self) -> tuple[int, int]:
         return self.s16(self.sb1 + SB1_POS), self.s16(self.sb1 + SB1_POS + 2)
 
+    cut = None  # routes.use_cut(g, tree) once routes is imported: cuts a CUTTABLE tree when walk_to reaches it
+
     def map(self) -> str | None:
         loc = self.sb1 + SB1_LOCATION
         g, n = self.read(loc, 2)
-        return map_name(int.from_bytes(bytes([g]), 'little', signed=True), int.from_bytes(bytes([n]), 'little', signed=True))
+        name = map_name(int.from_bytes(bytes([g]), 'little', signed=True), int.from_bytes(bytes([n]), 'little', signed=True))
+        last = self.__dict__.get('_last_map')
+        if name != last:
+            self.__dict__['_last_map'] = name
+            if last in CUTTABLE and CLEARED.get(last, set()) & CUTTABLE[last]:  # trees grow back when their map reloads
+                for cell in CUTTABLE[last]:
+                    clear_obstacle(last, cell, cleared=False)
+        return name
 
     # script state
     def flag(self, flag: int) -> bool:
@@ -397,6 +421,8 @@ class World(Game):
     def _plan(self, goal: tuple[int, int]) -> list[str] | None:
         here, m = self.pos(), map_info(self.map())
         npcs = (self.npc_tiles() | {(w[0], w[1]) for w in m.warps}) - {goal}  # never step on other warps
+        if CAN_CUT and self.cut:
+            npcs -= CUTTABLE.get(m.name, frozenset())  # a tree is an object event too; walk_to cuts it on arrival
         moves = {'UP': (0, -1), 'DOWN': (0, 1), 'LEFT': (-1, 0), 'RIGHT': (1, 0)}
         prev, queue, name = {here: None}, deque([here]), m.name
         while queue:
@@ -439,6 +465,11 @@ class World(Game):
             if not route:
                 return False
             here, d = self.pos(), route[0]
+            nxt = (here[0] + {'UP': 0, 'DOWN': 0, 'LEFT': -1, 'RIGHT': 1}[d], here[1] + {'UP': -1, 'DOWN': 1, 'LEFT': 0, 'RIGHT': 0}[d])
+            if nxt in CUTTABLE.get(start_map, ()) and nxt not in CLEARED.get(start_map, set()) and self.cut:
+                if not self.cut(nxt):  # bound: routes.use_cut(g, tree) stands beside it, cuts it, clears it
+                    return False
+                continue
             if not self.step(d):
                 if self.free():
                     self._bumped.add((start_map, here, d))

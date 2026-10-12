@@ -5,7 +5,8 @@ name: rehearsal
 #  2. player/tests/rehearsal_live.py — a brand-new account on the LIVE site (one-use invite minted here, revoked after):
 #     join, ROM, starter card, rival battle, PokÉEG, in-game save → cloud, and each gym leader the sim reached.
 # Results → release `rehearsal` (JSON + a few screenshots; never states, ROM bytes or the recovery-code screen).
-# Runs when rehearsal.json changes on a branch, or by hand.
+# Runs when rehearsal.json changes on a branch, or by hand. Commit message tags: [sim only] skips the live half;
+# [live only] plays the sim half with the stand-in model (no tokens) just to make the gym states the live half loads.
 on:
   push:
     branches-ignore: [main]   # run from a branch: merging the tooling must not start a rehearsal (real tokens, a test account)
@@ -45,16 +46,19 @@ jobs:
           pip install --break-system-packages pillow playwright==1.56.0
           sim/build_core.sh
           python3 sim/make_states.py
-      - name: Half 1 — power-on → Misty, the real models writing every move
+      - name: Half 1 — power-on → Erika, the real models writing every move
         env:
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
         run: |
           # rehearsal.json: "seed": N, or "seeds": [N, M, …] to run several in parallel (one process each)
+          # [live only] in the commit message: the stand-in model plays this half (no tokens); its gym states still feed the live half
+          MOCK=""; echo "$HEAD_MSG" | grep -q '\[live only\]' && MOCK="--mock"
           SEEDS=$(jq -r '(.seeds // [.seed // 0]) | map(tostring) | join(" ")' rehearsal.json)
           for S in $SEEDS; do
             mkdir -p build/sim/rehearsal/seed$S
-            (timeout 100m python3 sim/rehearse.py --seed "$S" --out build/sim/rehearsal/seed$S > build/sim/rehearsal/seed$S/log.txt 2>&1 || echo "::warning title=sim seed $S::did not reach Misty") &
+            (timeout 100m python3 sim/rehearse.py --seed "$S" $MOCK --out build/sim/rehearsal/seed$S > build/sim/rehearsal/seed$S/log.txt 2>&1 || echo "::warning title=sim seed $S::did not reach Erika") &
           done
           wait
           for S in $SEEDS; do
