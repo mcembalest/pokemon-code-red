@@ -2,13 +2,13 @@
 // the move's function (model through the backend), the code runs on the target's bytes in the sandbox, and
 // the game hears hit / miss / vanilla. Both sides. The rules are shared with the simulator (rules/).
 //   turn pace (owner, 2026-10-08): your code → your move → foe's code → foe's move (the ROM asks in that order)
-//   foes: focus + budget from level; knowledge by tier (owner, 2026-10-08): wild none, trainers half the formats, leaders and the rival all
-//   memory: each Pokémon remembers how it read a format from its own past hits (no Pokédex or badge readers, 2026-10-11)
+//   foes: focus + budget from level, pure instinct (owner, 2026-10-11: no readers)
+//   memory: yours carries the helpers it chose to keep (rules/memory.mjs); your note in the PokÉEG rides along
 //   model or network failure: retry once, then plain FireRed (accuracy roll)
 import {
-  BADGES, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, formatOf, judge, knowFor, learnFromHit, missText, notchOf,
+  BADGES, GROWTH, HINTS, budgetAt, byFireRed, byName, codeBudget, contextCost, extractCode, focusAt, formatOf, judge, missText, notchOf,
   rng, stageOf, targetBytes, tokenCapFor, turnData, turnPrompt, turnType,
-  type Know, type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged, type Helper, type LastTurn,
+  type Move, type Readers, type RunResult, type TypeName, type Verdict as Judged, type Helper, type LastTurn,
   checkSource, consolidatePrompt, readerType, recall, extractHelpers, withoutCarried, fitHelpers, helpersFromReaders, helpersSource, libCap, mergeHelpers, workCap,
 } from '../../../rules/index.mjs'
 import { BATTLE_TYPE_FIRST_BATTLE, BATTLE_TYPE_TRAINER, type CodeMoveMailbox, type MissReason, type MoveRequest, type Verdict } from '../bridge/code-move.ts'
@@ -29,7 +29,7 @@ export interface Sandbox { run(source: string, inputJSON: string): Promise<RunRe
 /** What the code panel shows for one turn. */
 export interface TurnInfo {
   side: 0 | 1; attacker: string; target: string; move: string; spec: string; fn: string
-  type: TypeName; tutorial: boolean; know: Know['from'] | null; budget: number; wild: boolean
+  type: TypeName; tutorial: boolean; budget: number; wild: boolean
   /** Bytes the memory it carries this turn takes out of the budget (the reader + hot memory). */
   memoryCost: number
   /** -2..2: how shaken (negative) or steadied the writer's code brain is this turn (status moves hit the code). */
@@ -79,7 +79,7 @@ export interface CodeTurn {
 export const HISTORY = 20
 
 export interface TurnRecord {
-  side: 0 | 1; attacker: string; target: string; move: string; type: TypeName; tutorial: boolean; know: string | null; notch?: number
+  side: 0 | 1; attacker: string; target: string; move: string; type: TypeName; tutorial: boolean; notch?: number
   verdict: Verdict; reason?: string; ms: number; tries: number; code?: string
   /** The move made bytes (a sound, a picture) and the game got them. */
   payload?: PayloadKind
@@ -210,7 +210,6 @@ export class CodeBattle {
     const badges = side === 0 ? (this.options.badges?.() ?? []).filter(b => b in BADGES) : []
     const stage = stageOf(attacker)
     // No readers (owner, 2026-10-11): yours reads by instinct or with the helpers it carries (memory); foes by instinct alone.
-    const know = null as Know | null
     const remembers = side === 0 && !tutorial
     const pid = req.attackerPersonality
     const lib = remembers ? this.lib(pid) : [], work = remembers ? (this.work.get(pid)?.helpers ?? []) : []
@@ -221,10 +220,10 @@ export class CodeBattle {
     const doubt = side === 0 && req.calledSlot ? { called: this.options.calledMove?.(req) ?? null } : null
     const notch = notchOf(req.attackerStages)
     const budget = budgetAt(req.attackerLevel, { stage, badges, notch })
-    const memoryCost = contextCost({ know, hot }) // + the helpers its code calls, known once it has written it
-    const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, know, budget, tutorial, hot, memory: remembers ? { lib, work, last } : null })
+    const memoryCost = contextCost({ hot }) // + the helpers its code calls, known once it has written it
+    const prompt = turnPrompt({ self: { name: attacker, level: req.attackerLevel, wild: side === 1 && wild }, target: { name: target, level: req.targetLevel, types }, move, type, budget, tutorial, hot, memory: remembers ? { lib, work, last } : null })
 
-    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, know: know?.from ?? null, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}), ...(doubt ? { doubt } : {}), ...(carried.length ? { recalls: carried } : {}) })
+    this.panel.begin({ side, attacker, target, move: move.name, spec: move.spec, fn: move.fn, type, tutorial, budget, wild, notch, memoryCost, ...(move.payload ? { makes: move.payload.kind } : {}), ...(doubt ? { doubt } : {}), ...(carried.length ? { recalls: carried } : {}) })
     let text: string | null = null, tries = 0
     while (text === null && tries < 2) {
       tries++
@@ -234,7 +233,7 @@ export class CodeBattle {
     if (text === null) {
       await this.panel.end(side, { verdict: 'vanilla', text: 'Connection lost: this move plays like plain FireRed.' })
       this.mailbox.reply(req, 'vanilla')
-      this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, verdict: 'vanilla', reason: 'network', ms: Date.now() - started, tries })
+      this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, verdict: 'vanilla', reason: 'network', ms: Date.now() - started, tries })
       return
     }
     const { code } = extractCode(text)
@@ -243,7 +242,7 @@ export class CodeBattle {
     const judged = remembers ? withoutCarried(code, mergeHelpers(lib, work)) : code
     const used = judged ? carried.filter(n => new RegExp(`(?<!(?:function|const|let|var)\\s+)\\b${n}\\b`).test(judged)) : []
     const charged = helpersSource(mergeHelpers(lib, work).filter(h => used.includes(h.name)))
-    const v: Judged = await judge({ move, bytes, data, code: judged, budget: codeBudget(budget, { know, hot, memory: charged }), runSource, prelude })
+    const v: Judged = await judge({ move, bytes, data, code: judged, budget: codeBudget(budget, { hot, memory: charged }), runSource, prelude })
     // Working memory: the my… helpers its code defined, kept for the battle if they check out. A reader is checked on
     // its own (it must read this format right), so a right reader under a wrong answer is still kept; other helpers
     // can't be checked beyond compiling, so those only from a hit.
@@ -273,7 +272,7 @@ export class CodeBattle {
     await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s code hit!` : missText(attacker, reason ?? 'crashed'), ...(v.got ? { detail: `returned ${v.got}, needed ${v.want}` } : v.error ? { detail: v.error } : {}), ...(kept && kept.some(k => !carried.includes(k)) ? { kept: kept.filter(k => !carried.includes(k)) } : {}) })
     this.mailbox.reply(req, verdict, reason ?? 'crashed')
     if (side === 0) this.memory.remember?.(req.attackerPersonality, { at: Date.now(), move: move.name, type, target, verdict, ...(reason ? { reason } : {}), notch, budget, code: (code ?? '').slice(0, 1200) })
-    this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, know: know?.from ?? null, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}), ...(v.hit && made ? { payload: made.kind } : {}), ...(doubt ? { doubted: doubt.called ?? '?' } : {}), ...(remembers ? { memory: memoryCost + charged.length, carried, usedMemory, ...(kept ? { kept } : {}) } : {}) })
+    this.options.onTurn?.({ side, attacker, target, move: move.name, type, tutorial, notch, verdict, ...(reason ? { reason } : {}), ms: Date.now() - started, tries, ...(code ? { code: code.slice(0, 600) } : {}), ...(v.hit && made ? { payload: made.kind } : {}), ...(doubt ? { doubted: doubt.called ?? '?' } : {}), ...(remembers ? { memory: memoryCost + charged.length, carried, usedMemory, ...(kept ? { kept } : {}) } : {}) })
   }
 }
 

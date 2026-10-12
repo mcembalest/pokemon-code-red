@@ -131,24 +131,6 @@ def _neighbors(name: str) -> tuple:
     return tuple(out)
 
 
-def map_route(src: str, dest: str, avoid: tuple = ()) -> list | None:
-    """Shortest list of (kind, direction, next_map) hops from src to dest."""
-    prev, queue = {src: None}, deque([src])
-    while queue:
-        cur = queue.popleft()
-        if cur == dest:
-            out = []
-            while prev[cur]:
-                cur, hop = prev[cur]
-                out.append(hop)
-            return out[::-1]
-        for kind, d, nxt in _neighbors(cur):
-            if nxt not in prev and nxt not in avoid:
-                prev[nxt] = (cur, (kind, d, nxt))
-                queue.append(nxt)
-    return None
-
-
 def path(m: MapInfo, start: tuple[int, int], goal: tuple[int, int], extra_blocked=frozenset()) -> list[str] | None:
     """BFS over passable cells; returns directions. Goal may be a warp/door tile."""
     moves = {'UP': (0, -1), 'DOWN': (0, 1), 'LEFT': (-1, 0), 'RIGHT': (1, 0)}

@@ -60,7 +60,7 @@ test('a right answer hits; the panel shows foe-format details', async () => {
   g.request({ move: 10 }) // CHARMANDER uses SCRATCH on SQUIRTLE (WATER)
   await b.poll()
   assert.deepEqual(g.reply(), { state: 2, verdict: 1, reason: 0 })
-  assert.equal(log.begin[0]!.move, 'SLICE'); assert.equal(log.begin[0]!.type, 'WATER'); assert.equal(log.begin[0]!.know, null)
+  assert.equal(log.begin[0]!.move, 'SLICE'); assert.equal(log.begin[0]!.type, 'WATER')
   assert.match(log.text.join(''), /function slice\(data\)/)
   assert.equal(log.end[0]!.text, "CHARMANDER's code hit!")
   assert.equal(turns[0]!.verdict, 'hit')
@@ -108,7 +108,6 @@ test('memory is code: my… helpers it defines stay for the battle, then it cons
   const records: TurnRecord[] = [], remembered: RememberRecord[] = []
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem, { onTurn: r => records.push(r), onRemember: r => remembered.push(r) })
   await b.poll(); g.request({ pid: 111 }); await b.poll()
-  assert.equal(log.begin[0]!.know, null, 'no readers handed out')
   assert.equal(log.begin[0]!.memoryCost, 0, 'carries nothing yet')
   assert.deepEqual(records[0]!.kept, ['myReadWater'], 'it kept the helper it wrote')
   g.request({ pid: 111 }); await b.poll()
@@ -157,11 +156,10 @@ test('foes write on pure instinct: wild, trainers, the rival and leaders alike',
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, mem)
   await b.poll()
   g.request({ side: 1, attacker: 16, flags: 0 }); await b.poll()                 // wild PIDGEY
-  assert.equal(log.begin[0]!.know, null); assert.equal(log.begin[0]!.wild, true)
   g.request({ side: 1, attacker: 7, flags: 0x8, cls: 81 }); await b.poll()       // the rival's SQUIRTLE
-  assert.equal(log.begin[1]!.know, null)
   g.request({ side: 1, attacker: 7, flags: 0x8, cls: 84 }); await b.poll()       // a gym leader
-  assert.equal(log.begin[2]!.know, null)
+  assert.equal(log.begin[0]!.wild, true); assert.equal(log.begin[1]!.wild, false)
+  for (const i of log.begin) { assert.equal(i.memoryCost, 0); assert.equal(i.recalls, undefined) } // nothing carried, nothing recalled
   assert.deepEqual(mem.readers(0), {}, 'foes never learn')
 })
 
@@ -180,7 +178,6 @@ test('badges: Cascade +50 bytes, Boulder no readers any more; evolution raises t
   const g = game(), { panel, log } = fakePanel()
   const b = new CodeBattle(g.mailbox, names, mockWriter({ missEvery: 99, delay: instant }), sandbox, panel, store(), { badges: () => ['BOULDER', 'CASCADE'] })
   await b.poll(); g.request({ target: 74, types: [5, 4], attacker: 5, level: 16 }); await b.poll()
-  assert.equal(log.begin[0]!.know, null)
   assert.equal(log.begin[0]!.budget, 300 + 160 + 100 + 50)
 })
 

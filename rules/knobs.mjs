@@ -14,7 +14,6 @@ export const GROWTH = {
   budgetBase: 300,     // byte budget (characters of code, comments included) at level 0 (owner, 2026-10-08: base 300)
   budgetPerLevel: 10,  // + this per level
   evolutionBudget: 100, // + this per evolution stage (CHARMELEON +100, CHARIZARD +200)
-  slotsBase: 2, levelsPerSlot: 3, evolutionSlots: 3, // retired (memory slots for readers); kept for the old journey lab
 }
 
 /** What badges do beyond FireRed's own effects. `budget` = extra bytes for the whole party. */
@@ -50,11 +49,6 @@ export const PAYLOAD_LIMITS = {
   soundMax: 4096,   // samples per sound (~0.5 s)                                            rom: data[4096]
   imageFrames: 4,   // frames per picture, each 32×32 pixels of 16 colours                   rom: 4 × 512 B
 }
-
-/** Knowledge tiers: retired (owner, 2026-10-11: no readers; foes write on pure instinct). Kept for the model labs. */
-export const KNOWLEDGE = { wild: 0, trainer: 0.5, boss: 1 }
-/** FireRed trainer classes that count as bosses: Leader 84, Elite Four 87, Champion 90, rival 81/89, Boss (Giovanni) 83. */
-export const BOSS_CLASSES = new Set([81, 83, 84, 87, 89, 90])
 
 /** What the prompt calls the data and the variable (lab 3, 2026-10-08: 'bytes' halved first-time hits). */
 export const WORDS = { data: 'numbers', v: 'nums' }

@@ -20,8 +20,7 @@ Last full run (this workspace, 1 core): power-on -> BADGE02 in 94 game-minutes, 
 - `codered/battle.py` — reads menus from RAM (controller funcs), best move by power x type x STAB,
   run from wild when low, move-learning, stall watchdog
 - `codered/routes.py` — scripted legs + checkpoints (`build/sim/checkpoints/`), heal, grind, journey,
-  boss prep, `to_misty()`
-- `codered/parallel.py` — fork one state into N reseeded branches across processes
+  boss prep, `to_misty()`, `to_surge()`, `to_erika()`
 
 ## Story gates the data can't express (encoded in routes.py)
 - Diglett's Cave is avoided before Cut

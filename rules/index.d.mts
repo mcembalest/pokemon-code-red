@@ -48,22 +48,15 @@ export function show(value: unknown): string
 export interface Growth {
   startTemp: number; tempPerLevel: number; minTemp: number
   budgetBase: number; budgetPerLevel: number; evolutionBudget: number
-  slotsBase: number; levelsPerSlot: number; evolutionSlots: number
 }
 export type Badge = 'BOULDER' | 'CASCADE'
 export const GROWTH: Growth
-export const BADGES: Record<Badge, { readers?: TypeName[]; budget?: number }>
+export const BADGES: Record<Badge, { budget?: number }>
 export const WORDS: { data: string; v: string }
 export const NOTCH: { cap: number; temp: number; budget: number }
 export function notchOf(stageSum: number): number
 export function focusAt(level: number, p?: Growth, notch?: number): number
 export function budgetAt(level: number, opts?: { stage?: number; badges?: string[]; notch?: number }, p?: Growth): number
-export function slotsAt(level: number, opts?: { stage?: number }, p?: Growth): number
-export function partyDex(opts?: { seen?: string[]; badges?: string[] }): TypeName[]
-export const KNOWLEDGE: { wild: number; trainer: number; boss: number }
-export const BOSS_CLASSES: Set<number>
-export function tierOf(trainerClass: number, wild: boolean): 'wild' | 'trainer' | 'boss'
-export function foeDex(tier: 'wild' | 'trainer' | 'boss', personality: number, formats: string[], chance?: number): string[]
 export function tokenCapFor(budget: number): number
 
 export type Readers = Partial<Record<TypeName, string>>
@@ -93,11 +86,6 @@ export function precheck(code: string | null | undefined, budget: number): Verdi
 export function verdict(move: Move, bytes: number[], run: RunResult): Verdict
 export function judge(args: { move: Move; bytes: number[]; data: unknown; code: string | null; budget: number; runSource: RunSource; prelude?: string }): Promise<Verdict>
 export function missText(name: string, reason: MissReason | string): string
-export function readerLine(code: string | null | undefined): string | null
-export function readerSource(line: string, data: unknown): string
-export function readsRight(run: RunResult, bytes: number[]): boolean
-export function learn(readers: Readers, type: TypeName, line: string, slots?: number): Readers
-export function learnFromHit(args: { readers: Readers; type: TypeName; code: string | null; data: unknown; bytes: number[]; slots?: number; dex?: string[]; runSource: RunSource }): Promise<Readers>
 export function same(a: unknown, b: unknown): boolean
 export function extractCode(reply: string | null | undefined): { code: string | null; reason: string | null }
 export function formatOf(romType: string): TypeName
@@ -125,7 +113,6 @@ export function helpersSource(helpers: Helper[]): string
 export function helpersSize(helpers: Helper[]): number
 export function fitHelpers(helpers: Helper[], cap: number): Helper[]
 export function helpersFromReaders(readers: Readers | undefined): Helper[]
-export function compileSource(helpers: Helper[]): string
 export function readerType(name: string): TypeName | null
 export function recall(helpers: Helper[], type: string): Helper[]
 export function checkSource(helpers: Helper[], turn?: { type: string; data: unknown; bytes: number[] } | null): string

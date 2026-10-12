@@ -21,10 +21,6 @@ def save_checkpoint(g: World, name: str) -> Path:
     return path
 
 
-def load_checkpoint(g: World, name: str) -> None:
-    g.load_state((CHECKPOINTS / f'{name}.state').read_bytes())
-
-
 # ---- naming mailbox (patches/005-text-entry.patch; same protocol as player/src/bridge/naming.ts)
 def naming_active(g: World) -> bool:
     box = g.sym('gCodeRedNamingMailbox')
