@@ -1,4 +1,7 @@
 {
- "seeds": [0, 1],
- "note": "To Erika: Route 9 (tree), Rock Tunnel in the dark, Lavender, the east-west Underground Path, Celadon (tree), the gym tree. 34 new moves. Sim half only."
+ "seeds": [
+  0,
+  1
+ ],
+ "note": "To Erika, take 2: the sim retries a lost leader battle and its move chooser learns which calls land (seed 1 lost to Erika, then crashed). Sim half only."
 }
