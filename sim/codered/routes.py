@@ -8,6 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .game import ROOT
+from . import world
 from .world import World, map_info
 
 import os
@@ -373,6 +374,7 @@ def teach_cut(g: World, rules) -> int:
         return m.power * 1.5 if m.power else g.STATUS_VALUE.get(m.name, 0)
     slot = min(range(4), key=lambda k: (value(known[k]) if known[k] else -1, -k))
     g.set_party_move(0, slot, MOVE_CUT, 30)
+    world.CAN_CUT = True  # the planner may route through CUTTABLE trees now; walk_to cuts them
     return slot
 
 
@@ -381,11 +383,15 @@ def use_cut(g: World, tree: tuple[int, int]) -> bool:
     driver says YES. (Fallback: START -> POKéMON -> the lead -> CUT.) True when we can stand where the tree was."""
     from .world import clear_obstacle
     tx, ty = tree
-    for (dx, dy, face) in ((0, -1, 'DOWN'), (0, 1, 'UP'), (1, 0, 'LEFT'), (-1, 0, 'RIGHT')):
-        if g.walk_to(tx + dx, ty + dy) and g.pos() == (tx + dx, ty + dy):
-            break
-    else:
-        return False
+    was, world.CAN_CUT = world.CAN_CUT, False  # walking to its side must not plan through the tree (walk_to would call us again)
+    try:
+        for (dx, dy, face) in ((0, -1, 'DOWN'), (0, 1, 'UP'), (1, 0, 'LEFT'), (-1, 0, 'RIGHT')):
+            if g.walk_to(tx + dx, ty + dy) and g.pos() == (tx + dx, ty + dy):
+                break
+        else:
+            return False
+    finally:
+        world.CAN_CUT = was or g.party_moves(0).count(MOVE_CUT) > 0
     g.interact(face)
     g.handle()
     clear_obstacle(g.map(), tree)  # the planner may walk through it now
@@ -402,6 +408,9 @@ def use_cut(g: World, tree: tuple[int, int]) -> bool:
     g.run_until(lambda: g.in_overworld() and g.free(), 1200)
     g.run(30)
     return g.walk_to(tx, ty, max_steps=4) and g.pos() == tree
+
+
+World.cut = use_cut  # walk_to() cuts a CUTTABLE tree as it reaches it (world.py)
 
 
 def leader(g: World, gfx: str, badge_flag: int, again, tries: int) -> bool:
