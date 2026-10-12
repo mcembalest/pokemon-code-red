@@ -1,7 +1,6 @@
 {
  "seeds": [
-  0,
-  1
+  0
  ],
- "note": "To Erika, take 2: the sim retries a lost leader battle and its move chooser learns which calls land (seed 1 lost to Erika, then crashed). Sim half only."
+ "note": "To Erika, take 3, seed 0 only (seed 1 beat Erika in take 2): the warp step no longer rewinds through a battle. Sim half only."
 }
