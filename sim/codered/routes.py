@@ -229,6 +229,7 @@ def journey(g: World, dest: str, center_city, avoid: tuple = (), low: float = 0.
 
 
 MT_MOON_AVOID = ('MAP_DIGLETTS_CAVE_NORTH_ENTRANCE', 'MAP_DIGLETTS_CAVE_SOUTH_ENTRANCE')
+TRAINER_FLAGS_START, TRAINER_SUPER_NERD_MIGUEL = 0x500, 170  # include/constants/flags.h, opponents.h
 
 
 def mt_moon_fossil(g: World) -> bool:
@@ -236,10 +237,11 @@ def mt_moon_fossil(g: World) -> bool:
     he then steps aside and the way to the exit ladder opens. data/maps/MtMoon_B2F/scripts.inc"""
     if not journey(g, 'MAP_MT_MOON_B2F', 'MAP_ROUTE4', MT_MOON_AVOID, at=(15, 11)):
         return False
-    if not ready_for_boss(g, 'MAP_ROUTE4', 'MAP_MT_MOON_B2F', MT_MOON_AVOID, spot=(15, 11)):
-        return False
-    g.walk_to(14, 11)
-    g.handle()
+    if not g.flag(TRAINER_FLAGS_START + TRAINER_SUPER_NERD_MIGUEL):  # the walk in can trip his trigger: then he is beaten already
+        if not ready_for_boss(g, 'MAP_ROUTE4', 'MAP_MT_MOON_B2F', MT_MOON_AVOID, spot=(15, 11)):
+            return False
+        g.walk_to(14, 11)
+        g.handle()
     # Either fossil opens the way (the sim has stood under the wrong one and come away empty: 2026-10-11).
     for x in (13, 14):
         if not g.walk_to(x, 8):
@@ -267,14 +269,16 @@ def progress_trace(path=None):
 def ready_for_boss(g: World, center_city: str, back_to: str, avoid: tuple = (), need: float = 0.9,
                    spot: tuple | None = None, tries: int = 8) -> bool:
     """Arrive at `spot` on `back_to` with >= `need` HP: heal and return as often as needed.
-    Trainers on the way stay beaten, so each round costs less HP."""
-    for _ in range(tries):
+    Trainers on the way stay beaten, so each round costs less HP. When the way back keeps costing HP anyway (wild
+    Zubats in Mt. Moon: seed 3 came back under 90% eight times), settle for less each round rather than never arriving."""
+    for i in range(tries):
+        want = need if i < tries // 2 else max(0.5, need - 0.1 * (i - tries // 2 + 1))
         if g.map() == back_to and spot and g.pos() != spot:
             g.walk_to(*spot)
         lead = g.party()[0]
-        if g.map() == back_to and (not spot or g.pos() == spot) and lead['hp'] >= need * lead['max_hp']:
+        if g.map() == back_to and (not spot or g.pos() == spot) and lead['hp'] >= want * lead['max_hp']:
             return True
-        if lead['hp'] < need * lead['max_hp']:
+        if lead['hp'] < want * lead['max_hp']:
             try:
                 reached = g.travel(center_city, avoid=avoid)
             except ValueError:
