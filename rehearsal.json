@@ -1,6 +1,9 @@
 {
  "seeds": [
-  0
+  0,
+  1
  ],
- "note": "Live half through Erika on the new bundle, take 2: the stand-in now cuts Route 9's tree again after a heal detour."
+ "to": "misty",
+ "song": true,
+ "note": "Song prototype: the five emitter moves sung by the real model, power-on -> Misty, vs. today's by_move rates."
 }
