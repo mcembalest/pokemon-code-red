@@ -19,8 +19,10 @@ Last full run (this workspace, 1 core): power-on -> BADGE02 in 94 game-minutes, 
   pathfinding (collision, ledges, NPCs, learned bumps), region routing across warps/edges, `handle()`
 - `codered/battle.py` — reads menus from RAM (controller funcs), best move by power x type x STAB,
   run from wild when low, move-learning, stall watchdog
-- `codered/routes.py` — scripted legs + checkpoints (`build/sim/checkpoints/`), heal, grind, journey,
-  boss prep, `to_misty()`, `to_surge()`, `to_erika()`
+- `codered/routes.py` — the route as `LEGS` (one function per leg, power-on → Erika), `play()` runs a range of
+  them and checkpoints each (`build/sim/checkpoints/<run>/<leg>.state`); heal, grind, journey, boss prep
+- `leg.py` — replay one leg from its checkpoint with the stand-in model (`python3 sim/leg.py route10`, `--to erika`,
+  `--list`, `--trace`): the way to reproduce a route bug in a minute instead of a run from power-on
 
 ## Story gates the data can't express (encoded in routes.py)
 - Diglett's Cave is avoided before Cut

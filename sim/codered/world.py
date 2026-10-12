@@ -175,7 +175,8 @@ class World(Game):
     def _map_text(self) -> str:
         return (DECOMP / 'pokefirered.map').read_text()
 
-    def text_range(self, obj: str) -> tuple[int, int]:
+    @lru_cache(maxsize=None)
+    def text_range(self, obj: str) -> tuple[int, int]:  # cached: learn_move_screen() asks every battle frame (12% of a run, measured)
         m = re.search(r'^ \.text\s+(0x[0-9a-f]+)\s+(0x[0-9a-f]+)\s+src/' + re.escape(obj) + r'\.o$', self._map_text, re.M)
         start = int(m.group(1), 16)
         return start, start + int(m.group(2), 16)

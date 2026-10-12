@@ -40,7 +40,7 @@ summary says which data formats it reads badly; `leader_tries` how many challeng
 | **Page text** — the code panel's lines, the PokÉEG panel's tabs, the hot-memory editor | `player/src/agents/code-panel.ts` (`describe`), `pokeeg.ts` (the `body` per tab), `player.ts` (ROM chooser, starter card) | `make player`; `player/tests/pokeeg.py` |
 | **Badges** | `rules/knobs.mjs` → `BADGES` (`budget` bytes; add a key per badge) | `make test` |
 | **Starter moves** (which moves are in the tutorial battle) | `rules/moves.mjs` → `STARTER_MOVES` | `make test` |
-| **Where the sim plays to** | `sim/codered/routes.py` (`to_misty`, `to_surge`, `to_erika`: one function per leg); `sim/rehearse.py --to` | `python3 sim/rehearse.py --mock` plays it with the stand-in model (no tokens) |
+| **Where the sim plays to** | `sim/codered/routes.py` → `LEGS` (one function per leg, in order); `sim/rehearse.py --to` | `python3 sim/leg.py <leg>` replays one leg from its checkpoint with the stand-in (a minute); `python3 sim/rehearse.py --mock` the whole route (no tokens) |
 | **The stand-in model** (tests and `?agents=mock`) | `player/src/agents/code-battle.ts` → `mockWriter` | `make test` |
 
 ## Game-side edits in detail
