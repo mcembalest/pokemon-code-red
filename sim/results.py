@@ -3,6 +3,7 @@
 
   python3 sim/results.py 964b924            the run for that commit (its short sha; `--latest` for the newest)
   python3 sim/results.py 964b924 --turns    also fetch turns.jsonl and show the last turns before a failure
+  python3 sim/results.py --file build/sim/rehearsal/summary.json    a local run
 
 Needs `gh` (REST only). Files land in build/sim/results/<sha7>/.
 """
@@ -32,7 +33,7 @@ def fetch(a: dict, into: Path) -> Path:
 
 def show(summary: Path, turns: Path | None) -> None:
     d = json.loads(summary.read_text())
-    seed = summary.name.split('-')[1]
+    seed = summary.name.split('-')[1] if '-' in summary.name else summary.parent.name
     print(f'== {seed}: {"ok" if d.get("ok") else "FAILED: " + str(d.get("error"))} · {d["wall_seconds"] // 60} min · {d["tokens"]:,} tokens · '
           f'yours {d["your_hit_rate"]:.0%} of {d["your_turns"]} turns, foes {d["foe_hit_rate"]:.0%} · doubted {d["doubted"]} · waits {d["wait_median"]}s / p90 {d["wait_p90"]}s')
     legs = d.get('legs', [])
@@ -63,7 +64,13 @@ def main() -> int:
     ap.add_argument('sha', nargs='?', help='short sha of the rehearsal commit')
     ap.add_argument('--latest', action='store_true')
     ap.add_argument('--turns', action='store_true')
+    ap.add_argument('--file', help='a local summary.json instead of the release')
     args = ap.parse_args()
+    if args.file:
+        f = Path(args.file)
+        t = f.with_name('turns.jsonl')
+        show(f, t if t.exists() else None)
+        return 0
     all_assets = assets()
     sha = args.sha
     if args.latest or not sha:
