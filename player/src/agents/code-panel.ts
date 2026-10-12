@@ -11,7 +11,7 @@ const READABLE_BATTLE_TURNS = 12   // turns shown at a readable pace before real
 const READABLE_MS = 2000           // how long a whole block takes to appear at readable pace
 const HOLD_MS = 700                // verdict stays up before the game moves on
 
-interface Pane { root: HTMLElement; head: HTMLElement; code: HTMLElement; foot: HTMLElement; queue: string; shown: number; info: TurnInfo | null; song?: TurnResult['song'] }
+interface Pane { root: HTMLElement; head: HTMLElement; code: HTMLElement; foot: HTMLElement; queue: string; shown: number; info: TurnInfo | null; song?: TurnResult['song']; result?: TurnResult }
 
 export interface CodePanel extends Panel {
   element: HTMLElement
@@ -26,9 +26,10 @@ export interface CodePanel extends Panel {
   dispose(): void
 }
 
-const describe = (i: TurnInfo) => {
+const describe = (i: TurnInfo, decoder = false) => {
   const who = i.side === 1 ? `${i.wild ? 'Wild' : 'Foe'} ${i.attacker}` : i.attacker
-  const data = i.sung ? `sings ${i.sung.want}` : i.tutorial ? 'a plain list' : `${i.type} data`
+  // a sung move: what it emits; the words of the spec only with the DECODER (without it, the player sees bytes)
+  const data = i.sung ? `sings ${decoder ? i.sung.want : i.sung.noun}` : i.tutorial ? 'a plain list' : `${i.type} data`
   const knows = i.recalls?.length ? ` · recalls ${i.recalls.join(', ')}` : ''
   const doubt = i.doubt ? ` · doubted your ${i.doubt.called ?? 'call'}` : ''
   const mood = i.notch < 0 ? ` · shaken ${i.notch}` : i.notch > 0 ? ` · steady +${i.notch}` : ''
@@ -66,6 +67,7 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
   // hex) unless the trainer holds the DECODER; while it is still being sung, each finished line becomes its rune.
   const render = (p: Pane) => {
     const text = p.queue.slice(0, p.shown).replace(/^\s*```[a-z]*[ \t]*\n?/i, '').replace(/\n?```\s*$/, '')
+    if (!p.info?.sung || decoder) delete p.root.dataset.glyphs; else p.root.dataset.glyphs = ''
     if (!p.info?.sung) { p.code.textContent = text; return }
     if (decoder) { p.code.textContent = p.song?.js ? `${text}\n\n// means\n${p.song.js}` : text; return }
     const lines = text.split('\n'), done = p.song ? lines : lines.slice(0, -1)
@@ -73,12 +75,29 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
     p.code.textContent = runes.join('\n') + (p.song ? '' : '\n…')
   }
 
+  const head = (p: Pane) => {
+    if (!p.info) return
+    const d = describe(p.info, decoder)
+    p.head.innerHTML = ''
+    const strong = document.createElement('strong'); strong.textContent = d.who
+    const small = document.createElement('small'); small.textContent = d.line
+    p.head.append(strong, ' ', small)
+  }
+  // The verdict line. A sung move without the DECODER says what came out, not what the words wanted.
+  const foot = (p: Pane) => {
+    const r = p.result
+    if (!r) return
+    let detail = r.detail
+    if (r.song && !decoder) detail = r.song.tape ? `sang ${r.song.tape.map(b => b.toString(16).padStart(2, '0')).join(' ')}` : r.song.error ? r.song.error : undefined
+    p.foot.textContent = (detail ? `${r.text} (${detail})` : r.text) + (r.kept?.length ? ` · kept ${r.kept.join(', ')}` : '')
+  }
+
   return {
     element,
     get visible() { return visible },
     setVisible(on) { userHid = !on; show(on) },
     get decoder() { return decoder },
-    setDecoder(on) { decoder = on; for (const p of panes) render(p) },
+    setDecoder(on) { decoder = on; for (const p of panes) { head(p); render(p); foot(p) } },
     setBattle(on) {
       if (on === inBattle) return
       inBattle = on
@@ -90,12 +109,8 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
       const p = panes[info.side]
       if (!userHid && !visible) show(true) // a field move outside a battle (CUT…) rolls it out too
       focus(info.side)
-      p.info = info; p.queue = ''; p.shown = 0; p.song = undefined
-      const d = describe(info)
-      p.head.innerHTML = ''
-      const strong = document.createElement('strong'); strong.textContent = d.who
-      const small = document.createElement('small'); small.textContent = d.line
-      p.head.append(strong, ' ', small)
+      p.info = info; p.queue = ''; p.shown = 0; p.song = undefined; p.result = undefined
+      head(p)
       p.foot.textContent = 'writing…'
       p.root.dataset.state = 'writing'
       render(p)
@@ -121,7 +136,8 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
       p.shown = p.queue.length; render(p)
       turns++
       p.root.dataset.state = result.verdict
-      p.foot.textContent = (result.detail ? `${result.text} (${result.detail})` : result.text) + (result.kept?.length ? ` · kept ${result.kept.join(', ')}` : '')
+      p.result = result
+      foot(p)
       if (!fast() && visible) await wait(HOLD_MS)
     },
     dispose() { element.remove() },

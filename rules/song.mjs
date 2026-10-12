@@ -158,29 +158,29 @@ export const toJavaScript = ops => ['let t = []', ...ops.map(({ op, args }) => O
 
 // ---------- what each move must emit (the prototype's five; the table grows from here) ----------
 
-/** A spec: the turn's `key` (a number the song must work in: the one thing that changes turn to turn, like the
+/** A spec: `noun` (what the type emits, shown without the DECODER), the turn's `key` (a number the song must work in: the one thing that changes turn to turn, like the
  *  foe's bytes did), `want(key)` (the words), `ok(tape, key)` (the check), `example` (a song that passes for its
  *  own key, shown in the prompt so the shape is clear). */
 const pick = (r, lo, hi) => lo + Math.floor(r() * (hi - lo + 1))
 export const EMIT = {
   // Normal — a file: it announces its own length and carries the key
-  PING: { type: 'Normal', key: r => pick(r, 10, 199), want: k => `a file: 4 to 8 numbers whose first number is how many numbers follow it, and ${k} is one of them`,
+  PING: { noun: 'a file', type: 'Normal', key: r => pick(r, 10, 199), want: k => `a file: 4 to 8 numbers whose first number is how many numbers follow it, and ${k} is one of them`,
     example: { key: 77, song: 'put 4\nput 42 13 140 77' },
     ok: (t, k) => t.length >= 5 && t.length <= 9 && t[0] === t.length - 1 && t.slice(1).includes(k) },
   // Water — a stream: it only ever rises, and it passes through the key
-  FLUSH: { type: 'Water', key: r => pick(r, 10, 99), want: k => `a stream: 4 to 8 numbers, each greater than the last, all under 100, one of them ${k}`,
+  FLUSH: { noun: 'a stream', type: 'Water', key: r => pick(r, 10, 99), want: k => `a stream: 4 to 8 numbers, each greater than the last, all under 100, one of them ${k}`,
     example: { key: 40, song: 'stream 3 9 40 88' },
     ok: (t, k) => t.length >= 4 && t.length <= 8 && t.every((x, i) => x < 100 && (i === 0 || x > t[i - 1])) && t.includes(k) },
   // Fire — a write: the key burned over and over
-  BURNDISC: { type: 'Fire', key: r => pick(r, 200, 255), want: k => `a write: 4 to 8 copies of ${k}`,
+  BURNDISC: { noun: 'a write', type: 'Fire', key: r => pick(r, 200, 255), want: k => `a write: 4 to 8 copies of ${k}`,
     example: { key: 230, song: 'put 1 1 1 1\nset 230' },
     ok: (t, k) => t.length >= 4 && t.length <= 8 && t.every(x => x === k) },
   // Rock — raw bytes with a checksum at the end, the key among them
-  BOOT: { type: 'Rock', key: r => pick(r, 16, 255), want: k => `raw bytes: 4 to 8 numbers with ${k} (hex ${k.toString(16)}) among them, then their sum mod 256 as the last number`,
+  BOOT: { noun: 'raw bytes', type: 'Rock', key: r => pick(r, 16, 255), want: k => `raw bytes: 4 to 8 numbers with ${k} (hex ${k.toString(16)}) among them, then their sum mod 256 as the last number`,
     example: { key: 126, song: 'raw ff 0a 7e 10\nchecksum' },
     ok: (t, k) => t.length >= 5 && t.length <= 9 && t.slice(0, -1).includes(k) && t[t.length - 1] === t.slice(0, -1).reduce((a, x) => a + x, 0) % 256 },
   // Electric — a signal: quiet, then one spike of exactly the key
-  SURGE: { type: 'Electric', key: r => pick(r, 150, 255), want: k => `a signal: 3 to 7 numbers under 40, then one spike of exactly ${k} at the end`,
+  SURGE: { noun: 'a signal', type: 'Electric', key: r => pick(r, 150, 255), want: k => `a signal: 3 to 7 numbers under 40, then one spike of exactly ${k} at the end`,
     example: { key: 200, song: 'put 5 12 8\nspike 200' },
     ok: (t, k) => t.length >= 4 && t.length <= 8 && t.slice(0, -1).every(x => x < 40) && t[t.length - 1] === k },
 }

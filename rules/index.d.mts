@@ -133,7 +133,7 @@ export const SONG: { enabled: boolean }
 export interface SongOp { op: string; args: (number | string)[] }
 export const OPS: Record<string, { type: string; args: number; glyph: string; js: (args: (number | string)[]) => string }>
 export const OP_NAMES: string[]
-export const EMIT: Record<string, { type: string; key: (r: () => number) => number; want: (key: number) => string; example: { key: number; song: string }; ok: (tape: number[], key: number) => boolean }>
+export const EMIT: Record<string, { noun: string; type: string; key: (r: () => number) => number; want: (key: number) => string; example: { key: number; song: string }; ok: (tape: number[], key: number) => boolean }>
 export function parseSong(text: string): { ops: SongOp[]; error?: undefined } | { error: string; ops?: undefined }
 export function runSong(ops: SongOp[]): { tape: number[]; error?: undefined } | { error: string; tape?: undefined }
 export function glyphs(ops: SongOp[]): string

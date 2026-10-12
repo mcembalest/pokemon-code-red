@@ -34,7 +34,7 @@ export interface TurnInfo {
   /** Bytes the memory it carries this turn takes out of the budget (the reader + hot memory). */
   memoryCost: number
   /** The move is sung (rules/song.mjs): the panel shows glyphs, and what it must emit. */
-  sung?: { want: string }
+  sung?: { noun: string; want: string }
   /** -2..2: how shaken (negative) or steadied the writer's code brain is this turn (status moves hit the code). */
   notch: number
   /** The move makes bytes the game will play or draw instead of answering. */
@@ -44,7 +44,7 @@ export interface TurnInfo {
   /** Helpers it recalls this turn (rules/memory.mjs recall): its memory, by name. */
   recalls?: string[]
 }
-export interface TurnResult { verdict: Verdict; reason?: MissReason; text: string; detail?: string; /** Helpers it kept for the rest of the battle after this turn. */ kept?: string[]; /** A sung move: the glyph strip, the op names, the JavaScript meaning, what came out. */ song?: { glyphs: string; program: string; js: string; tape?: number[] } }
+export interface TurnResult { verdict: Verdict; reason?: MissReason; text: string; detail?: string; /** Helpers it kept for the rest of the battle after this turn. */ kept?: string[]; /** A sung move: the glyph strip, the op names, the JavaScript meaning, what came out. */ song?: { glyphs: string; program: string; js: string; tape?: number[]; /** With the DECODER: what it had to emit, or why it crashed. */ want: string; error?: string } }
 export interface Panel {
   begin(info: TurnInfo): void
   text(side: 0 | 1, delta: string): void
@@ -205,7 +205,7 @@ export class CodeBattle {
     const { started, move, side, attacker, target, type, wild, budget, hot, doubt, notch, r } = t
     const key = EMIT[move.name]!.key(r)
     const prompt = songPrompt({ self: { name: attacker, level: req.attackerLevel }, target: { name: target, level: req.targetLevel }, move, key, budget, hot })
-    this.panel.begin({ side, attacker, target, move: move.name, spec: EMIT[move.name]!.want(key), fn: move.fn, type, tutorial: false, budget, wild, notch, memoryCost: contextCost({ hot }), sung: { want: EMIT[move.name]!.want(key) }, ...(doubt ? { doubt } : {}) })
+    this.panel.begin({ side, attacker, target, move: move.name, spec: EMIT[move.name]!.want(key), fn: move.fn, type, tutorial: false, budget, wild, notch, memoryCost: contextCost({ hot }), sung: { noun: EMIT[move.name]!.noun, want: EMIT[move.name]!.want(key) }, ...(doubt ? { doubt } : {}) })
     let text: string | null = null, tries = 0, why = ''
     while (text === null && tries < 2) {
       tries++
@@ -223,10 +223,10 @@ export class CodeBattle {
     const program = String(text).replace(/```[a-z]*/gi, '').trim()
     const parsed = parseSong(program)
     const ops = parsed.ops ?? []
-    const song = { glyphs: ops.length ? glyphs(ops) : program, program, js: ops.length ? toJavaScript(ops) : '', ...(v.got ? { tape: v.got as number[] } : {}) }
+    const song = { glyphs: ops.length ? glyphs(ops) : program, program, js: ops.length ? toJavaScript(ops) : '', want: EMIT[move.name]!.want(key), ...(v.got ? { tape: v.got as number[] } : {}), ...(v.error ? { error: String(v.error) } : {}) }
     const verdict: Verdict = v.hit ? 'hit' : 'miss'
     const reason = v.reason as MissReason | undefined
-    const detail = v.error ? String(v.error) : v.got ? `sang ${JSON.stringify(v.got)}; needed ${v.want}` : undefined
+    const detail = v.error ? String(v.error) : v.got ? (v.hit ? `sang ${JSON.stringify(v.got)}` : `sang ${JSON.stringify(v.got)}; needed ${v.want}`) : undefined
     await this.panel.end(side, { verdict, ...(reason ? { reason } : {}), text: v.hit ? `${attacker}'s song hit!` : missText(attacker, reason ?? 'crashed').replace('code', 'song'), ...(detail ? { detail } : {}), song })
     this.mailbox.reply(req, verdict, v.hit ? undefined : reason ?? 'crashed')
     if (side === 0) this.memory.remember?.(req.attackerPersonality, { at: Date.now(), move: move.name, type, target, verdict, ...(reason ? { reason } : {}), notch, budget, code: program.slice(0, 1200) })
