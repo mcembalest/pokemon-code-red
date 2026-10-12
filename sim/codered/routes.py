@@ -374,34 +374,29 @@ def teach_cut(g: World, rules) -> int:
 
 def use_cut(g: World, tree: tuple[int, int]) -> bool:
     """Stand next to the tree, face it, talk to it: with CUT known the game asks "cut it down?" and the dialog
-    driver says YES. (Fallback: START -> POKéMON -> the lead -> CUT.) True when we can stand where the tree was."""
+    driver says YES. True when we can stand where the tree was."""
     from .world import clear_obstacle
     tx, ty = tree
-    was, world.CAN_CUT = world.CAN_CUT, False  # walking to its side must not plan through the tree (walk_to would call us again)
+    was, world.CAN_CUT = world.CAN_CUT, False  # no planning through this tree while we work on it (walk_to would call us again)
     try:
         for (dx, dy, face) in ((0, -1, 'DOWN'), (0, 1, 'UP'), (1, 0, 'LEFT'), (-1, 0, 'RIGHT')):
             if g.walk_to(tx + dx, ty + dy) and g.pos() == (tx + dx, ty + dy):
                 break
         else:
             return False
+        for _ in range(2):  # the prompt can be missed when a wild battle or a trainer cut in: face it and ask again
+            g.interact(face)
+            g.handle()
+            clear_obstacle(g.map(), tree)  # the planner may walk through it now
+            if g.walk_to(tx, ty, max_steps=4) and g.pos() == tree:
+                return True
+            clear_obstacle(g.map(), tree, cleared=False)
+            if g.pos() != (tx + dx, ty + dy) and not (g.walk_to(tx + dx, ty + dy) and g.pos() == (tx + dx, ty + dy)):
+                break
+        g.screenshot(CHECKPOINTS / f'fail-cut-{g.map()}-{tx}-{ty}.png')
+        return False
     finally:
         world.CAN_CUT = was or g.party_moves(0).count(MOVE_CUT) > 0
-    g.interact(face)
-    g.handle()
-    clear_obstacle(g.map(), tree)  # the planner may walk through it now
-    if g.walk_to(tx, ty, max_steps=4) and g.pos() == tree:
-        return True
-    g.press('START', hold=2, after=30)
-    g.press('DOWN', hold=2, after=10)     # POKéDEX, POKéMON, BAG, <name>, SAVE, OPTION, EXIT
-    g.press('A', hold=2, after=10)        # the party screen (fades in)
-    g.run_until(lambda: g.brightness() > 0.3, 600, 5)
-    g.run(30)
-    g.press('A', hold=2, after=40)        # the lead's menu: SUMMARY, CUT, ITEM, CANCEL
-    g.press('DOWN', hold=2, after=10)
-    g.press('A', hold=2, after=40)        # "VENUSAUR used CUT!" (pressing A here would reopen the menu: just wait)
-    g.run_until(lambda: g.in_overworld() and g.free(), 1200)
-    g.run(30)
-    return g.walk_to(tx, ty, max_steps=4) and g.pos() == tree
 
 
 World.cut = use_cut  # walk_to() cuts a CUTTABLE tree as it reaches it (world.py)

@@ -472,7 +472,9 @@ class World(Game):
                     return False
                 continue
             if not self.step(d):
-                if self.free():
+                if nxt in self.npc_tiles():  # an NPC wandered into the way since the plan: wait, replan (never learn it as a wall)
+                    self.run(16)
+                elif self.free():
                     self._bumped.add((start_map, here, d))
         return self.pos() == (x, y)
 
