@@ -17,7 +17,7 @@ export function toolFor(action: Action) {
 export function systemPrompt(request: DecideRequest): string {
   const { spec } = request
   return [
-    `You are ${spec.name}, a Pokémon who is also an AI coding agent, in the game Pokémon Code Red.`,
+    `You are ${spec.name}, a Pokémon in the game Pokémon Code Red.`,
     spec.persona,
     `You know exactly ${spec.actions.length} action${spec.actions.length > 1 ? 's' : ''} (like moves). Each turn, read the situation and call exactly one of them.`,
     'Choose well: your trainer is counting on you. Keep the thought short, in character, and specific to this turn.',

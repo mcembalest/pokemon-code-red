@@ -1,5 +1,5 @@
 // First agent moment: while Oak asks "So! You want ___?" in the lab, show the
-// starter as a coding agent: its persona and the moves it knows, as the code each one asks for.
+// starter: its nature and the moves it knows, with what each one's code must produce (owner, 2026-10-12: nothing on the page calls a Pokémon a programmer).
 import { BRIEF, byFireRed } from '../../../rules/index.mjs'
 import { STARTERS } from './moves.ts'
 
@@ -31,13 +31,13 @@ export function starterCardHtml(species: number): string {
   const esc = (t: string) => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!))
   const moves = s.moves.map(m => {
     const move = byFireRed(m)
-    return move ? `<li><b>▶ ${esc(move.name)}</b> <span>${esc(`function ${move.fn}(data)`)}</span><small>returns ${esc(BRIEF[move.name] ?? move.spec)}</small></li>` : ''
+    return move ? `<li><b>▶ ${esc(move.name)}</b> <span>${esc(move.type.toUpperCase())}</span><small>${esc(BRIEF[move.name] ?? move.spec)}</small></li>` : ''
   }).join('')
-  return `<div class="code-red-card-head">${esc(s.name)} <span>coding agent</span></div>
+  return `<div class="code-red-card-head">${esc(s.name)} <span>${esc(s.kind)}</span></div>
 <p>${esc(s.persona)}</p>
 <p class="code-red-card-sub">Knows ${s.moves.length} moves:</p>
 <ul>${moves}</ul>
-<p class="code-red-card-sub">Call a move and ${esc(s.name)} writes it in JavaScript. The game runs it on the foe's data: the right answer hits.</p>`
+<p class="code-red-card-sub">Call a move and ${esc(s.name)} writes it. The right answer hits.</p>`
 }
 
 export function createStarterCard(host: HTMLElement, read: () => number | null, onShow: (species: number) => void = () => {}) {

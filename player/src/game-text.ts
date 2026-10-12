@@ -1,6 +1,8 @@
 import type { NamingMailbox } from './bridge/naming.ts'
 
-/** Native naming screens accept typed text through the fixed naming mailbox. */
+/** Native naming screens accept typed text through the fixed naming mailbox. Typing goes straight into the game's
+ *  own naming screen, letter by letter, with nothing on the page moving (playtest 1, 2026-10-12); the form below is
+ *  only for a touch keyboard and is never revealed by typing. */
 export function bindGameText(game: HTMLElement, naming: NamingMailbox, epochOf: () => number, release: () => void, blocked: () => boolean = () => false) {
   const panel = document.createElement('form')
   panel.className = 'code-red-text-entry'
@@ -20,7 +22,7 @@ export function bindGameText(game: HTMLElement, naming: NamingMailbox, epochOf: 
     else { confirming = false; status.textContent = 'Name entry changed. Try again.' }
     return Boolean(accepted)
   }
-  const reveal = () => { if (!active) return; hiddenForSession = false; panel.hidden = false; release(); input.focus({ preventScroll: true }) }
+  const reveal = () => { if (!active) return; release() } // keep the keyboard on the game; the letters appear on the naming screen
   const controller = () => { if (active) send(1, valid() ? input.value : lastValidText); hiddenForSession = true; panel.hidden = true; confirming = false; input.blur(); game.focus({ preventScroll: true }) }
   const edit = () => { confirming = false; if (!valid()) { send(1, lastValidText); status.textContent = `Use up to ${input.maxLength} letters, numbers, spaces, or . , ! ? / - and quotes.` } else send(1) }
   input.addEventListener('input', event => { if (!(event as InputEvent).isComposing) edit() })
@@ -46,6 +48,7 @@ export function bindGameText(game: HTMLElement, naming: NamingMailbox, epochOf: 
     if (!state) {
       const restore = active && document.activeElement === input
       active = false; confirming = false; panel.hidden = true
+      delete game.dataset.naming
       if (restore) game.focus({ preventScroll: true })
       return
     }
@@ -58,7 +61,8 @@ export function bindGameText(game: HTMLElement, naming: NamingMailbox, epochOf: 
       input.value = state.current
       lastValidText = input.value
       status.textContent = 'Type a name here, then press Enter or Done. Tap the field to use your phone keyboard.'
-      active = true; panel.hidden = false
+      active = true; panel.hidden = navigator.maxTouchPoints === 0 // a keyboard types straight into the game; the form is for touch
+      game.dataset.naming = '' // tests and tools can see a naming screen is up
       if (navigator.maxTouchPoints === 0 && !blocked()) reveal()
     } else if (ack >= lastSent && !confirming && document.activeElement !== input) {
       input.value = state.current

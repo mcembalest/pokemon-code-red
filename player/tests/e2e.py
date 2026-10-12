@@ -61,25 +61,27 @@ def main():
         step = lambda name: print(f'::notice title=e2e step::{name}' if __import__('os').environ.get('GITHUB_ACTIONS') else name, flush=True)
 
         if args.phase == 'boot':
-            # Intro -> player naming screen; typed name via DOM -> rival naming.
-            name = page.locator('.code-red-text-entry:not([hidden]) input')
+            # Intro -> player naming screen; the name is typed on the keyboard straight into the game -> rival naming.
+            name = page.locator('[data-game][data-naming]')
             def drive_to_naming():
                 page.evaluate('''fast(true); window.driver = setInterval(() => { const f = frame();
                   gm.simulateInput(0, 3, f % 600 < 10 ? 1 : 0); gm.simulateInput(0, 8, f % 60 < 6 ? 1 : 0);
-                  if (document.querySelector('.code-red-text-entry:not([hidden])')) { clearInterval(driver); gm.simulateInput(0, 3, 0); gm.simulateInput(0, 8, 0); fast(false) } }, 4)''')
+                  if (document.querySelector('[data-game][data-naming]')) { clearInterval(driver); gm.simulateInput(0, 3, 0); gm.simulateInput(0, 8, 0); fast(false) } }, 4)''')
                 try:
-                    name.wait_for(timeout=180000)
+                    name.wait_for(state='attached', timeout=180000)
                 except Exception:
                     page.screenshot(path=str(OUT / 'no-naming.png'))
                     raise SystemExit(f'no naming screen in 3 min (build/e2e/no-naming.png). A profile with a save boots to CONTINUE: '
                                      f'use a fresh --profile for --phase boot (this one: {args.profile})')
+            def type_name(text):
+                page.locator('[data-game]').focus(); page.wait_for_timeout(200)
+                page.keyboard.type(text, delay=120); page.keyboard.press('Enter')
+                page.wait_for_function('!document.querySelector("[data-game][data-naming]")', timeout=30000)
             drive_to_naming()
-            name.fill('RED'); name.press('Enter')
-            page.wait_for_function('document.querySelector(".code-red-text-entry").hidden', timeout=30000)
+            type_name('RED')
             step('player named')
             drive_to_naming()
-            name.fill('Gary'); name.press('Enter')
-            page.wait_for_function('document.querySelector(".code-red-text-entry").hidden', timeout=30000)
+            type_name('Gary')
             step('rival named')
             results['naming'] = True
             page.wait_for_timeout(1000)

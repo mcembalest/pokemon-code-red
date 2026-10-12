@@ -48,8 +48,8 @@ return move.name + ' used'`)
 export const utf8Bytes = (text: string) => new TextEncoder().encode(text).length
 
 /** Level-5 starters and their scripts (Pallet Town). Species ids: include/constants/species.h. */
-export const STARTERS: Record<number, { name: string; moves: string[]; persona: string }> = {
-  1: { name: 'BULBASAUR', moves: ['TACKLE', 'GROWL'], persona: 'Patient. Prefers steady, readable scripts.' },
-  4: { name: 'CHARMANDER', moves: ['SCRATCH', 'GROWL'], persona: 'Hot-headed. Ships fast, fixes later.' },
-  7: { name: 'SQUIRTLE', moves: ['TACKLE', 'TAIL WHIP'], persona: 'Calm. Defends first, then strikes.' },
+export const STARTERS: Record<number, { name: string; kind: string; moves: string[]; persona: string }> = {
+  1: { name: 'BULBASAUR', kind: 'GRASS system', moves: ['TACKLE', 'GROWL'], persona: 'Patient. Grows slowly; gives up nothing.' },
+  4: { name: 'CHARMANDER', kind: 'FIRE system', moves: ['SCRATCH', 'GROWL'], persona: 'Hot-headed. Strikes first, thinks after.' },
+  7: { name: 'SQUIRTLE', kind: 'WATER system', moves: ['TACKLE', 'TAIL WHIP'], persona: 'Calm. Shells up first, then strikes.' },
 }

@@ -1,4 +1,4 @@
-// Agent framework v0. A Pokémon is a coding agent with at most 4 actions
+// Agent framework v0. A Pokémon's autopilot: at most 4 actions
 // (like 4 moves). Each turn it observes, then picks exactly one action.
 // The "brain" behind the choice is swappable:
 //   cloud   — Claude Sonnet 5.5 through the worker (/v1/llm), tool use
