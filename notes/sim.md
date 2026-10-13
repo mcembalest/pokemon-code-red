@@ -16,7 +16,7 @@
 ## The dev loop after Erika (2026-10-12)
 - Every sim bug this week cost a 40–60 min run from power-on to reproduce. Now: the route is one table (`routes.LEGS`,
   20 legs power-on → Erika), `play()` checkpoints each leg, and `make leg LEG=route10 [TO=erika]` replays any leg from
-  the checkpoint before it with the stand-in: ~1 min a leg, 8 min Bill → Erika. Checkpoints carry the ROM build's stamp.
+  the checkpoint before it with the stand-in: ~1 min a leg, 8 min Bill → Erika. Checkpoints carry the ROM build's stamp; since 2026-10-13 a new build drops the old checkpoints and browser fixtures by itself (`routes.fresh_checkpoints`), `sim/leg.py` plays the missing legs up to the one asked for, and the browser tests make their fixtures when missing (`sim/make_states.py --if-stale`).
 - `python3 sim/results.py <sha7>` reads a rehearsal off the release and says what happened per seed (legs with timings,
   hit rate by format, leader tries, misses); it flags "N turns at one frame: the game was not advancing", the shape of the
   bug that burnt 210 model calls. `--file` reads a local summary.

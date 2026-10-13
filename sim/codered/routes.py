@@ -17,6 +17,7 @@ CHECKPOINTS = ROOT / 'build/sim/checkpoints' / os.environ.get('CODERED_RUN', '')
 
 def save_checkpoint(g: World, name: str) -> Path:
     CHECKPOINTS.mkdir(parents=True, exist_ok=True)
+    fresh_checkpoints()
     path = CHECKPOINTS / f'{name}.state'
     path.write_bytes(g.save_state())
     return path
@@ -622,17 +623,29 @@ def checkpoint_path(name: str) -> Path:
     return CHECKPOINTS / f'{name}.state'
 
 
+def fresh_checkpoints(where: Path | None = None) -> bool:
+    """Checkpoints belong to one ROM build. When the build changed, the old ones (and the browser fixtures beside
+    them) are deleted and the stamp moves to this build: they come back by playing again. True if any were dropped."""
+    where = where or CHECKPOINTS
+    stamp = where / 'rom.txt'
+    if not where.exists() or (stamp.exists() and stamp.read_text().strip() == rom_stamp()):
+        return False
+    stale = [p for p in where.iterdir() if p.is_file() and p.suffix in ('.state', '.raw', '.json', '.png')]
+    for p in stale:
+        p.unlink()
+    stamp.write_text(rom_stamp())
+    if stale:
+        print(f'the ROM build changed: dropped {len(stale)} old checkpoints and fixtures in {where}', file=sys.stderr)
+    return bool(stale)
+
+
 def load_checkpoint(g: World, name: str) -> None:
-    """Load the state saved after leg `name` (this ROM build's: checkpoints of another build are refused)."""
+    """Load the state saved after leg `name`. Checkpoints of another ROM build are dropped first (fresh_checkpoints),
+    so a missing one means: play the legs before it (sim/leg.py does that by itself)."""
+    fresh_checkpoints()
     path = checkpoint_path(name)
     if not path.exists():
         raise FileNotFoundError(f'no checkpoint {path}: run the legs before it first (sim/leg.py --to {name})')
-    stamp = CHECKPOINTS / 'rom.txt'
-    if not stamp.exists():
-        print(f'warning: {CHECKPOINTS} has no rom.txt: these checkpoints may be from another ROM build', file=sys.stderr)
-    elif stamp.read_text().strip() != rom_stamp():
-        raise RuntimeError(f'checkpoints in {CHECKPOINTS} are from another ROM build ({stamp.read_text().strip()} vs {rom_stamp()}): '
-                           f'delete them and run from power-on')
     g.load_state(path.read_bytes())
     if g.party_moves(0).count(MOVE_CUT):
         world.CAN_CUT = True
