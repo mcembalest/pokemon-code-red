@@ -125,11 +125,18 @@ def main():
         # The browser isn't frame-locked (agent think time varies), so the game's RNG can
         # diverge after the first turn. Contract: a situation seen in the recording gets the
         # recorded decision; a new one goes to the fallback brain.
-        recorded = {r['key']: r['decision'] for r in records}
+        # The same situation can come up twice (a miss leaves both sides' bytes as they were): any decision recorded
+        # for it is a right replay.
+        recorded: dict[str, list] = {}
+        for r in records:
+            recorded.setdefault(r['key'], []).append(r['decision'])
         hits = [r for r in replayed if r['key'] in recorded]
         assert replayed[0]['key'] == records[0]['key'], 'same start state → same first observation'
-        assert all(r['decision'] == recorded[r['key']] for r in hits), (replayed, records)
-        assert all(r['decision']['thought'].startswith('REPLAYED') == (r['key'] in recorded) for r in replayed), replayed
+        assert all(r['decision'] in recorded[r['key']] or not r['decision']['thought'].startswith('REPLAYED') for r in hits), (replayed, records)
+        seen: dict[str, int] = {}
+        for r in replayed:  # each recorded decision is used once; a situation seen more often than recorded goes to the fallback
+            k = seen[r['key']] = seen.get(r['key'], 0) + 1
+            assert r['decision']['thought'].startswith('REPLAYED') == (k <= len(recorded.get(r['key'], []))), replayed
         print(f'replay: {len(hits)}/{len(replayed)} turns matched the recording', flush=True)
     (OUT / 'result.json').write_text(json.dumps({'live': live, 'replay': again}, indent=2))
 
