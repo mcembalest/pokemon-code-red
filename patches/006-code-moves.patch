@@ -158,10 +158,10 @@ index bb66a01..e567758 100644
      {
 diff --git a/src/code_red_battle.c b/src/code_red_battle.c
 new file mode 100644
-index 0000000..39ff4b2
+index 0000000..a5c33a8
 --- /dev/null
 +++ b/src/code_red_battle.c
-@@ -0,0 +1,236 @@
+@@ -0,0 +1,238 @@
 +#include "global.h"
 +#include "battle.h"
 +#include "battle_scripts.h"
@@ -247,6 +247,7 @@ index 0000000..39ff4b2
 +
 +// TRUE while Cmd_attackcanceler is waiting on the host: it must resume here, not rerun its checks.
 +void CodeRedPayloadShow(void);
++void CodeRedPayloadDisarm(void);
 +
 +bool8 CodeRedMovePending(void)
 +{
@@ -260,6 +261,7 @@ index 0000000..39ff4b2
 +    volatile struct CodeRedMove *m = &gCodeRedMove;
 +    struct BattlePokemon *a = &gBattleMons[gBattlerAttacker], *t = &gBattleMons[gBattlerTarget];
 +
++    CodeRedPayloadDisarm(); // a new move: the last one's sound is spent (a foe's own GROWL keeps its own cry)
 +    if (!HostReady() || gCurrentMove == MOVE_STRUGGLE || (a->status2 & STATUS2_MULTIPLETURNS))
 +        return FALSE; // no host, or a locked-in turn of a move already coded
 +    m->requestId = ++sMoveRequestId;

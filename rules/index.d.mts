@@ -3,10 +3,10 @@
 export type TypeName = 'NORMAL' | 'FLYING' | 'WATER' | 'GRASS' | 'ROCK' | 'ELECTRIC' | 'GROUND' | 'FIRE' | 'POISON' | 'BUG' | 'PSYCHIC' | 'FIGHTING' | 'STEEL' | 'ICE' | 'GHOST' | 'DRAGON' | 'DARK'
 export type Answer = number | string | unknown[] | undefined
 
-export type PayloadKind = 'sound' | 'image'
+export type PayloadKind = 'sound' | 'voice' | 'image'
 /** A move that makes bytes (a sound, a picture) instead of answering: check() returns null for a hit or why it missed. */
 export interface Payload { kind: PayloadKind; key: string; character?: string; look?: string; palette?: [number, number, number][]; check(value: unknown, bytes: number[]): string | null; ref(bytes: number[]): number[] }
-export const PAYLOAD: Record<'growl' | 'trill' | 'whine' | 'lullaby' | 'flash' | 'spark', Payload>
+export const PAYLOAD: Record<'growl' | 'buzz' | 'ring' | 'lullaby' | 'flash' | 'spark', Payload>
 export const PALETTES: Record<'flash' | 'spark' | 'grey', [number, number, number][]>
 export const SAMPLE_RATE: number
 export const SOUND_MAX: number

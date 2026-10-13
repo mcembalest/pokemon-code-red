@@ -475,8 +475,8 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     }
     const payloadSym = rom.symbols.gCodeRedPayload
     const payloadBox = payloadSym ? new PayloadMailbox(memory, payloadSym.address) : null
-    // Dev / tests: window.CodeRed.payload('sound'|'image', bytes) hands the game bytes to play on the next code hit.
-    ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, payload: (kind: 'sound' | 'image', bytes: number[]) => payloadBox?.deliver(kind, bytes) ?? false, payloadsPlayed: () => payloadBox?.played() ?? 0 }
+    // Dev / tests: window.CodeRed.payload('sound'|'voice'|'image', bytes) hands the game bytes to play on the next code hit.
+    ;(window as { CodeRed?: Record<string, unknown> }).CodeRed = { ...(window as { CodeRed?: Record<string, unknown> }).CodeRed, payload: (kind: 'sound' | 'voice' | 'image', bytes: number[]) => payloadBox?.deliver(kind, bytes) ?? false, payloadsPlayed: () => payloadBox?.played() ?? 0 }
     // Doubt (rules/doubt.mjs): the ROM rolls it; when your Pokémon used its own pick, name the move you had called.
     const calledMove = (req: MoveRequest) => {
       try { const m = reader.mon(0).moves[req.calledSlot - 1]; return m ? (byFireRed(m.name)?.name ?? m.name) : null } catch { return null }

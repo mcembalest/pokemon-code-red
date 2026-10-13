@@ -82,9 +82,11 @@ jobs:
       - name: Payload moves (ERROR's growl plays, FLASH's starburst animates, the battle goes on)
         if: matrix.seed == 0 && !cancelled()  # even when the Misty route flaked
         run: python3 sim/experiments/payload.py
-      - name: Payload sounds on the GBA sound engine (8 kHz, the whole sample, each of the four)
+      - name: Payload sounds on the GBA sound engine (a growl at 8 kHz; every sound move rides its own animation, in its own voice)
         if: matrix.seed == 0 && !cancelled()
-        run: for m in growl trill whine lullaby; do python3 sim/experiments/payload_audio.py $m || exit 1; done
+        run: |
+          pip install --break-system-packages numpy
+          python3 sim/experiments/payload_audio.py growl && python3 sim/experiments/move_sounds.py --check
       - name: Doubt (GROWL over SCRATCH is doubted 50% / 25% / 0% at 0 / 4 / 8 badges)
         if: matrix.seed == 0 && !cancelled()  # even when the Misty route flaked
         run: python3 sim/experiments/doubt.py 60

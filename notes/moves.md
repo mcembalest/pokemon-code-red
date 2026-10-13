@@ -48,7 +48,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | UNDO | Double Slap | 15/85 | multi hit | the numbers without the first one |  |
 | SPAM | Fury Attack | 15/85 | multi hit | a list of 5 copies of the first number |  |
 | GREP | Fury Swipes | 18/80 | multi hit | the numbers that are under 50 |  |
-| DIM | Sing | –/55 | sleep | a soft lullaby, as a list of about 3200 numbers: the first is how many numbers the foe had; then three notes one after another, each gently swelling and fading, quiet (every number between 60 and 196) |  |
+| DIM | Sing | –/55 | sleep | a soft voice to sing its tune with, as a list: the first is how many numbers the foe had; then one cycle of a smooth, round wave (16 to 256 numbers around 128, up once and down once, no jumps) |  |
 | BLUR | Smokescreen | –/100 | accuracy down | the numbers in reverse order |  |
 | REBOOT | Headbutt | 70/100 | flinch hit | the first number plus the last |  |
 | CRASH | Hyper Fang | 80/90 | flinch hit | the number at index (first number % number of numbers) |  |
@@ -63,7 +63,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | ERROR | Growl | –/100 | attack down | a glitchy growl, as a list of about 3200 numbers: the first is how many numbers the foe had; then a buzzy square wave whose pitch slides down, with a wobbling voice (change d slowly), a little random grit and a stutter, fading out | S |
 | FLASH | Flash | –/70 | accuracy down | a flash, as a list of 4097 numbers: the first is how many numbers the foe had; then 4 frames: a bright round core with rays around it that grows bigger frame by frame (brightest in the middle) and breaks into sparkles in the last frame | K |
 | SPOOF | Camouflage | –/100 | camouflage | the list with the first and last numbers swapped |  |
-| FEEDBACK | Supersonic | –/55 | confuse | a feedback whine, as a list of about 3200 numbers: the first is how many numbers the foe had; then a thin square wave (d = 0.125) whose pitch climbs with a fast wobble (vibrato), getting louder, then cut off |  |
+| FEEDBACK | Supersonic | –/55 | confuse | a thin ringing voice to ring its rings with, as a list: the first is how many numbers the foe had; then one cycle of a narrow pulse (16 to 256 numbers around 128: high for under 30% of the cycle, low the rest) |  |
 | LOCKDOWN | Defense Curl | –/– | defense curl | a list holding only the first number |  |
 | DISTORTION | Screech | –/85 | defense down 2 | the numbers after the first half (the first half is half the length, rounded down) |  |
 | DISABLE | Disable | –/55 | disable | the last number minus the first | K |
@@ -83,7 +83,7 @@ S = a starter learns it before Brock · K = FireRed name kept
 | SPINUP | Rapid Spin | 20/100 | rapid spin | the numbers with the first one moved to the end |  |
 | RECOVER | Recover | –/– | restore hp | how many numbers are greater than 50 | K |
 | FAILOVER | Whirlwind | –/100 | roar | the numbers with the last one moved to the front |  |
-| BUZZ | Sonic Boom | 1/90 | sonicboom | a chirping trill, as a list of about 3200 numbers: the first is how many numbers the foe had; then a square wave that flips back and forth between two high notes, sliding a little lower and fading |  |
+| BUZZ | Sonic Boom | 1/90 | sonicboom | a rough buzzing voice to blast its booms with, as a list: the first is how many numbers the foe had; then one cycle of a gritty wave (16 to 256 numbers around 128, crossing 128 at least 6 times: noise or overtones) |  |
 | UPGRADE | Growth | –/– | special attack up | the list with one extra number at the end: how many numbers there were |  |
 | FREEZE | Scary Face | –/90 | speed down 2 | how many numbers are over 150 |  |
 | SPLASH | Splash | –/– | splash | nothing: return without a value | K |

@@ -4,7 +4,7 @@ and watches the m4a sound engine every frame: the direct-sound channel whose wav
 counter runs (the playback rate) and how far it gets. Also records the whole in-game mix (battle music included), the
 way a player hears it, to build/sim/results/payload-audio-<name>.wav.
 
-  python3 sim/experiments/payload_audio.py [growl|trill|whine|lullaby] [--on-growl]
+  python3 sim/experiments/payload_audio.py [growl] [--on-growl]   (voices: sim/experiments/move_sounds.py)
 By default the payload rides on SCRATCH (its animation uses a sound effect); --on-growl puts it on GROWL, whose
 animation also plays CHARMANDER's own cry on the same cry player (which wins?).
 Exits 1 unless the channel plays at 8000 Hz ± 3% through ≥ 95% of the samples.

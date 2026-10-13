@@ -6,6 +6,23 @@ the cry player (~0.5 s) or animates a 32×32 sprite over the target at 2×. The 
 (CodeRedMoveContinue → CodeRedPayloadShow). The mailbox is heap-allocated for the battle's duration
 (AllocateBattleResources / FreeBattleResources); the static symbol gCodeRedPayload is a pointer to it,
 NULL outside battle, so hosts read the pointer first.
+diff --git a/src/battle_anim.c b/src/battle_anim.c
+index 30f9a7a..8b9fb65 100644
+--- a/src/battle_anim.c
++++ b/src/battle_anim.c
+@@ -197,6 +197,12 @@ void DoMoveAnim(u16 move)
+     LaunchBattleAnimation(gBattleAnims_Moves, move, TRUE);
+ }
+ 
++// Code Red (patch 009): the move whose animation is running (0: none, or a general/status animation).
++u16 CodeRedAnimMove(void)
++{
++    return gAnimScriptActive ? sAnimMoveIndex : 0;
++}
++
+ void LaunchBattleAnimation(const u8 *const animsTable[], u16 tableId, bool8 isMoveAnim)
+ {
+     s32 i;
 diff --git a/src/battle_util2.c b/src/battle_util2.c
 index 8a5fbcc..359f7eb 100644
 --- a/src/battle_util2.c
@@ -31,22 +48,86 @@ index 8a5fbcc..359f7eb 100644
      if (gBattleTypeFlags & BATTLE_TYPE_TRAINER_TOWER)
          FreeTrainerTowerBattleStruct();
      if (gBattleTypeFlags & BATTLE_TYPE_POKEDUDE)
+diff --git a/src/sound.c b/src/sound.c
+index 9060aa5..d7a1be9 100644
+--- a/src/sound.c
++++ b/src/sound.c
+@@ -371,6 +371,9 @@ void PlayCry_Script(u16 species, u8 mode)
+     RestoreBGMVolumeAfterPokemonCry();
+ }
+ 
++bool8 CodeRedPayloadCry(void);
++bool8 CodeRedPayloadSE(u16 songNum);
++
+ void PlayCryInternal(u16 species, s8 pan, s8 volume, u8 priority, u8 mode)
+ {
+     bool32 reverse;
+@@ -473,6 +476,8 @@ void PlayCryInternal(u16 species, s8 pan, s8 volume, u8 priority, u8 mode)
+     // It creates 4 sets of 128 mini cry tables.
+     // If you wish to expand pokemon, you need to
+     // append new cases to the switch.
++    if (CodeRedPayloadCry()) // Code Red: a payload armed for this move's animation is the cry
++        return;
+     species = SpeciesToCryId(species);
+     index = species % 128;
+     table = species / 128;
+@@ -577,12 +582,14 @@ void PlayBGM(u16 songNum)
+ void PlaySE(u16 songNum)
+ {
+     if (gDisableMapMusicChangeOnMapLoad == 0 && gQuestLogState != QL_STATE_PLAYBACK)
++        if (!CodeRedPayloadSE(songNum)) // Code Red: in the Pokémon's own voice when its move armed one
+         m4aSongNumStart(songNum);
+ }
+ 
+ void PlaySE12WithPanning(u16 songNum, s8 pan)
+ {
+-    m4aSongNumStart(songNum);
++    if (!CodeRedPayloadSE(songNum)) // Code Red: in the Pokémon's own voice when its move armed one
++        m4aSongNumStart(songNum);
+     m4aMPlayImmInit(&gMPlayInfo_SE1);
+     m4aMPlayImmInit(&gMPlayInfo_SE2);
+     m4aMPlayPanpotControl(&gMPlayInfo_SE1, TRACKS_ALL, pan);
+@@ -591,14 +598,16 @@ void PlaySE12WithPanning(u16 songNum, s8 pan)
+ 
+ void PlaySE1WithPanning(u16 songNum, s8 pan)
+ {
+-    m4aSongNumStart(songNum);
++    if (!CodeRedPayloadSE(songNum)) // Code Red: in the Pokémon's own voice when its move armed one
++        m4aSongNumStart(songNum);
+     m4aMPlayImmInit(&gMPlayInfo_SE1);
+     m4aMPlayPanpotControl(&gMPlayInfo_SE1, TRACKS_ALL, pan);
+ }
+ 
+ void PlaySE2WithPanning(u16 songNum, s8 pan)
+ {
+-    m4aSongNumStart(songNum);
++    if (!CodeRedPayloadSE(songNum)) // Code Red: in the Pokémon's own voice when its move armed one
++        m4aSongNumStart(songNum);
+     m4aMPlayImmInit(&gMPlayInfo_SE2);
+     m4aMPlayPanpotControl(&gMPlayInfo_SE2, TRACKS_ALL, pan);
+ }
 diff --git a/src/code_red_payload.c b/src/code_red_payload.c
 new file mode 100644
-index 0000000..eca91df
+index 0000000..77fc0f8
 --- /dev/null
 +++ b/src/code_red_payload.c
-@@ -0,0 +1,168 @@
+@@ -0,0 +1,272 @@
 +// Code Red: payload moves (owner, 2026-10-09: bytes are the universal medium; 2026-10-10: expressive — the
-+// pixelated animal sounds of the 90s games). Some moves make bytes instead of answering: ERROR a glitchy growl, BUZZ a
-+// trill, FEEDBACK a rising whine, DIM a lullaby; FLASH a starburst, SPARK a bolt. The page judges the bytes and, on a
-+// hit, drops them here before it replies; when the battle takes the hit (CodeRedMoveContinue) the GBA plays or draws them.
-+// The buffer lives on the heap for the battle's duration (allocated with the battle's resources, freed with them; the
-+// static symbol gCodeRedPayload is the pointer, NULL outside battle; ~18 KB of heap is free mid-battle) and the page
-+// delivers bytes already in GBA form:
-+//   sound: up to 4096 signed 8-bit samples at 8 kHz (~0.5 s), played once through the cry player
++// pixelated animal sounds of the 90s games; 2026-10-13: "cool and synthy, and at the same time sound like the old
++// Pokémon moves"). Some moves make bytes instead of answering: ERROR a growl, BUZZ / FEEDBACK / DIM a voice; FLASH a
++// starburst, SPARK a bolt. The page judges the bytes and, on a hit, drops them here before it replies; when the
++// battle takes the hit (CodeRedMoveContinue) the GBA arms them for the move's own animation:
++//   sound, one-shot (frames 0): up to 4096 signed 8-bit samples at 8 kHz, played *as the Pokémon's cry* wherever the
++//          move's animation plays one (GROWL's double cry: the growl, twice, the way FireRed plays it)
++//   sound, voice (frames 1): one cycle of a wave (16–256 samples) that becomes the *instrument* of the sound effects
++//          the move's animation plays (SING's tune, SUPERSONIC's rings, SONIC BOOM's whooshes): FireRed's notes,
++//          rhythm and timing, in the Pokémon's own synth voice
 +//   image: up to 4 frames of 32×32 4bpp tiles (512 bytes each) in the page's 16-color palette (index 0 see-through),
 +//          drawn over the target at 2× (popping in from 1.5×), each frame held FRAME_TICKS, the loop twice
++// With battle animations off (Options: BATTLE SCENE OFF) there is no animation to ride: a sound plays at once.
++// The buffer lives on the heap for the battle's duration (allocated with the battle's resources, freed with them; the
++// static symbol gCodeRedPayload is the pointer, NULL outside battle; ~18 KB of heap is free mid-battle) and the page
++// delivers bytes already in GBA form.
 +#include "global.h"
 +#include "gflib.h"
 +#include "battle.h"
@@ -54,8 +135,11 @@ index 0000000..eca91df
 +#include "decompress.h"
 +#include "task.h"
 +#include "gba/m4a_internal.h"
++#include "constants/battle.h"
 +
 +extern struct MusicPlayerInfo *gMPlay_PokemonCry;
++extern struct MusicPlayerInfo gMPlayInfo_SE1, gMPlayInfo_SE2;
++u16 CodeRedAnimMove(void);
 +
 +#define PAYLOAD_MAGIC 0x31505243 // 'CRP1'
 +#define PAYLOAD_BYTES 4096
@@ -66,6 +150,11 @@ index 0000000..eca91df
 +#define PAYLOAD_SOUND 1
 +#define PAYLOAD_IMAGE 2
 +#define PAYLOAD_TAG 0xCCEE
++#define VOICE_TONES 128     // a voicegroup's size: every entry becomes the payload's voice
++#define VOICE_TRACKS 16     // MAX_MUSICPLAYER_TRACKS
++#define WAVE_LOOP 0x4000
++#define C4_FREQ 133952      // 261.626 Hz × 512: a one-cycle voice of N samples sounds C4 at key 60 with freq N × this
++                            // (m4a: key 60 plays a DirectSound wave at freq / 512 samples a second; measured)
 +
 +struct CodeRedPayload {
 +    /*0x00*/ u32 magic;
@@ -82,10 +171,14 @@ index 0000000..eca91df
 +    /*0x34*/ u32 waveLoopStart;
 +    /*0x38*/ u32 waveSize;
 +    /*0x3C*/ u8 data[PAYLOAD_BYTES];
++    // game only (the page never writes past data): the re-voiced sound effect's song header and voicegroup
++    u8 header[8 + 4 * VOICE_TRACKS];
++    struct ToneData tones[VOICE_TONES];
 +};
-+STATIC_ASSERT(sizeof(struct CodeRedPayload) == 60 + PAYLOAD_BYTES, CodeRedPayloadSize);
++STATIC_ASSERT(offsetof(struct CodeRedPayload, data) == 60, CodeRedPayloadLayout);
 +EWRAM_DATA volatile struct CodeRedPayload *gCodeRedPayload = NULL;
 +static EWRAM_DATA struct ToneData sTone = {0};
++static EWRAM_DATA u16 sArmedMove = 0; // the move whose animation plays the payload sound (0: none)
 +
 +static const struct OamData sOam = {
 +    .y = 0, .affineMode = ST_OAM_AFFINE_DOUBLE, .objMode = ST_OAM_OBJ_NORMAL, .bpp = ST_OAM_4BPP,
@@ -117,32 +210,106 @@ index 0000000..eca91df
 +void CodeRedPayloadFree(void)
 +{
 +    if (gCodeRedPayload == NULL) return;
++    sArmedMove = 0;
++    if (gMPlayInfo_SE1.tone == gCodeRedPayload->tones) m4aMPlayStop(&gMPlayInfo_SE1);
++    if (gMPlayInfo_SE2.tone == gCodeRedPayload->tones) m4aMPlayStop(&gMPlayInfo_SE2);
++    if (gMPlay_PokemonCry != NULL && sTone.wav == (struct WaveData *)&gCodeRedPayload->waveType) m4aMPlayStop(gMPlay_PokemonCry);
 +    gCodeRedPayload->magic = 0;
 +    Free((void *)gCodeRedPayload);
 +    gCodeRedPayload = NULL;
 +}
 +
-+static void PlaySoundPayload(u16 length)
++// The WaveData header in front of the samples: a one-shot at 8 kHz, or a one-cycle voice that loops (C4 at key 60).
++static void SetUpWave(u16 length, bool8 voice)
 +{
 +    volatile struct CodeRedPayload *p = gCodeRedPayload;
-+    if (length < 32) return;
 +    p->waveType = 0;
-+    p->waveStatus = 0;            // one shot: plays to its last sample
-+    p->waveFreq = 8000 * 1024;
++    p->waveStatus = voice ? WAVE_LOOP : 0;
++    p->waveFreq = voice ? C4_FREQ * length : 8000 * 1024;
 +    p->waveLoopStart = 0;
 +    p->waveSize = length;
++}
++
++static void CryTone(void)
++{
 +    sTone.type = 0; sTone.key = 60; sTone.length = 0; sTone.pan_sweep = 0;
-+    sTone.wav = (struct WaveData *)&p->waveType;
++    sTone.wav = (struct WaveData *)&gCodeRedPayload->waveType;
 +    sTone.attack = 255; sTone.decay = 0; sTone.sustain = 255; sTone.release = 0;
++}
++
++// No animation to ride (battle scene off): play it now through the cry player, a voice as a short note.
++static void PlaySoundPayload(u16 length, bool8 voice)
++{
++    SetUpWave(length, voice);
++    CryTone();
 +    SetPokemonCryVolume(120);
 +    SetPokemonCryPanpot(0);
 +    SetPokemonCryPitch(15360);
-+    SetPokemonCryLength(length * 60 / 8000 + 8); // hold the note past the last sample (release 0 cuts it)
++    SetPokemonCryLength(voice ? 24 : length * 60 / 8000 + 8); // hold the note past the last sample (release 0 cuts it)
 +    SetPokemonCryProgress(0);
-+    SetPokemonCryRelease(0);
++    SetPokemonCryRelease(voice ? 200 : 0);
 +    SetPokemonCryChorus(0);
 +    SetPokemonCryPriority(10);
 +    gMPlay_PokemonCry = SetPokemonCryTone(&sTone);
++}
++
++static bool8 Armed(void)
++{
++    return gCodeRedPayload != NULL && gCodeRedPayload->magic == PAYLOAD_MAGIC && sArmedMove != 0
++        && CodeRedAnimMove() == sArmedMove;
++}
++
++// A new move is being used (CodeRedMoveAsk): whatever the last one armed is spent.
++void CodeRedPayloadDisarm(void)
++{
++    sArmedMove = 0;
++}
++
++// sound.c, PlayCryInternal: during the armed move's animation the Pokémon's cry is the payload (one-shot or voice),
++// with every setting the cry's mode chose (pitch, length, release, chorus). TRUE: played.
++bool8 CodeRedPayloadCry(void)
++{
++    if (!Armed())
++        return FALSE;
++    CryTone();
++    if (gCodeRedPayload->waveStatus & WAVE_LOOP)
++        sTone.release = 200; // a voice holds its note: let it ring out instead of clicking off
++    gMPlay_PokemonCry = SetPokemonCryTone(&sTone);
++    return TRUE;
++}
++
++// sound.c, PlaySE…: during the armed move's animation (and only for a voice) a sound effect plays with the payload as
++// its instrument: the same song, notes and timing, every voice of its voicegroup swapped for the payload's wave
++// (each keeping its own envelope). TRUE: started.
++bool8 CodeRedPayloadSE(u16 songNum)
++{
++    volatile struct CodeRedPayload *p = gCodeRedPayload;
++    const struct Song *song;
++    struct SongHeader *from, *to;
++    u16 i;
++    if (!Armed() || !(p->waveStatus & WAVE_LOOP))
++        return FALSE;
++    song = &gSongTable[songNum];
++    from = song->header;
++    if (from->trackCount == 0 || from->trackCount > VOICE_TRACKS)
++        return FALSE;
++    to = (struct SongHeader *)p->header;
++    memcpy(to, from, 8 + 4 * from->trackCount);
++    for (i = 0; i < VOICE_TONES; i++)
++    {
++        const struct ToneData *was = &from->tone[i];
++        struct ToneData *t = (struct ToneData *)&p->tones[i];
++        bool8 ds = (was->type & 0x07) == 0; // a DirectSound voice keeps its envelope (0-255); a PSG one gets a plain one
++        t->type = 0; t->key = 60; t->length = 0; t->pan_sweep = 0;
++        t->wav = (struct WaveData *)&p->waveType;
++        t->attack = ds ? was->attack : 255;
++        t->decay = ds ? was->decay : 0;
++        t->sustain = ds ? was->sustain : 255;
++        t->release = ds ? was->release : 200;
++    }
++    to->tone = (struct ToneData *)p->tones;
++    MPlayStart(gMPlayTable[song->ms].info, to);
++    return TRUE;
 +}
 +
 +// data[0] = ticks, data[1] = frames, data[2] = base tile
@@ -198,7 +365,19 @@ index 0000000..eca91df
 +    kind = p->kind;
 +    p->kind = PAYLOAD_NONE;
 +    if (kind == PAYLOAD_SOUND)
-+        PlaySoundPayload(p->length > PAYLOAD_BYTES ? PAYLOAD_BYTES : p->length);
++    {
++        u16 length = p->length > PAYLOAD_BYTES ? PAYLOAD_BYTES : p->length;
++        bool8 voice = p->frames == 1;
++        if (length < (voice ? 16 : 32))
++            return;
++        if (gHitMarker & HITMARKER_NO_ANIMATIONS)
++            PlaySoundPayload(length, voice);
++        else
++        {
++            SetUpWave(length, voice);
++            sArmedMove = gCurrentMove; // the move's animation plays it, in place of its own sound
++        }
++    }
 +    else if (kind == PAYLOAD_IMAGE)
 +        ShowImagePayload(p->length >= p->frames * FRAME_BYTES ? p->frames : 0);
 +    else

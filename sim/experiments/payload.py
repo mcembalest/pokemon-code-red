@@ -47,18 +47,19 @@ def main():
     b = Battle(g)
     shots = []
     base = g.sym('gBattleMons')
-    plan = [1, 2, 1, 2]  # slot 1 = ERROR (Growl), slot 2 = FLASH
+    # slot 1 = ERROR (Growl) until its sound is taken, then slot 2 = FLASH until its picture is; the first battle's
+    # tutorial text can eat a press and a turn can go to another move, so each is retried on the next turn
     turns, frame0, poked = 0, g.frame, False
     changes = 0
-    while not b.over() and turns < 4 and g.frame - frame0 < 60 * 60 * 3:
+    while not b.over() and turns < 8 and g.frame - frame0 < 60 * 60 * 4 and not shots:
         if b.choosing_action():
             if not poked:  # once the battle has loaded its Pokémon: give CHARMANDER FLASH in slot 2 so both payload kinds get used
                 g.w16(base + BMON_MOVES + 2 * 2, MOVE_FLASH); g.w8(base + BMON_PP + 2, 20); poked = True
             b.act(0)
         elif b.choosing_move():
-            b.use_move(plan[turns]); turns += 1
-            if turns == 2:  # FLASH just chosen: the sprite animates when the hit lands
-                g.run_until(lambda: payload.played() >= 2, limit=1200)
+            want_image = 'sound' in delivered and payload.played() >= 1
+            b.use_move(2 if want_image else 1); turns += 1
+            if want_image and g.run_until(lambda: payload.played() >= 2, limit=1500):  # FLASH's hit landed: the sprite animates now
                 from PIL import Image
                 frames = []
                 for k in range(8):
