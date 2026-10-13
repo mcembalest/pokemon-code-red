@@ -1,9 +1,9 @@
-// Move table with the real model and the game's own prompt (rules/turnPrompt): P(hit | move, format, known reader).
-// Feeds the strategy simulator (models/strategy) and keeps every reply for reading.
+// Move table with the real model and the game's own prompt (rules/turnPrompt): P(hit | move, format, level).
+// Keeps every reply for reading. Runs from lab.yml when lab/moves.json changes.
 //   CLOUDFLARE_API_KEY=… CLOUDFLARE_ACCOUNT_ID=… node lab/moves.mjs lab/moves.json out.json
 import { readFileSync, writeFileSync } from 'node:fs'
 import { extractCode, gameModels, runBlock } from '../../kernel/index.mjs'
-import { MOVES, WORDS, budgetAt, focusAt, judge, knowFor, rng, targetBytes, turnData, turnPrompt } from '../../rules/index.mjs'
+import { MOVES, WORDS, budgetAt, focusAt, judge, rng, targetBytes, turnData, turnPrompt } from '../../rules/index.mjs'
 
 const cfg = JSON.parse(readFileSync(process.argv[2] ?? 'lab/moves.json', 'utf8'))
 const outFile = process.argv[3] ?? 'moves-results.json'
@@ -30,7 +30,7 @@ for (const move of moves) for (const type of cfg.types) for (const known of cfg.
 
 async function one({ move, type, known, words, level, seed, self }) {
   const r = rng(seed), bytes = targetBytes(r), data = turnData(bytes, type)
-  const know = known ? knowFor(type, { dex: [type] }) : null
+  const know = null // no readers since 2026-10-11: every Pokémon reads a format by instinct (cfg.known is kept for old configs)
   const budget = budgetAt(level)
   const { system, user } = turnPrompt({ self: { name: self, level }, target: { name: cfg.target ?? 'RATTATA', level, types: [type] }, move, type, know, budget, words })
   try {

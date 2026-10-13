@@ -9,8 +9,8 @@
 //   image: 4 frames of a 32×32 picture, color numbers 0–15 (0 = see-through), drawn over the target at 2× and
 //          animated, in the move's 16-color palette (FLASH: white-hot to ember, SPARK: white to electric blue)
 // There is no single right answer. The checker judges the *character* (it slides down, it trills, it grows…), so a
-// Pokémon can make its own version. The first number is still the foe's count (the code must read the foe's format:
-// type matters); it is checked, not played or drawn.
+// Pokémon can make its own version. A payload move only makes: it reads nothing of the foe (owner, 2026-10-13: the
+// old "first number is the foe's count" rule is gone; it dated from when every move had to read the foe's format).
 // `ref` is a model-sized reference (and the stand-in model's answer: player mockWriter prints ref.toString(), so refs are
 // closure-free and built from source text).
 
@@ -71,9 +71,8 @@ const CHARACTER = {
 }
 
 const soundCheck = ({ loud, soft = false, character }) => (v, b) => {
-  if (!finite(v) || v.length < 1001) return 'not a list of at least 1000 numbers'
-  if (v[0] !== b.length) return `first number should be ${b.length}`
-  const s = clampTo(v.slice(1, SOUND_MAX + 1), 255), span = Math.max(...s) - Math.min(...s)
+  if (!finite(v) || v.length < 1000) return 'not a list of at least 1000 numbers'
+  const s = clampTo(v.slice(0, SOUND_MAX), 255), span = Math.max(...s) - Math.min(...s)
   if (span < loud) return `too quiet (from lowest to highest it spans ${span}, needs ${loud})`
   if (soft && (Math.max(...s) > 196 || Math.min(...s) < 60)) return 'too loud for a soft sound (stay between 60 and 196)'
   if (!fades(s)) return 'it never fades or stops (the end is as loud as the loudest part)'
@@ -100,10 +99,9 @@ const VOICE_CHARACTER = {
 }
 
 const voiceCheck = ({ character }) => (v, b) => {
-  if (!finite(v) || v.length < VOICE_MIN + 1) return `not a list of at least ${VOICE_MIN + 1} numbers (the count, then one cycle)`
-  if (v[0] !== b.length) return `first number should be ${b.length}`
-  if (v.length > VOICE_MAX + 1) return `one cycle is at most ${VOICE_MAX} numbers (it has ${v.length - 1})`
-  const c = clampTo(v.slice(1), 255), span = Math.max(...c) - Math.min(...c)
+  if (!finite(v) || v.length < VOICE_MIN) return `not a list of at least ${VOICE_MIN} numbers (one cycle of a wave)`
+  if (v.length > VOICE_MAX) return `one cycle is at most ${VOICE_MAX} numbers (it has ${v.length})`
+  const c = clampTo(v, 255), span = Math.max(...c) - Math.min(...c)
   if (span < 60) return `too quiet (from lowest to highest it spans ${span}, needs 60)`
   if (Math.abs(mean(c) - 128) > 24) return `it should sit around 128 (its middle is ${Math.round(mean(c))}): lopsided waves thump`
   return VOICE_CHARACTER[character].test(c) ? null : VOICE_CHARACTER[character].why
@@ -121,10 +119,9 @@ const LOOK = {
 }
 
 const imageCheck = ({ look }) => (v, b) => {
-  if (!Array.isArray(v) || v.length < IMAGE_PIXELS + 1) return `not ${IMAGE_PIXELS + 1} numbers (the count, then 4 frames of 1024)`
-  if (v[0] !== b.length) return `first number should be ${b.length}`
+  if (!Array.isArray(v) || v.length < IMAGE_PIXELS) return `not ${IMAGE_PIXELS} numbers (4 frames of 1024)`
   if (!finite(v)) return 'not a list of numbers'
-  const px = clampTo(v.slice(1, IMAGE_PIXELS + 1), 15)
+  const px = clampTo(v.slice(0, IMAGE_PIXELS), 15)
   const fs = frames(px)
   const counts = fs.map(lit)
   if (counts.some(n => n < 16)) return `every frame needs at least 16 colored pixels (frames have ${counts.join(', ')})`
@@ -176,17 +173,17 @@ const hz = x => Math.round(x)
 
 const SOURCES = {
   // ERROR (Growl): a glitchy growl — a nasal square sliding down, its voice wobbling (duty), gritty, stuttering, fading
-  growl: v => `b=>{const o=[b.length];let p=0;for(let i=0;i<3199;i++){const t=i/3200,d=${v.d}+.12*Math.sin(i/${v.w});p=(p+(${hz(300 * v.m)}-${hz(190 * v.m)}*t)/8e3)%1;o.push((128+(1-t)*(i%${v.s}<${v.s - 80}?1:.2)*((p<d?75:-75)+Math.random()*40-20)))}return o}`,
+  growl: v => `b=>{const o=[];let p=0;for(let i=0;i<3199;i++){const t=i/3200,d=${v.d}+.12*Math.sin(i/${v.w});p=(p+(${hz(300 * v.m)}-${hz(190 * v.m)}*t)/8e3)%1;o.push((128+(1-t)*(i%${v.s}<${v.s - 80}?1:.2)*((p<d?75:-75)+Math.random()*40-20)))}return o}`,
   // BUZZ (Sonic Boom): a rough voice for SONIC BOOM's whooshes — a square in its own duty, a buzzing 13th overtone (SONIC BOOM hisses high), grit
-  buzz: v => `b=>{const o=[b.length];for(let i=0;i<64;i++){const p=i/64;o.push(128+(p<${v.d * 2 > .5 ? .5 : v.d * 2}?30:-30)+50*Math.sin(2*Math.PI*p*13)+Math.random()*40-20)}return o}`,
+  buzz: v => `b=>{const o=[];for(let i=0;i<64;i++){const p=i/64;o.push(128+(p<${v.d * 2 > .5 ? .5 : v.d * 2}?30:-30)+50*Math.sin(2*Math.PI*p*13)+Math.random()*40-20)}return o}`,
   // FEEDBACK (Supersonic): a thin ringing voice for SUPERSONIC's rings — a narrow pulse with a faint overtone
-  ring: v => `b=>{const o=[b.length];for(let i=0;i<64;i++){const p=i/64;o.push(128+(p<${v.d >= .25 ? .125 : v.d}?100:-16)+8*Math.sin(2*Math.PI*p*${v.k}))}return o}`,
+  ring: v => `b=>{const o=[];for(let i=0;i<64;i++){const p=i/64;o.push(128+(p<${v.d >= .25 ? .125 : v.d}?100:-16)+8*Math.sin(2*Math.PI*p*${v.k}))}return o}`,
   // DIM (Sing): a soft round voice for SING's tune — a sine with a little of its own second harmonic
-  lullaby: v => `b=>{const o=[b.length];for(let i=0;i<64;i++){const p=i/64;o.push(128+60*Math.sin(2*Math.PI*p)+${Math.round(v.w / 9)}*Math.sin(4*Math.PI*p))}return o}`,
+  lullaby: v => `b=>{const o=[];for(let i=0;i<64;i++){const p=i/64;o.push(128+60*Math.sin(2*Math.PI*p)+${Math.round(v.w / 9)}*Math.sin(4*Math.PI*p))}return o}`,
   // FLASH: a starburst — a hot round core and rays growing frame by frame, breaking into sparkles in the last
-  flash: v => `b=>{const o=[b.length];for(let f=0;f<4;f++)for(let i=0;i<1024;i++){const x=i%32-15.5,y=(i>>5)-15.5,r=Math.hypot(x,y),R=3+${v.g}*f;let c=r<R?15-2*r:Math.cos(${v.k}*Math.atan2(y,x))**12>.5&&r<2*R?12-r+R:0;if(f>2&&Math.random()<.5)c=0;o.push(c)}return o}`,
+  flash: v => `b=>{const o=[];for(let f=0;f<4;f++)for(let i=0;i<1024;i++){const x=i%32-15.5,y=(i>>5)-15.5,r=Math.hypot(x,y),R=3+${v.g}*f;let c=r<R?15-2*r:Math.cos(${v.k}*Math.atan2(y,x))**12>.5&&r<2*R?12-r+R:0;if(f>2&&Math.random()<.5)c=0;o.push(c)}return o}`,
   // SPARK: a jagged bolt from the top row to the bottom, white-hot core, a glow, a new bolt each frame (it flickers)
-  spark: v => `b=>{const o=[b.length];for(let f=0;f<4;f++){const p=Array(1024).fill(0);let x=16;for(let y=0;y<32;y++){x=Math.max(3,Math.min(28,x+Math.floor(Math.random()*${v.j})-${(v.j - 1) / 2}));for(let d=-${v.gw};d<${v.gw + 1};d++)p[y*32+x+d]=Math.max(p[y*32+x+d],15-${v.gw === 3 ? 4 : 6}*Math.abs(d))}o.push(...p)}return o}`,
+  spark: v => `b=>{const o=[];for(let f=0;f<4;f++){const p=Array(1024).fill(0);let x=16;for(let y=0;y<32;y++){x=Math.max(3,Math.min(28,x+Math.floor(Math.random()*${v.j})-${(v.j - 1) / 2}));for(let d=-${v.gw};d<${v.gw + 1};d++)p[y*32+x+d]=Math.max(p[y*32+x+d],15-${v.gw === 3 ? 4 : 6}*Math.abs(d))}o.push(...p)}return o}`,
 }
 
 const sound = (key, character, o = {}) => ({ kind: 'sound', key, character, check: soundCheck({ loud: o.loud ?? 120, soft: o.soft, character }), ref: src(SOURCES[key](DEFAULT_VOICE)) })
@@ -212,8 +209,8 @@ export const HOW = {
   image: 'A picture is 4 frames one after another, each 32 rows of 32 color numbers; 0 is see-through, 1 is the dimmest color and 15 the brightest (the game rounds and clamps). It is drawn over the foe, twice the size, frame after frame.',
 }
 
-/** One way to write it, for the prompt: the reference body, reading `nums` (the foe's numbers) for the count. */
-export const exampleBody = (p, name) => (name ? voicedRef(p, name) : p.ref).toString().replace(/^b=>\{/, '').replace(/\}$/, '').replace(/\bb\.length\b/g, 'nums.length')
+/** One way to write it, for the prompt: the reference body (it reads nothing: a payload move only makes). */
+export const exampleBody = (p, name) => (name ? voicedRef(p, name) : p.ref).toString().replace(/^b=>\{/, '').replace(/\}$/, '')
 
-/** The bytes the GBA gets from a hit (the count dropped): sound samples, a voice's cycle, or 4 frames of color numbers. */
-export const payloadBytes = (p, value) => (p.kind === 'image' ? clampTo(value.slice(1, IMAGE_PIXELS + 1), 15) : clampTo(value.slice(1, (p.kind === 'voice' ? VOICE_MAX : SOUND_MAX) + 1), 255))
+/** The bytes the GBA gets from a hit: sound samples, a voice's cycle, or 4 frames of color numbers. */
+export const payloadBytes = (p, value) => (p.kind === 'image' ? clampTo(value.slice(0, IMAGE_PIXELS), 15) : clampTo(value.slice(0, p.kind === 'voice' ? VOICE_MAX : SOUND_MAX), 255))

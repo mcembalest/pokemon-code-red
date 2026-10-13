@@ -1,5 +1,5 @@
 {
-  "note": "Expressive payloads v3: species voices (the worked example in each Pok\u00e9mon's own voice). Several attackers.",
+  "note": "Sound moves v4 (2026-10-13): ERROR a growl (the cry), DIM/FEEDBACK/BUZZ a voice (one cycle), FLASH/SPARK pictures; payload moves read nothing of the foe (no count). The payload model, 8 attackers.",
   "model": "@cf/meta/llama-3.2-3b-instruct",
   "moves": [
     "ERROR",
@@ -10,12 +10,10 @@
     "SPARK"
   ],
   "types": [
-    "NORMAL",
-    "WATER",
-    "FIRE"
+    "NORMAL"
   ],
   "known": [
-    true
+    false
   ],
   "samples": 8,
   "levels": [
