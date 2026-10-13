@@ -5,6 +5,8 @@ Raw libretro states (no sim frame suffix) in build/sim/checkpoints/*.raw. Privat
 states hold game RAM; never publish.
 
   python3 sim/make_states.py            # all fixtures
+  python3 sim/make_states.py --if-stale # only the missing ones (fixtures of another ROM build are dropped first);
+                                        # the browser tests call this, so a ROM rebuild never leaves them stale
 """
 import sys
 from pathlib import Path
@@ -44,11 +46,21 @@ def bedroom_pc(g: World) -> bool:
 
 FIXTURES = {'rival_choose_action': rival_choose_action, 'lab_at_charmander': lab_at_charmander, 'bedroom_pc': bedroom_pc}
 
+def ensure() -> None:
+    """For the browser tests: make whatever fixture this ROM build is missing (nothing to do most of the time)."""
+    import subprocess
+    subprocess.run([sys.executable, str(Path(__file__).resolve()), '--if-stale'], check=True)
+
+
 if __name__ == '__main__':
     OUT.mkdir(parents=True, exist_ok=True)
+    routes.fresh_checkpoints(OUT)
+    todo = {n: f for n, f in FIXTURES.items() if '--if-stale' not in sys.argv or not (OUT / f'{n}.raw').exists()}
+    if not todo:
+        sys.exit(0)
     g = World()
     boot = g.save_state()
-    for name, make in FIXTURES.items():
+    for name, make in todo.items():
         g.load_state(boot)
         if not make(g):
             sys.exit(f'fixture {name} failed (map={g.map()} frame={g.frame})')
