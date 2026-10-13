@@ -2,6 +2,8 @@
   "name": "code-red-models",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node --test test/*.test.mjs" },
-  "dependencies": { "@earendil-works/pi-codemode": "1.0.4" }
+  "scripts": {},
+  "dependencies": {
+    "@earendil-works/pi-codemode": "1.0.4"
+  }
 }

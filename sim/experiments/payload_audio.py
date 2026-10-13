@@ -25,7 +25,7 @@ SOUND_INFO = 0x03007FF0  # *(struct SoundInfo **): chans[] at +0x50, 0x40 each (
 
 
 def ref(name: str) -> dict:
-    js = (f"import('./rules/index.mjs').then(r => {{ const p = r.PAYLOAD['{name}'], s = p.ref([42, 13, 140, 77]).slice(1); "
+    js = (f"import('./rules/index.mjs').then(r => {{ const p = r.PAYLOAD['{name}'], s = p.ref([42, 13, 140, 77]); "
           "console.log(JSON.stringify({ samples: s, character: p.character })) })")
     return json.loads(subprocess.run(['node', '-e', js], cwd=ROOT, capture_output=True, text=True, check=True).stdout)
 

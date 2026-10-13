@@ -114,7 +114,7 @@ const TEMPLATE = `
   </div>
   <p class="code-red-status" data-status role="status" aria-live="polite">Loading…</p>
   <p class="code-red-error" data-error role="alert" hidden></p>
-  <p class="code-red-muted code-red-help"><span data-who hidden><span data-who-name></span> · <a href="#" data-account-open>Account</a> · </span>Type names on naming screens. Tap 10× to speed up (or hold Space on a keyboard). Saving in the game saves to your account: log in on another device to pick up where you left off.</p>
+  <p class="code-red-muted code-red-help"><span data-who hidden><span data-who-name></span> · <a href="#" data-account-open>Account</a> · </span>Type names on naming screens. Click 10× or hold Space to speed up. Saving in the game saves to your account: log in on another device to pick up where you left off.</p>
   <div class="code-red-stage" data-stage>
     <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>
     <aside class="code-red-side" data-side hidden></aside>
@@ -576,7 +576,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     if (sync) { const stop = sync.watchActive(); disposers.push(stop) }
     if (backend && !backend.active) setActive(false)
     const persisted = await requestPersistence()
-    backend?.track('session_start', { rom: rom.rom_sha1.slice(0, 12), save: restored, cloud: fromCloud, touch: navigator.maxTouchPoints > 0, storage: persisted })
+    backend?.track('session_start', { rom: rom.rom_sha1.slice(0, 12), save: restored, cloud: fromCloud, storage: persisted })
     void backend?.flush()
     say(restored === 'cloud' ? 'Restored your cloud save.' : restored === 'backup' ? 'Restored your save.' : remembered ? '' : 'Playing. Browser storage is unavailable; reopen the file next time.')
     game.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -608,7 +608,7 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
         'mgba-legacy-wasm.data': assets + 'emulator/cores/code-red-mgba-legacy-wasm.data',
       },
       EJS_defaultOptions: {
-        'virtual-gamepad': navigator.maxTouchPoints > 0 ? 'enabled' : 'disabled',
+        'virtual-gamepad': 'disabled', // keyboard and controllers only (no phones, owner 2026-10-12)
         'save-save-interval': '30',
       },
       EJS_Buttons: {

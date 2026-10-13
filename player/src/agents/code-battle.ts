@@ -382,6 +382,7 @@ export function mockWriter(options: { missEvery?: number; chunk?: number; delay?
       ].filter(Boolean).map(h => `  ${h}`)
       let body = src.replace(/\bb\b/g, 'nums')
       if (offByOne) body = move.shape === 'a list' ? `(${body}).slice(1) // skip the first, surely` : `(${body}) + 1 // grab one more`
+      if (wrong && move.payload) body = '{ return [128, 200, 60] }' // too short to be anything
       const lines = body.startsWith('{')
         ? /for\s*\(/.test(body) ? [`  ${body.slice(1, -1).trim()}`] // a loop: keep it on one line (splitting at ; would break the for header)
           : body.slice(1, -1).trim().split(/;\s*|\n/).filter(Boolean).map(l => `  ${l.trim()}`)

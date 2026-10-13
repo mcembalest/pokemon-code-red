@@ -20,7 +20,7 @@ export const formatOf = romType => {
   return Object.hasOwn(FORMATS, t) ? t : 'NORMAL'
 }
 
-/** Small deterministic PRNG (xorshift32), same as models/contracts.mjs. */
+/** Small deterministic PRNG (xorshift32). */
 export function rng(seed) {
   let s = (Math.imul((seed >>> 0) ^ 0x9e3779b9, 2654435761) >>> 0) || 1
   for (let i = 0; i < 8; i++) { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0 }
@@ -89,10 +89,12 @@ export function turnPrompt({ self, target, move, type, know = null, budget, tuto
     ? [`- data = the foe's ${words.data}, already a plain list of numbers. Example: [${EXAMPLE_BYTES.join(', ')}].`]
     : [`- data = the foe's ${words.data}, this turn in ${type} format: ${FORMATS[type].note}. Example: ${show(example(type))} is [${EXAMPLE_BYTES.join(', ')}].`,
       know ? `- ${knowLine(know)}` : `- First line of the function: const ${words.v} = <read data into a list of numbers>`]
-  const user = [`Foe: ${target.name} Lv${target.level} (${target.types.join('/')}). ${call}`, `Write the function: function ${move.fn}(data)`, ...formatLines,
-    move.payload
-      ? `- ${move.fn} returns ${move.spec}. ${HOW[move.payload.kind]}\n- One way to write it in ${self.name}'s own voice, after reading ${words.v} (make it your own: change the numbers, the timing, the shape; any version with that character hits):\n${line(`function ${move.fn}(data){const nums=…;${exampleBody(move.payload, self.name)}}`)}`
-      : `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(WORKED)} it returns ${JSON.stringify(move.ref(WORKED))}.`,
+  const user = [`Foe: ${target.name} Lv${target.level} (${target.types.join('/')}). ${call}`,
+    ...(move.payload // a payload move only makes (a sound, a voice, a picture): it reads nothing of the foe
+      ? [`Write the function: function ${move.fn}()`,
+        `- ${move.fn} returns ${move.spec}. ${HOW[move.payload.kind]}\n- One way to write it in ${self.name}'s own voice (make it your own: change the numbers, the timing, the shape; any version with that character hits):\n${`function ${move.fn}(){${exampleBody(move.payload, self.name)}}`}`]
+      : [`Write the function: function ${move.fn}(data)`, ...formatLines,
+        `- ${move.fn} returns ${move.spec}${move.shape === 'no key' ? '' : ` (${move.shape})`}. On the numbers ${JSON.stringify(WORKED)} it returns ${JSON.stringify(move.ref(WORKED))}.`]),
     ...(memory && !tutorial ? memoryLines({ ...memory, type }) : []),
     ...(hot ? [`- Your notes: ${hot}`] : []),
     `- Byte budget: your whole code block must be at most ${codeBudget(budget, ctx)} characters, comments included${contextCost(ctx) ? ` (${budget} minus the ${contextCost(ctx)} your memory takes)` : ''}.`].join('\n')
@@ -148,7 +150,6 @@ export function verdict(move, bytes, run) {
   if (move.payload) { // bytes to play or draw: any value that passes the move's check hits, and rides along
     const why = move.payload.check(run.value, bytes)
     if (why) return { hit: false, reason: 'wrong answer', got: clip(run.value), want: why }
-    // The first number is the foe's count (it proves the code read the foe's format); it is checked, not played or drawn.
     return { hit: true, payload: { kind: move.payload.kind, bytes: payloadBytes(move.payload, run.value), ...(move.payload.palette ? { palette: move.payload.palette } : {}) } }
   }
   const want = move.ref(bytes)

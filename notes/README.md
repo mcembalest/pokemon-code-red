@@ -9,7 +9,7 @@ Working notes. Outline + links + quotes. Not docs. Dated files are snapshots of 
 | [types.md](types.md) | the type ↔ storage/security concept table (owner's typechart) |
 | [sim.md](sim.md) | the dress rehearsals: real models through the sim, a fresh account on the live site |
 | [battle-lab.md](battle-lab.md) | 2026-10-07: the battle rules' first drafts measured in the lab (readers and slots there are gone since 2026-10-11) |
-| [strategy.md](strategy.md) | 2026-10-08: the move-choice strategy lab (`models/strategy/`) |
+| [strategy.md](strategy.md) | 2026-10-08: the move-choice strategy lab (code removed 2026-10-13; findings) |
 | [state-2026-10-04.md](state-2026-10-04.md) | what exists, where (branches, commits, files) |
 | [fragility-audit.md](fragility-audit.md) | weak points in browser / runtime / dev cycle, with evidence |
 | [memory-budget.md](memory-budget.md) | measured RAM / ROM / save numbers from vanilla build |

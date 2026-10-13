@@ -21,7 +21,7 @@ from codered.world import BMON_SIZE
 MOVE_GROWL, MOVE_FLASH = 45, 148
 OUT = ROOT / 'build/sim/results'
 REFS = json.loads(subprocess.run(['node', '-e', "import('./rules/index.mjs').then(r => { const b = [42, 13, 140, 77]; "
-    "console.log(JSON.stringify({ growl: r.PAYLOAD.growl.ref(b).slice(1), flash: r.PAYLOAD.flash.ref(b).slice(1), palette: r.PAYLOAD.flash.palette })) })"],
+    "console.log(JSON.stringify({ growl: r.PAYLOAD.growl.ref(b), flash: r.PAYLOAD.flash.ref(b), palette: r.PAYLOAD.flash.palette })) })"],
     cwd=ROOT, capture_output=True, text=True, check=True).stdout)
 
 

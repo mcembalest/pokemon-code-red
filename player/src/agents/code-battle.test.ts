@@ -265,13 +265,13 @@ test('payload move: a hit hands the bytes to the game before the reply; a miss h
   const turns: TurnRecord[] = []
   await b.poll(); g.request({ move: 45 }); await b.poll() // GROWL = ERROR: the mock writes the buzz
   assert.equal(g.reply().verdict, 1)
-  assert.equal(memory.u8(AT + 6), 1); assert.equal(memory.u16(AT + 8), 3199) // the count (first number) is checked, not played
+  assert.equal(memory.u8(AT + 6), 1); assert.equal(memory.u16(AT + 8), 3199) // every number plays (payload moves read nothing of the foe)
   assert.equal(turns[0]!.payload, 'sound')
   memory.w8(AT + 6, 0) // the game played it
-  g.request({ move: 45 }); await b.poll() // the mock's every-2nd mistake: 399 samples → wrong shape → miss, nothing delivered
+  g.request({ move: 45 }); await b.poll() // the mock's every-2nd mistake: three samples → too short → miss, nothing delivered
   assert.equal(g.reply().verdict, 2)
   assert.equal(memory.u8(AT + 6), 0)
-  assert.match(log.end.at(-1)!.detail ?? '', /at least 100|first number should be/)
+  assert.match(log.end.at(-1)!.detail ?? '', /at least 1000/)
 })
 
 test('doubt: the ROM says it used its own pick; the panel names the call it doubted; its code is not shaken', async () => {

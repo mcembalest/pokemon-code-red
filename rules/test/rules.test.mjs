@@ -146,48 +146,48 @@ test('one context budget: the reader and hot memory are charged against the budg
   assert.equal(tokenCapFor(350), 260, 'the token cap follows the budget')
 })
 
-test('payload moves: the checker judges the character, a hit carries the bytes (no count), the prompt says how', async () => {
+test('payload moves: the checker judges the character, a hit carries the bytes, the prompt says how (they read nothing)', async () => {
   const error = byName.ERROR, flash = byName.FLASH, spark = byName.SPARK
   const bytes = [42, 13, 140, 77]
   const run = v => ({ ok: true, value: v })
   for (const m of ['ERROR', 'BUZZ', 'FEEDBACK', 'DIM', 'FLASH', 'SPARK']) assert.equal(verdict(byName[m], bytes, run(byName[m].ref(bytes))).hit, true, m)
   const hit = verdict(error, bytes, run(error.ref(bytes)))
-  assert.equal(hit.payload.kind, 'sound'); assert.equal(hit.payload.bytes.length, 3199) // the count is checked, not played
-  const tone = [4, ...Array.from({ length: 3199 }, (_, i) => (Math.floor(i / 10) % 2 ? 30 : 230))]
+  assert.equal(hit.payload.kind, 'sound'); assert.equal(hit.payload.bytes.length, 3199)
+  const tone = Array.from({ length: 3199 }, (_, i) => (Math.floor(i / 10) % 2 ? 30 : 230))
   assert.match(verdict(error, bytes, run(tone)).want, /fades/) // a flat tone is not a growl
-  const rising = [4, ...Array.from({ length: 3199 }, (_, i) => { const t = i / 3200; return 128 + (1 - t) * 90 * Math.sign(Math.sin(i * (0.1 + 0.3 * t))) })]
+  const rising = Array.from({ length: 3199 }, (_, i) => { const t = i / 3200; return 128 + (1 - t) * 90 * Math.sign(Math.sin(i * (0.1 + 0.3 * t))) })
   assert.match(verdict(error, bytes, run(rising)).want, /slide down/)
-  assert.equal(verdict(error, bytes, run(tone.map((x, i) => (i ? x : 9)))).want, 'first number should be 4')
-  assert.match(verdict(error, bytes, run([4, 230, 30])).want, /at least 1000/)
+  assert.match(verdict(error, bytes, run([230, 30])).want, /at least 1000/)
   const pic = verdict(flash, bytes, run(flash.ref(bytes)))
-  assert.equal(pic.payload.kind, 'image'); assert.equal(pic.payload.bytes.length, 4096); assert.equal(pic.payload.bytes[0], 0) // a see-through corner, no count dot
-  const square = [4, ...Array.from({ length: 4096 }, (_, i) => { const k = i % 1024; return (k & 31) > 8 && (k & 31) < 24 && k >> 5 > 8 && k >> 5 < 24 ? 15 : 0 })]
+  assert.equal(pic.payload.kind, 'image'); assert.equal(pic.payload.bytes.length, 4096); assert.equal(pic.payload.bytes[0], 0) // a see-through corner
+  const square = Array.from({ length: 4096 }, (_, i) => { const k = i % 1024; return (k & 31) > 8 && (k & 31) < 24 && k >> 5 > 8 && k >> 5 < 24 ? 15 : 0 })
   assert.match(verdict(flash, bytes, run(square)).want, /3 different colors/)
-  assert.match(verdict(flash, bytes, run([4, ...new Array(4096).fill(300)])).want, /see-through/) // 300 sticks to 15: a filled square
-  assert.equal(verdict(error, bytes, run(error.ref(bytes).map((x, i) => (i ? x + 0.4 : x)))).hit, true) // fractions round
-  const blob = [4, ...Array.from({ length: 4096 }, (_, i) => { const f = i >> 10, k = i % 1024, r = Math.hypot((k & 31) - 15.5, (k >> 5) - 15.5); return r < 5 + f ? Math.max(1, 15 - Math.round(r)) : 0 })]
+  assert.match(verdict(flash, bytes, run(new Array(4096).fill(300))).want, /see-through/) // 300 sticks to 15: a filled square
+  assert.equal(verdict(error, bytes, run(error.ref(bytes).map(x => x + 0.4))).hit, true) // fractions round
+  const blob = Array.from({ length: 4096 }, (_, i) => { const f = i >> 10, k = i % 1024, r = Math.hypot((k & 31) - 15.5, (k >> 5) - 15.5); return r < 5 + f ? Math.max(1, 15 - Math.round(r)) : 0 })
   assert.equal(verdict(flash, bytes, run(blob)).hit, true) // a glowing ball that grows is a flash…
   assert.match(verdict(spark, bytes, run(blob)).want, /top rows/) // …not a bolt
   // voices (2026-10-13): one cycle of a wave, the instrument the move's own FireRed sound effects play with
   const dim = byName.DIM, feedback = byName.FEEDBACK, buzz = byName.BUZZ
   const voice = verdict(dim, bytes, run(dim.ref(bytes)))
   assert.equal(voice.payload.kind, 'voice'); assert.equal(voice.payload.bytes.length, 64)
-  const sine = [4, ...Array.from({ length: 64 }, (_, i) => 128 + 70 * Math.sin((2 * Math.PI * i) / 64))]
-  const pulse = [4, ...Array.from({ length: 64 }, (_, i) => (i < 8 ? 230 : 113))]
-  const grit = [4, ...Array.from({ length: 64 }, (_, i) => 128 + 60 * Math.sin((2 * Math.PI * i * 9) / 64))]
+  const sine = Array.from({ length: 64 }, (_, i) => 128 + 70 * Math.sin((2 * Math.PI * i) / 64))
+  const pulse = Array.from({ length: 64 }, (_, i) => (i < 8 ? 230 : 113))
+  const grit = Array.from({ length: 64 }, (_, i) => 128 + 60 * Math.sin((2 * Math.PI * i * 9) / 64))
   assert.equal(verdict(dim, bytes, run(sine)).hit, true)
   assert.match(verdict(dim, bytes, run(pulse)).want, /smooth and round/)
   assert.equal(verdict(feedback, bytes, run(pulse)).hit, true)
   assert.match(verdict(feedback, bytes, run(sine)).want, /thin pulse/)
   assert.equal(verdict(buzz, bytes, run(grit)).hit, true)
   assert.match(verdict(buzz, bytes, run(sine)).want, /gritty/)
-  assert.match(verdict(dim, bytes, run([4, ...sine.slice(1).map(x => x + 60)])).want, /around 128/)
-  assert.match(verdict(dim, bytes, run([4, ...sine.slice(1).map(x => 128 + (x - 128) / 4)])).want, /too quiet/)
-  assert.match(verdict(dim, bytes, run([4, ...new Array(300).fill(128)])).want, /at most 256/)
-  assert.match(verdict(dim, bytes, run([4, 1, 2, 3])).want, /at least 17/)
+  assert.match(verdict(dim, bytes, run(sine.map(x => x + 60))).want, /around 128/)
+  assert.match(verdict(dim, bytes, run(sine.map(x => 128 + (x - 128) / 4))).want, /too quiet/)
+  assert.match(verdict(dim, bytes, run(new Array(300).fill(128))).want, /at most 256/)
+  assert.match(verdict(dim, bytes, run([1, 2, 3])).want, /at least 16/)
   assert.match(turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: dim, type: 'NORMAL', budget: 300 }).user, /one cycle of a wave/)
   const { user } = turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: error, type: 'NORMAL', budget: 300 })
-  assert.match(user, /phase p/); assert.match(user, /make it your own/); assert.match(user, /function error\(data\)\{const nums=/)
+  assert.match(user, /phase p/); assert.match(user, /make it your own/); assert.match(user, /function error\(\)\{const o=\[\]/)
+  assert.doesNotMatch(user, /data = the foe/) // a payload move reads nothing
   assert.ok(user.length < 1800, String(user.length))
   // every species has its own voice: the example in the prompt differs, the character doesn't
   const pid = turnPrompt({ self: { name: 'PIDGEY', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: error, type: 'NORMAL', budget: 300 }).user

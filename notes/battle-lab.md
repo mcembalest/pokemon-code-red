@@ -1,5 +1,7 @@
 # Battle lab, 2026-10-07 (2 h, iterative) — draft 5 of the battle rules
 
+> The code these notes describe was removed on 2026-10-13 (it is in git history before that date); the findings stand.
+
 Rules: `rules/` (2026-10-08) = the one browser-safe module the game and the lab share: moves, type formats + Pokédex readers, growth + badges, turn prompt, judging, learning; tests `rules/test/`
 Code: `models/lab/` (run.mjs = designs side by side; variants.mjs; lint.mjs; journey.mjs = Pallet → Misty sim) · workflow `lab.yml` (runs when `models/lab/run.json` or `journey.json` changes; results → release `lab`) · model: Llama 3.2 3B on Workers AI via pi-ai
 
