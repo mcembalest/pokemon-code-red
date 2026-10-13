@@ -87,6 +87,9 @@ jobs:
         run: |
           pip install --break-system-packages numpy
           python3 sim/experiments/payload_audio.py growl && python3 sim/experiments/move_sounds.py --check
+      - name: Battle beats (a Pokémon glows while it writes; a crash glitches, a wrong answer doesn't)
+        if: matrix.seed == 0 && !cancelled()
+        run: python3 sim/experiments/beats.py
       - name: Doubt (GROWL over SCRATCH is doubted 50% / 25% / 0% at 0 / 4 / 8 badges)
         if: matrix.seed == 0 && !cancelled()  # even when the Misty route flaked
         run: python3 sim/experiments/doubt.py 60
