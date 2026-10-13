@@ -42,9 +42,9 @@ def summarize(turns: list[dict], legs: list[dict], result: dict, wall: float) ->
         'doubted': sum(1 for t in mine if t.get('doubted_slot')),
         'payloads_delivered': sum(1 for t in turns if t.get('payload_kind')),
         'by_move': {m: {'n': len(ts), 'hit': rate(ts)} for m, ts in sorted(by_move.items(), key=lambda kv: -len(kv[1]))},
-        # sung moves (rules/song.mjs prototype, --song): both sides, per move, with why they missed
-        'sung': {m: {'n': len(ts), 'hit': rate(ts), 'misses': dict(Counter(t.get('reason') for t in ts if t['verdict'] == 'miss').most_common())}
-                 for m, ts in sorted(((m, [t for t in turns if t.get('sung') and t.get('move') == m]) for m in {t.get('move') for t in turns if t.get('sung')}), key=lambda kv: -len(kv[1]))},
+        # rune moves (rules/runes.mjs prototype, --runes): both sides, per move, with why they missed
+        'runes': {m: {'n': len(ts), 'hit': rate(ts), 'misses': dict(Counter(t.get('reason') for t in ts if t['verdict'] == 'miss').most_common())}
+                 for m, ts in sorted(((m, [t for t in turns if t.get('runes') and t.get('move') == m]) for m in {t.get('move') for t in turns if t.get('runes')}), key=lambda kv: -len(kv[1]))},
         # which data formats it reads well (a format under ~0.5 is where a player will feel stuck: POISON in the Erika run)
         'by_type': {k: {'n': len(ts), 'hit': rate(ts)} for k, ts in sorted(by_type.items(), key=lambda kv: -len(kv[1]))},
         'foe_by_type': {k: {'n': len(ts), 'hit': rate(ts)} for k, ts in sorted(foe_by_type.items(), key=lambda kv: -len(kv[1]))},
@@ -63,7 +63,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--mock', action='store_true')
-    ap.add_argument('--song', action='store_true', help='sung moves (rules/song.mjs prototype; SONG=1 for the brain)')
+    ap.add_argument('--runes', action='store_true', help='rune moves (rules/runes.mjs prototype; RUNES=1 for the brain)')
     ap.add_argument('--to', default='erika', choices=['misty', 'surge', 'erika'], help='how far to play (default: Erika)')
     ap.add_argument('--out', default=str(OUT), help='where turns.jsonl / summary.json go (one dir per parallel run)')
     args = ap.parse_args()
@@ -76,7 +76,7 @@ def main():
         g.screenshot(OUT / f'stuck-{g.frame}.png')
         (OUT / f'stuck-{g.frame}.txt').write_text(''.join(traceback.format_stack(frame)) + f'\nmap {g.map()} in_battle {g.in_battle()}\n' + (json.dumps({k: v for k, v in Battle(g).mon(0).items() if k in ('species', 'moves', 'pp', 'hp')}) + ' cursor ' + str(g.u8(g.sym('gMoveSelectionCursor'))) if g.in_battle() else ''))
     signal.signal(signal.SIGUSR1, dump)
-    host = BrainHost(g, OUT / 'turns.jsonl', mock=args.mock, env={'SONG': '1'} if args.song else None)
+    host = BrainHost(g, OUT / 'turns.jsonl', mock=args.mock, env={'RUNES': '1'} if args.runes else None)
     host.attach()
     # Raw states at the first action menu of every gym battle (the browser rehearsal loads them).
     saved = set()

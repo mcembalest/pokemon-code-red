@@ -1,8 +1,0 @@
-{
- "note": "Song prototype, run 1 (take 2): the five emitters, 'full' (the whole language in the prompt; 1% in the Misty rehearsal) vs 'lean' (only the move's own ops and the shape to change), 3B and the 32B coder.",
- "models": ["@cf/meta/llama-3.2-3b-instruct", "@cf/qwen/qwen2.5-coder-32b-instruct"],
- "styles": ["full", "lean"],
- "levels": [6, 14, 22],
- "samples": 10,
- "concurrency": 6
-}

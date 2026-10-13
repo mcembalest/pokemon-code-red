@@ -321,34 +321,34 @@ test('working memory of the last turn: a miss comes back as a line with what wen
   assert.doesNotMatch(seen[2]!, /Last turn/, 'working memory dies with the battle')
 })
 
-test('sung moves (SONG knob): no foe data in the prompt, glyphs on the panel, the four miss reasons, a plain move still reads', async () => {
-  const { SONG } = await import('../../../rules/index.mjs')
-  SONG.enabled = true
+test('rune moves (RUNES knob): no foe data in the prompt, glyphs on the panel, the four miss reasons, a plain move still reads', async () => {
+  const { RUNES } = await import('../../../rules/index.mjs')
+  RUNES.enabled = true
   try {
     const g = game(), { panel, log } = fakePanel(), turns: TurnRecord[] = []
     const seen: { system: string; user: string }[] = []
     const mock = mockWriter({ missEvery: 2, delay: instant })
     const spy: CodeWriter = { async write(p, onText) { seen.push(p); return mock.write(p, onText) } }
     const b = new CodeBattle(g.mailbox, names, spy, sandbox, panel, store(), { onTurn: t => turns.push(t) })
-    await b.poll(); g.request({ move: 33 }); await b.poll() // TACKLE → PING, sung
-    assert.equal(log.begin[0]!.move, 'PING'); assert.match(log.begin[0]!.sung!.want, /a file: 4 to 8 numbers/)
+    await b.poll(); g.request({ move: 33 }); await b.poll() // TACKLE → PING, in runes
+    assert.equal(log.begin[0]!.move, 'PING'); assert.match(log.begin[0]!.runes!.want, /a file: 4 to 8 numbers/)
     assert.match(seen[0]!.user, /Move: PING \(Normal\)\. Sing a file/); assert.doesNotMatch(seen[0]!.user, /data|format/i)
     assert.deepEqual(g.reply(), { state: 2, verdict: 1, reason: 0 })
-    assert.equal(log.end[0]!.text, "CHARMANDER's song hit!")
-    assert.doesNotMatch(log.end[0]!.song!.glyphs, /put|count/, 'the strip has no op words'); assert.match(log.end[0]!.song!.glyphs, /^⊕ 04  ⊕ /)
-    assert.match(log.end[0]!.song!.program, /^put 4\nput /); assert.match(log.end[0]!.song!.js, /^let t = \[\]/)
-    assert.equal(log.end[0]!.song!.tape!.length, 5)
-    assert.equal(turns[0]!.sung, true); assert.equal(turns[0]!.verdict, 'hit')
-    g.request({ move: 33 }); await b.poll() // the stand-in sings the wrong key every second turn
+    assert.equal(log.end[0]!.text, "CHARMANDER's code hit!")
+    assert.doesNotMatch(log.end[0]!.runes!.glyphs, /put|count/, 'the strip has no op words'); assert.match(log.end[0]!.runes!.glyphs, /^⊕ 04  ⊕ /)
+    assert.match(log.end[0]!.runes!.program, /^put 4\nput /); assert.match(log.end[0]!.runes!.js, /^let t = \[\]/)
+    assert.equal(log.end[0]!.runes!.tape!.length, 5)
+    assert.equal(turns[0]!.runes, true); assert.equal(turns[0]!.verdict, 'hit')
+    g.request({ move: 33 }); await b.poll() // the stand-in writes the wrong key every second turn
     assert.deepEqual(g.reply(), { state: 2, verdict: 2, reason: 1 }); assert.equal(log.end[1]!.reason, 'wrong answer'); assert.match(log.end[1]!.detail!, /sang \[.*needed a file/)
     for (const [text, reason, code] of [['', 'no code', 3], ['return 4', 'crashed', 0], ['stream 9 3', 'crashed', 0], ['put 4\nput 1 2 3 4\n'.repeat(20), 'over budget', 2]] as const) {
       const f = new CodeBattle(g.mailbox, names, fixed(text), sandbox, panel, store())
       g.request({ move: 33 }); await f.poll()
       assert.equal(g.reply().reason, code, reason); assert.equal(log.end.at(-1)!.reason, reason)
     }
-    g.request({ move: 10 }); await b.poll() // SCRATCH → SLICE has no song yet: it still reads the foe
-    assert.equal(log.begin.at(-1)!.sung, undefined); assert.match(seen.at(-1)!.user, /WATER format/); assert.equal(turns.at(-1)!.sung, undefined)
-    g.request({ move: 33, flags: 0x8 | 0x10 }); await b.poll() // the first battle never sings
-    assert.equal(log.begin.at(-1)!.tutorial, true); assert.equal(log.begin.at(-1)!.sung, undefined)
-  } finally { SONG.enabled = false }
+    g.request({ move: 10 }); await b.poll() // SCRATCH → SLICE has no runes yet: it still reads the foe
+    assert.equal(log.begin.at(-1)!.runes, undefined); assert.match(seen.at(-1)!.user, /WATER format/); assert.equal(turns.at(-1)!.runes, undefined)
+    g.request({ move: 33, flags: 0x8 | 0x10 }); await b.poll() // the first battle never uses runes
+    assert.equal(log.begin.at(-1)!.tutorial, true); assert.equal(log.begin.at(-1)!.runes, undefined)
+  } finally { RUNES.enabled = false }
 })

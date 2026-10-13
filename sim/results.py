@@ -46,8 +46,8 @@ def show(summary: Path, turns: Path | None) -> None:
     for key, label in (('by_type', 'yours by format'), ('foe_by_type', 'foes by format')):
         if d.get(key):
             print(f'   {label}: ' + ', '.join(f'{t} {v["hit"]:.0%}/{v["n"]}' for t, v in d[key].items()))
-    if d.get('sung'):
-        print('   sung: ' + ', '.join(f'{m} {v["hit"]:.0%}/{v["n"]}' + (f' ({", ".join(f"{k} {n}" for k, n in v["misses"].items())})' if v['misses'] else '') for m, v in d['sung'].items()))
+    if d.get('runes'):
+        print('   runes: ' + ', '.join(f'{m} {v["hit"]:.0%}/{v["n"]}' + (f' ({", ".join(f"{k} {n}" for k, n in v["misses"].items())})' if v['misses'] else '') for m, v in d['runes'].items()))
     print(f'   memory: used on {d["memory_used"]:.0%} of turns, hit {d["hit_with_memory"]:.0%} with / {d["hit_without_memory"]:.0%} without · '
           f'{d.get("consolidations", 0)} consolidations · gym states {", ".join(s.split("-")[-1] for s in d.get("gym_states", []))}')
     if turns and not d.get('ok'):

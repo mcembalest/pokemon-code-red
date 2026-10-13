@@ -59,10 +59,10 @@ export const EXAMPLE_BYTES = [42, 13, 140]
 /** The target's bytes each turn: this many distinct numbers in this range (never shown to the Pokémon). */
 export const TARGET = { minCount: 4, maxCount: 7, low: 10, high: 199 }
 
-/** The song (prototype, owner, 2026-10-12): moves with an emit spec (rules/song.mjs EMIT) are sung — a tiny tape
+/** Runes (prototype, owner, 2026-10-12; called "the song" until 2026-10-13, renamed so it is never confused with the sound moves or SING): moves with an emit spec (rules/runes.mjs EMIT) are written in runes — a tiny tape
  *  program that emits bytes of the move's type — instead of written as JavaScript about the foe's data. Off until it
- *  measures well; the page turns it on with ?song=1, the sim with SONG=1.
- *  coder: sung moves go to the coder model (the payload model) instead of the battle model. Measured 2026-10-12
- *  (models/song-exp): the 3B battle model sings the five emitters right 25% of the time (it drops the op words,
+ *  measures well; the page turns it on with ?runes=1, the sim with RUNES=1.
+ *  coder: rune moves go to the coder model (the payload model) instead of the battle model. Measured 2026-10-12
+ *  (models/runes-exp): the 3B battle model writes the five emitters right 25% of the time (it drops the op words,
  *  miscounts, cannot checksum); the 32B coder 100% with the lean prompt. The difficulty then lives in the spec. */
-export const SONG = { enabled: false, coder: true }
+export const RUNES = { enabled: false, coder: true }
