@@ -119,7 +119,6 @@ const TEMPLATE = `
     <div class="code-red-game" data-game hidden aria-label="Code Red game"><div id="code-red-game"></div></div>
     <aside class="code-red-side" data-side hidden></aside>
   </div>
-  <div data-eeg-host></div>
   <div class="code-red-toolbar" data-toolbar hidden>
     <button class="code-red-speed" data-code type="button" aria-pressed="true" hidden>Code</button>
     <button class="code-red-speed" data-eeg type="button" aria-pressed="false" hidden>PokÉEG</button>
@@ -144,7 +143,6 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
   const codeButton = root.querySelector<HTMLButtonElement>('[data-code]')!
   const eegButton = root.querySelector<HTMLButtonElement>('[data-eeg]')!
   const decoderButton = root.querySelector<HTMLButtonElement>('[data-decoder]')!
-  const eegHost = root.querySelector<HTMLElement>('[data-eeg-host]')!
   const stage = root.querySelector<HTMLElement>('[data-stage]')!
   const side = root.querySelector<HTMLElement>('[data-side]')!
   let fastForward = false
@@ -439,7 +437,8 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     const owned = romBytes && OwnedReader.supported(rom.symbols) ? new OwnedReader(memory, romBytes, rom.symbols) : null
     let eegLink: EegLink | null = null
     if (owned) {
-      const eeg = createPokeeg(eegHost, { owned: () => { try { return memory.ready() ? owned.all() : null } catch { return null } }, minds, badges, onHot: (pid, text) => backend?.track('hot_memory', { pid, chars: text.length }) })
+      // In the sidebar with the code panel (owner, playtest 1: an always-available tool).
+      const eeg = createPokeeg(side, { owned: () => { try { return memory.ready() ? owned.all() : null } catch { return null } }, minds, badges, onHot: (pid, text) => backend?.track('hot_memory', { pid, chars: text.length }) })
       const showEeg = (on: boolean) => {
         eeg.setVisible(on)
         eegButton.setAttribute('aria-pressed', String(on))

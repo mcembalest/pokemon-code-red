@@ -86,8 +86,10 @@ def main():
         page.locator('.code-red-eeg-mind').screenshot(path=str(OUT / 'pokeeg-scan.png'))
         print('mind:', ' '.join(mind.split())[:240], flush=True)
 
-        # 2. Pin hot memory: the cost shows in bytes and the note is kept in the mind store.
-        page.click('.code-red-eeg [data-tab="NOTE"]')
+        # 2. Pin your note (at the top of the panel, with form / misses most / remembers): the cost shows in bytes and
+        #    the note is kept in the mind store.
+        now = page.text_content('.code-red-eeg-now')
+        assert 'Form' in now and 'Misses most' in now and 'Remembers' in now and 'Your note' in now, now
         page.fill('.code-red-eeg [data-hot]', 'return a plain number')
         assert '21 chars = 21 bytes' in page.text_content('.code-red-eeg-hot small')
         page.click('.code-red-eeg [data-save-hot]')
