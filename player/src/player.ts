@@ -19,7 +19,7 @@ import { createHotEditor, createPokeeg } from './agents/pokeeg.ts'
 import { EegMailbox } from './bridge/eeg.ts'
 import { PayloadMailbox } from './bridge/payload.ts'
 import { EegLink } from './agents/eeg-link.ts'
-import { SONG, budgetAt, byFireRed, formatOf, stageOf } from '../../rules/index.mjs'
+import { RUNES, budgetAt, byFireRed, formatOf, stageOf } from '../../rules/index.mjs'
 import type { TypeName } from '../../rules/index.mjs'
 import { ProgressWatcher, readSnapshot } from './progress.ts'
 import { Agent } from './agents/agent.ts'
@@ -404,11 +404,11 @@ export function mount(root: HTMLElement, options: { assets: string; api?: string
     if (!sym) return // older ROM build
     const panel = createCodePanel(side, { fast: () => fastForward })
     side.hidden = false
-    // The song prototype (rules/song.mjs): ?song=1 turns it on; ?decoder=1 pretends the trainer holds the DECODER.
+    // The rune prototype (rules/runes.mjs): ?runes=1 turns it on (?song=1, its old name, too); ?decoder=1 pretends the trainer holds the DECODER.
     const params = new URLSearchParams(location.search)
-    if (params.get('song') === '1') SONG.enabled = true
+    if (params.get('runes') === '1' || params.get('song') === '1') RUNES.enabled = true
     if (params.get('decoder') === '1') panel.setDecoder(true)
-    decoderButton.hidden = !SONG.enabled
+    decoderButton.hidden = !RUNES.enabled
     decoderButton.setAttribute('aria-pressed', String(panel.decoder))
     decoderButton.onpointerdown = event => event.preventDefault()
     decoderButton.onclick = () => { panel.setDecoder(!panel.decoder); decoderButton.setAttribute('aria-pressed', String(panel.decoder)); decoderButton.classList.toggle('code-red-speed-on', panel.decoder) }
@@ -695,7 +695,7 @@ function cloudWriter(assets: string, api: string, token: () => string): CodeWrit
   return {
     async write(prompt, onText) {
       const { k, models } = await load()
-      const modelId = prompt.meta.move?.payload || (prompt.meta.sung && SONG.coder) ? k.PAYLOAD_MODEL : k.BATTLE_MODEL // payload moves (and sung ones, measured 2026-10-12): the bigger coder
+      const modelId = prompt.meta.move?.payload || (prompt.meta.runes && RUNES.coder) ? k.PAYLOAD_MODEL : k.BATTLE_MODEL // payload moves (and rune ones, measured 2026-10-12): the bigger coder
       const { text } = await k.writeCode({ models, model: { provider: k.GAME_PROVIDER, modelId }, system: prompt.system, user: prompt.user, temperature: prompt.temperature, maxTokens: prompt.maxTokens, onText })
       return text
     },

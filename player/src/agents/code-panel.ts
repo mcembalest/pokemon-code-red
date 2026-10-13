@@ -5,17 +5,17 @@
 // The first battles replay the code at a readable pace (~2 s); later it shows at real speed;
 // the 10× speed-up shows it at once.
 import type { Panel, TurnInfo, TurnResult } from './code-battle.ts'
-import { parseSong, glyphs as glyphsOf } from '../../../rules/index.mjs'
+import { parseRunes, glyphs as glyphsOf } from '../../../rules/index.mjs'
 
 const READABLE_BATTLE_TURNS = 12   // turns shown at a readable pace before real speed
 const READABLE_MS = 2000           // how long a whole block takes to appear at readable pace
 const HOLD_MS = 700                // verdict stays up before the game moves on
 
-interface Pane { root: HTMLElement; head: HTMLElement; code: HTMLElement; foot: HTMLElement; queue: string; shown: number; info: TurnInfo | null; song?: TurnResult['song']; result?: TurnResult }
+interface Pane { root: HTMLElement; head: HTMLElement; code: HTMLElement; foot: HTMLElement; queue: string; shown: number; info: TurnInfo | null; runes?: TurnResult["runes"]; result?: TurnResult }
 
 export interface CodePanel extends Panel {
   element: HTMLElement
-  /** The DECODER (Oak's parcel): with it, a sung move shows its op names and JavaScript meaning instead of glyphs. */
+  /** The DECODER (Oak's parcel): with it, a rune move shows its op names and JavaScript meaning instead of glyphs. */
   setDecoder(on: boolean): void
   readonly decoder: boolean
   /** The user's switch: hidden stays hidden through battles; otherwise the panel follows the battle. */
@@ -28,8 +28,8 @@ export interface CodePanel extends Panel {
 
 const describe = (i: TurnInfo, decoder = false) => {
   const who = i.side === 1 ? `${i.wild ? 'Wild' : 'Foe'} ${i.attacker}` : i.attacker
-  // a sung move: what it emits; the words of the spec only with the DECODER (without it, the player sees bytes)
-  const data = i.sung ? `sings ${decoder ? i.sung.want : i.sung.noun}` : i.tutorial ? 'a plain list' : `${i.type} data`
+  // a rune move: what it emits; the words of the spec only with the DECODER (without it, the player sees bytes)
+  const data = i.runes ? `emits ${decoder ? i.runes.want : i.runes.noun}` : i.tutorial ? 'a plain list' : `${i.type} data`
   const knows = i.recalls?.length ? ` · recalls ${i.recalls.join(', ')}` : ''
   const doubt = i.doubt ? ` · doubted your ${i.doubt.called ?? 'call'}` : ''
   const mood = i.notch < 0 ? ` · shaken ${i.notch}` : i.notch > 0 ? ` · steady +${i.notch}` : ''
@@ -63,16 +63,16 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
   /** Only the pane whose turn it is stays open; the other folds to its header and verdict line. */
   const focus = (side: 0 | 1) => { panes[side].root.removeAttribute('data-folded'); panes[1 - side]!.root.dataset.folded = '' }
 
-  // Show the code, not the reply's fence lines (```js … ```). A sung move shows glyphs (one rune per op, bytes in
-  // hex) unless the trainer holds the DECODER; while it is still being sung, each finished line becomes its rune.
+  // Show the code, not the reply's fence lines (```js … ```). A rune move shows glyphs (one rune per op, bytes in
+  // hex) unless the trainer holds the DECODER; while it is still being written, each finished line becomes its rune.
   const render = (p: Pane) => {
     const text = p.queue.slice(0, p.shown).replace(/^\s*```[a-z]*[ \t]*\n?/i, '').replace(/\n?```\s*$/, '')
-    if (!p.info?.sung || decoder) delete p.root.dataset.glyphs; else p.root.dataset.glyphs = ''
-    if (!p.info?.sung) { p.code.textContent = text; return }
-    if (decoder) { p.code.textContent = p.song?.js ? `${text}\n\n// means\n${p.song.js}` : text; return }
-    const lines = text.split('\n'), done = p.song ? lines : lines.slice(0, -1)
-    const runes = done.map(l => { const r = parseSong(l); return r.ops?.length ? glyphsOf(r.ops) : l.trim() ? '·' : '' }).filter(Boolean)
-    p.code.textContent = runes.join('\n') + (p.song ? '' : '\n…')
+    if (!p.info?.runes || decoder) delete p.root.dataset.glyphs; else p.root.dataset.glyphs = ''
+    if (!p.info?.runes) { p.code.textContent = text; return }
+    if (decoder) { p.code.textContent = p.runes?.js ? `${text}\n\n// means\n${p.runes.js}` : text; return }
+    const lines = text.split('\n'), done = p.runes ? lines : lines.slice(0, -1)
+    const runes = done.map(l => { const r = parseRunes(l); return r.ops?.length ? glyphsOf(r.ops) : l.trim() ? '·' : '' }).filter(Boolean)
+    p.code.textContent = runes.join('\n') + (p.runes ? '' : '\n…')
   }
 
   const head = (p: Pane) => {
@@ -83,12 +83,12 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
     const small = document.createElement('small'); small.textContent = d.line
     p.head.append(strong, ' ', small)
   }
-  // The verdict line. A sung move without the DECODER says what came out, not what the words wanted.
+  // The verdict line. A rune move without the DECODER says what came out, not what the words wanted.
   const foot = (p: Pane) => {
     const r = p.result
     if (!r) return
     let detail = r.detail
-    if (r.song && !decoder) detail = r.song.tape ? `sang ${r.song.tape.map(b => b.toString(16).padStart(2, '0')).join(' ')}` : r.song.error ? r.song.error : undefined
+    if (r.runes && !decoder) detail = r.runes.tape ? `sang ${r.runes.tape.map(b => b.toString(16).padStart(2, '0')).join(' ')}` : r.runes.error ? r.runes.error : undefined
     p.foot.textContent = (detail ? `${r.text} (${detail})` : r.text) + (r.kept?.length ? ` · kept ${r.kept.join(', ')}` : '')
   }
 
@@ -109,7 +109,7 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
       const p = panes[info.side]
       if (!userHid && !visible) show(true) // a field move outside a battle (CUT…) rolls it out too
       focus(info.side)
-      p.info = info; p.queue = ''; p.shown = 0; p.song = undefined; p.result = undefined
+      p.info = info; p.queue = ''; p.shown = 0; p.runes = undefined; p.result = undefined
       head(p)
       p.foot.textContent = 'writing…'
       p.root.dataset.state = 'writing'
@@ -132,7 +132,7 @@ export function createCodePanel(host: HTMLElement, options: { fast?: () => boole
           render(p)
         }
       }
-      p.song = result.song
+      p.runes = result.runes
       p.shown = p.queue.length; render(p)
       turns++
       p.root.dataset.state = result.verdict

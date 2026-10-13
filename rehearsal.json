@@ -3,6 +3,6 @@
   0
  ],
  "to": "misty",
- "song": true,
- "note": "Song prototype, take 2: lean prompt, the coder model sings (SONG.coder). Take 1 (3B, full prompt) sang PING right 1% of the time."
+ "runes": true,
+ "note": "Song prototype, take 2: lean prompt, the coder model sings (RUNES.coder). Take 1 (3B, full prompt) sang PING right 1% of the time."
 }

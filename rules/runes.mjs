@@ -1,10 +1,10 @@
-// The song (prototype, owner, 2026-10-12): a Pokémon does not write JavaScript about the foe's data; it sings a
+// Runes (prototype, owner, 2026-10-12): a Pokémon does not write JavaScript about the foe's data; it writes a
 // short program in a tiny tape language and the program EMITS bytes of the MOVE's type. A Water move emits a
 // stream, a Fire move a write, a Rock move raw bytes, an Electric move a signal, a Normal move a file. The judge
 // checks what came out (shape and character, as the sound and picture moves already are), not an answer.
 //
 // The language: a tape of numbers (empty at the start) and a line of ops. Every op is one of the type families,
-// so what a Pokémon sings is made of the same stuff as its moves. The model writes the op names; the page shows
+// so what a Pokémon writes is made of the same stuff as its moves. The model writes the op names; the page shows
 // glyphs until the trainer holds the DECODER (Oak's parcel), which shows the names and the JavaScript meaning.
 //
 //   put 42 13 140        Normal   append numbers
@@ -68,13 +68,13 @@ export const OPS = {
 }
 export const OP_NAMES = Object.keys(OPS)
 const byte = x => (Number.isFinite(x) ? Math.max(0, Math.round(x)) & 255 : 0)
-const STEP_LIMIT = 400  // ops executed before the song is cut off (a loop that never ends)
+const STEP_LIMIT = 400  // ops executed before the program is cut off (a loop that never ends)
 const TAPE_LIMIT = 64   // numbers the tape holds
 
 /** The program as a list of { op, args }, or a parse error. Lines or `|` separate ops; a ``` fence is ignored. */
-export function parseSong(text) {
+export function parseRunes(text) {
   const body = String(text ?? '').replace(/```[a-z]*/gi, '').trim()
-  if (!body) return { error: 'no song' }
+  if (!body) return { error: 'no program' }
   const ops = []
   for (const raw of body.split(/[\n|;]+/)) {
     const line = raw.replace(/\/\/.*$/, '').replace(/#.*$/, '').trim()
@@ -100,12 +100,12 @@ export function parseSong(text) {
   return { ops }
 }
 
-/** Run a parsed song: the tape it leaves, or an error (a stream that fell, a spike that was not the largest, a loop that never ended). */
-export function runSong(ops) {
+/** Run a parsed program: the tape it leaves, or an error (a stream that fell, a spike that was not the largest, a loop that never ended). */
+export function runTape(ops) {
   let t = [], steps = 0
   const run = (from, to) => {
     for (let i = from; i < to; i++) {
-      if (++steps > STEP_LIMIT) throw new Error('the song never ends')
+      if (++steps > STEP_LIMIT) throw new Error('the program never ends')
       const { op, args } = ops[i]
       switch (op) {
         case 'put': t.push(...args.map(byte)); break
@@ -153,36 +153,36 @@ export function runSong(ops) {
 /** The glyph strip the player sees without the DECODER: one rune per op, numbers as bytes in hex. */
 export const glyphs = ops => ops.map(({ op, args }) => OPS[op].glyph + (args.length ? ' ' + args.map(a => (typeof a === 'string' ? a : a.toString(16).padStart(2, '0'))).join(' ') : '')).join('  ')
 
-/** The JavaScript the song means (shown with the DECODER). */
+/** The JavaScript the program means (shown with the DECODER). */
 export const toJavaScript = ops => ['let t = []', ...ops.map(({ op, args }) => OPS[op].js(args)), 'return t'].join('\n')
 
 // ---------- what each move must emit (the prototype's five; the table grows from here) ----------
 
-/** A spec: `ops` (the ops this move is sung with: the prompt names only these), `noun` (what the type emits, shown
- *  without the DECODER), the turn's `key` (a number the song must work in: the one thing that changes turn to turn, like the
- *  foe's bytes did), `want(key)` (the words), `ok(tape, key)` (the check), `example` (a song that passes for its
+/** A spec: `ops` (the ops this move is written with: the prompt names only these), `noun` (what the type emits, shown
+ *  without the DECODER), the turn's `key` (a number the program must work in: the one thing that changes turn to turn, like the
+ *  foe's bytes did), `want(key)` (the words), `ok(tape, key)` (the check), `example` (a program that passes for its
  *  own key, shown in the prompt so the shape is clear). */
 const pick = (r, lo, hi) => lo + Math.floor(r() * (hi - lo + 1))
 export const EMIT = {
   // Normal — a file: it announces its own length and carries the key
   PING: { ops: ['put'], noun: 'a file', type: 'Normal', key: r => pick(r, 10, 199), want: k => `a file: 4 to 8 numbers whose first number is how many numbers follow it, and ${k} is one of them`,
-    example: { key: 77, song: 'put 4\nput 42 13 140 77' },
+    example: { key: 77, program: 'put 4\nput 42 13 140 77' },
     ok: (t, k) => t.length >= 5 && t.length <= 9 && t[0] === t.length - 1 && t.slice(1).includes(k) },
   // Water — a stream: it only ever rises, and it passes through the key
   FLUSH: { ops: ['stream'], noun: 'a stream', type: 'Water', key: r => pick(r, 10, 99), want: k => `a stream: 4 to 8 numbers, each greater than the last, all under 100, one of them ${k}`,
-    example: { key: 40, song: 'stream 3 9 40 88' },
+    example: { key: 40, program: 'stream 3 9 40 88' },
     ok: (t, k) => t.length >= 4 && t.length <= 8 && t.every((x, i) => x < 100 && (i === 0 || x > t[i - 1])) && t.includes(k) },
   // Fire — a write: the key burned over and over
   BURNDISC: { ops: ['put', 'set'], noun: 'a write', type: 'Fire', key: r => pick(r, 200, 255), want: k => `a write: 4 to 8 copies of ${k}`,
-    example: { key: 230, song: 'put 1 1 1 1\nset 230' },
+    example: { key: 230, program: 'put 1 1 1 1\nset 230' },
     ok: (t, k) => t.length >= 4 && t.length <= 8 && t.every(x => x === k) },
   // Rock — raw bytes with a checksum at the end, the key among them
   BOOT: { ops: ['raw', 'checksum'], noun: 'raw bytes', type: 'Rock', key: r => pick(r, 16, 255), want: k => `raw bytes: 4 to 8 numbers with ${k} (hex ${k.toString(16)}) among them, then their sum mod 256 as the last number`,
-    example: { key: 126, song: 'raw ff 0a 7e 10\nchecksum' },
+    example: { key: 126, program: 'raw ff 0a 7e 10\nchecksum' },
     ok: (t, k) => t.length >= 5 && t.length <= 9 && t.slice(0, -1).includes(k) && t[t.length - 1] === t.slice(0, -1).reduce((a, x) => a + x, 0) % 256 },
   // Electric — a signal: quiet, then one spike of exactly the key
   SURGE: { ops: ['put', 'spike'], noun: 'a signal', type: 'Electric', key: r => pick(r, 150, 255), want: k => `a signal: 3 to 7 numbers under 40, then one spike of exactly ${k} at the end`,
-    example: { key: 200, song: 'put 5 12 8\nspike 200' },
+    example: { key: 200, program: 'put 5 12 8\nspike 200' },
     ok: (t, k) => t.length >= 4 && t.length <= 8 && t.slice(0, -1).every(x => x < 40) && t[t.length - 1] === k },
 }
 
@@ -198,48 +198,48 @@ const OP_HELP = {
 }
 const opLine = k => `${k}${OPS[k].args > 0 ? ' n'.repeat(OPS[k].args) : OPS[k].args < 0 ? ' n…' : ''}`
 
-/** The prompt for one sung move. No foe data: the Pokémon only emits. `style` (measured 2026-10-12, models/song-exp):
+/** The prompt for one rune move. No foe data: the Pokémon only emits. `style` (measured 2026-10-12, models/runes-exp):
  *  'lean' (default) names only the move's own ops and the shape to change; 'full' lists the whole language. */
-export function songPrompt({ self, target, move, key, budget, hot = '', style = 'lean' }) {
+export function runePrompt({ self, target, move, key, budget, hot = '', style = 'lean' }) {
   const spec = EMIT[move.name]
-  const lines = spec.example.song.split('\n').length
+  const lines = spec.example.program.split('\n').length
   if (style === 'full') {
-    const system = [`You are ${self.name}, a level ${self.level} Pokémon. You fight by singing a short program: a line of ops that leaves numbers on a tape.`,
+    const system = [`You are ${self.name}, a level ${self.level} Pokémon. You fight with a short program: a line of ops that leaves numbers on a tape.`,
       'Ops (one per line, numbers after): ' + OP_NAMES.map(opLine).join(' · ') + '.',
       'put/stream/raw append numbers; stream must rise; spike must be the largest; raw numbers are hex; loop n … end repeats. Numbers are bytes (0–255).',
       'Reply with only the program, one op per line. No words.'].join('\n')
     const user = [`Move: ${move.name} (${spec.type}). Sing ${spec.want(key)}.`,
-      `Example that works for ${spec.example.key}:\n${spec.example.song}`,
+      `Example that works for ${spec.example.key}:\n${spec.example.program}`,
       `At most ${budget} characters.`,
       ...(hot ? [`Your trainer's note: ${hot}`] : []),
       `Target: ${target.name}, level ${target.level}.`].join('\n')
     return { system, user }
   }
-  const system = [`You are ${self.name}, a level ${self.level} Pokémon. You attack by singing a short program: one op per line, numbers after it. Numbers are bytes (0–255).`,
+  const system = [`You are ${self.name}, a level ${self.level} Pokémon. You attack with a short program: one op per line, numbers after it. Numbers are bytes (0–255).`,
     `Reply with the program only: exactly ${lines} line${lines === 1 ? '' : 's'}, no words, nothing after it.`].join('\n')
   const user = [`Move: ${move.name} (${spec.type}). Sing ${spec.want(key)}.`,
     'Ops: ' + spec.ops.map(k => `${opLine(k)} (${OP_HELP[k]})`).join('; ') + '.',
-    `This shape works for ${spec.example.key}; change the numbers so it works for ${key}:\n${spec.example.song}`,
+    `This shape works for ${spec.example.key}; change the numbers so it works for ${key}:\n${spec.example.program}`,
     ...(hot ? [`Your trainer's note: ${hot}`] : []),
     `Target: ${target.name}, level ${target.level}.`].join('\n')
   return { system, user }
 }
 
-/** Hit or miss for a sung move. reason: 'no code' | 'crashed' | 'wrong answer' | 'over budget' (the ROM's four). */
-export function judgeSong({ move, text, key, budget }) {
+/** Hit or miss for a rune move. reason: 'no code' | 'crashed' | 'wrong answer' | 'over budget' (the ROM's four). */
+export function judgeRunes({ move, text, key, budget }) {
   const spec = EMIT[move.name]
   if (!spec) return { hit: false, reason: 'no code' }
   const body = String(text ?? '').replace(/```[a-z]*/gi, '').trim()
   if (!body) return { hit: false, reason: 'no code' }
   if (body.length > budget) return { hit: false, reason: 'over budget' }
-  const parsed = parseSong(body)
+  const parsed = parseRunes(body)
   if (parsed.error) return { hit: false, reason: 'crashed', error: parsed.error }
-  const ran = runSong(parsed.ops)
+  const ran = runTape(parsed.ops)
   if (ran.error) return { hit: false, reason: 'crashed', error: ran.error, ops: parsed.ops }
   if (!spec.ok(ran.tape, key)) return { hit: false, reason: 'wrong answer', got: ran.tape, want: spec.want(key), ops: parsed.ops }
   return { hit: true, got: ran.tape, ops: parsed.ops }
 }
 
-/** Does this move sing (has an emit spec) in this build? */
-export const sings = move => Object.hasOwn(EMIT, move?.name ?? '')
+/** Is this move written in runes (has an emit spec) in this build? */
+export const usesRunes = move => Object.hasOwn(EMIT, move?.name ?? '')
 export { formatOf }

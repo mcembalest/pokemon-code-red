@@ -1,15 +1,15 @@
-// Song experiment (2026-10-12): can the battle model sing the five emitter moves (rules/song.mjs), and which prompt
-// style helps? One call per sample: songPrompt → the model → judgeSong. No game, no memory, no foe data.
-//   CLOUDFLARE_API_KEY=… CLOUDFLARE_ACCOUNT_ID=… node song-exp.mjs song-exp.json song-results.json
-// song-exp.json: { models, styles, levels, samples, concurrency, moves? }. Hit rates per style × move × level go to
+// Song experiment (2026-10-12): can the battle model sing the five emitter moves (rules/runes.mjs), and which prompt
+// style helps? One call per sample: runePrompt → the model → judgeRunes. No game, no memory, no foe data.
+//   CLOUDFLARE_API_KEY=… CLOUDFLARE_ACCOUNT_ID=… node runes-exp.mjs runes-exp.json runes-results.json
+// runes-exp.json: { models, styles, levels, samples, concurrency, moves? }. Hit rates per style × move × level go to
 // stderr (the workflow's notices) and everything to the results file.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { gameModels } from '../kernel/index.mjs'
 import { writeCode } from '../kernel/write.mjs'
-import { EMIT, GROWTH, budgetAt, byName, focusAt, judgeSong, rng, songPrompt, tokenCapFor } from '../rules/index.mjs'
+import { EMIT, GROWTH, budgetAt, byName, focusAt, judgeRunes, rng, runePrompt, tokenCapFor } from '../rules/index.mjs'
 
-const cfg = JSON.parse(readFileSync(process.argv[2] ?? 'song-exp.json', 'utf8'))
-const outFile = process.argv[3] ?? 'song-results.json'
+const cfg = JSON.parse(readFileSync(process.argv[2] ?? 'runes-exp.json', 'utf8'))
+const outFile = process.argv[3] ?? 'runes-results.json'
 const log = (...a) => console.error(...a)
 const models = gameModels()
 const FOES = [['RATTATA', 3], ['PIDGEY', 4], ['GEODUDE', 10], ['ONIX', 14], ['STARYU', 18]]
@@ -22,14 +22,14 @@ async function sample({ model, style, move, level, seed }) {
   if (key === spec.example.key) key = spec.key(r)
   const self = { name: SELVES[0][seed % 5], level }, foe = FOES[seed % FOES.length]
   const budget = budgetAt(level)
-  const prompt = songPrompt({ self, target: { name: foe[0], level: foe[1] }, move, key, budget, style })
+  const prompt = runePrompt({ self, target: { name: foe[0], level: foe[1] }, move, key, budget, style })
   const t0 = Date.now()
   let text = '', error = null
   try {
     const res = await writeCode({ models, model: { provider: 'cloudflare-workers-ai', modelId: model }, system: prompt.system, user: prompt.user, temperature: focusAt(level, GROWTH), maxTokens: tokenCapFor(budget) })
     text = res.text
   } catch (e) { error = String(e?.message ?? e) }
-  const v = error ? { hit: false, reason: 'network' } : judgeSong({ move, text, key, budget })
+  const v = error ? { hit: false, reason: 'network' } : judgeRunes({ move, text, key, budget })
   return { model, style, move: move.name, level, seed, key, hit: v.hit, reason: v.reason ?? null, error: v.error ?? error ?? null, got: v.got ?? null, text: text.slice(0, 400), ms: Date.now() - t0 }
 }
 

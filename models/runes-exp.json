@@ -1,0 +1,8 @@
+{
+ "note": "Runes (renamed from song, 2026-10-13): the same experiment with the prompt saying 'a short program' instead of 'singing'; expect the coder to stay at 100% lean.",
+ "models": ["@cf/meta/llama-3.2-3b-instruct", "@cf/qwen/qwen2.5-coder-32b-instruct"],
+ "styles": ["full", "lean"],
+ "levels": [6, 14, 22],
+ "samples": 10,
+ "concurrency": 6
+}
