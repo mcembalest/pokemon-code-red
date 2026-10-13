@@ -276,11 +276,11 @@ const TABLE = [
  *  summary screen keeps FireRed's own descriptions (owner, 2026-10-12). */
 export const BRIEF = {
   DIM: 'a soft, round voice its lullaby is sung in',
-  ERROR: 'a glitchy growl of 3200 numbers: a buzz sliding down',
+  ERROR: 'a glitchy growl, played as its cry',
   FEEDBACK: 'a thin, ringing voice for its rings',
   BUZZ: 'a rough, buzzing voice for its booms',
-  FLASH: 'a flash of 4097 numbers: 4 frames of a bright core with rays',
-  SPARK: 'a spark of 4097 numbers: 4 frames of a jagged bolt',
+  FLASH: 'a flash: 4 frames of a bright core with rays',
+  SPARK: 'a spark: 4 frames of a jagged bolt',
   DEADLOCK: 'the middle number (index: the count halved, rounded down)',
   DISTORTION: 'the second half of the numbers (the split rounded down)',
   MINIMIZE: 'the list without its middle number (index: count halved)',
