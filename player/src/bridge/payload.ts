@@ -2,9 +2,12 @@
 // sound, a picture) hands them to the game here, already in GBA form, before the hit is reported; the game plays or
 // draws them when it takes the hit and clears `kind`. The symbol gCodeRedPayload is a pointer: the game allocates the
 // struct on its heap for the battle's duration and the pointer is 0 outside battle (nothing to deliver to).
-//   0 u32 magic 'CRP1'  4 u16 version=2  6 u8 kind (0 none, 1 sound, 2 image)  7 u8 frames (image)  8 u16 length
+//   0 u32 magic 'CRP1'  4 u16 version=2  6 u8 kind (0 none, 1 sound, 2 image)  7 u8 frames (image; sound: 1 = a voice)  8 u16 length
 //  10 u16 played (game)  12 u16 palette[16] (BGR555; 0 = see-through)  44..59 wave header (the game fills it)
-//  60 u8 data[4096]: sound = signed 8-bit samples at 8 kHz; image = up to 4 frames of 16 4bpp tiles (a 32×32 sprite)
+//  60 u8 data[4096]: sound = signed 8-bit samples at 8 kHz (played as the Pokémon's cry in the move's animation), or a
+//     voice = one cycle of a wave (16–256 samples) that the move's own sound effects are played with; image = up to 4
+//     frames of 16 4bpp tiles (a 32×32 sprite). The game keeps its own scratch after `data` (PAYLOAD_SIZE is the part
+//     the page writes).
 import type { GbaMemory } from './memory.ts'
 
 export const PAYLOAD_MAGIC = 0x31505243
@@ -12,7 +15,7 @@ export const PAYLOAD_VERSION = 2
 export const PAYLOAD_SIZE = 4156
 export const PAYLOAD_BYTES = 4096
 const DATA = 60, PALETTE = 12
-const KIND = { sound: 1, image: 2 } as const
+const KIND = { sound: 1, voice: 1, image: 2 } as const
 export type PayloadKind = keyof typeof KIND
 export type Rgb = [number, number, number]
 
@@ -68,7 +71,10 @@ export class PayloadMailbox {
       data = tiles
       m.w8(a + 7, frames)
       for (let i = 0; i < 16; i++) m.w16(a + PALETTE + 2 * i, bgr555(palette[i] ?? [0, 0, 0]))
-    } else data = packSound(bytes)
+    } else {
+      data = packSound(bytes)
+      m.w8(a + 7, kind === 'voice' ? 1 : 0)
+    }
     m.w16(a + 8, data.length)
     for (let i = 0; i < data.length; i++) m.w8(a + DATA + i, data[i]!)
     m.w8(a + 6, KIND[kind]) // publish last

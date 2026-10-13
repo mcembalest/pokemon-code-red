@@ -48,6 +48,8 @@ export const PAYLOAD_LIMITS = {
   sampleRate: 8000, // Hz; the GBA cry player runs at 8 kHz (verified: sim/experiments/payload_audio.py)
   soundMax: 4096,   // samples per sound (~0.5 s)                                            rom: data[4096]
   imageFrames: 4,   // frames per picture, each 32×32 pixels of 16 colours                   rom: 4 × 512 B
+  voiceMin: 16,     // a voice: one cycle of a wave, this many samples at least …             rom: CodeRedPayloadShow
+  voiceMax: 256,    // … and at most (the move's own sound effects play their notes with it; C4 = 261.6 Hz)
 }
 
 /** What the prompt calls the data and the variable (lab 3, 2026-10-08: 'bytes' halved first-time hits). */

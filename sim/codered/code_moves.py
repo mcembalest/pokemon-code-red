@@ -115,7 +115,7 @@ class PayloadHost:
         return a if 0x02000000 <= a < 0x02040000 else 0
 
     def deliver(self, kind: str, data: list[int], palette=None) -> None:
-        """Version 2 layout: 6 kind, 7 frames, 8 length, 10 played, 12 palette[16], 60 data[4096]."""
+        """Version 2 layout: 6 kind, 7 frames (sound: 1 = a voice), 8 length, 10 played, 12 palette[16], 60 data[4096]. kind: sound, voice, image."""
         g, a = self.g, self.a
         assert a, 'no battle holds a payload mailbox'
         g.w8(a + 6, 0)
@@ -128,9 +128,10 @@ class PayloadHost:
                 g.w16(a + 12 + 2 * i, bgr555(pal[i]))
         else:
             packed = pack_sound(data)
+            g.w8(a + 7, 1 if kind == 'voice' else 0)  # a voice: one cycle, the instrument of the move's own sound effects
         g.w16(a + 8, len(packed))
         g.write(a + 60, packed)
-        g.w8(a + 6, PAYLOAD_KIND[kind])
+        g.w8(a + 6, PAYLOAD_KIND['sound' if kind == 'voice' else kind])
 
     def kind(self) -> int: return self.g.u8(self.a + 6) if self.a else 0
     def played(self) -> int: return self.g.u16(self.a + 10) if self.a and self.g.u32(self.a) == PAYLOAD_MAGIC else 0

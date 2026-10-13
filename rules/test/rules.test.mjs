@@ -155,7 +155,7 @@ test('payload moves: the checker judges the character, a hit carries the bytes (
   assert.equal(hit.payload.kind, 'sound'); assert.equal(hit.payload.bytes.length, 3199) // the count is checked, not played
   const tone = [4, ...Array.from({ length: 3199 }, (_, i) => (Math.floor(i / 10) % 2 ? 30 : 230))]
   assert.match(verdict(error, bytes, run(tone)).want, /fades/) // a flat tone is not a growl
-  const rising = [4, ...byName.FEEDBACK.ref(bytes).slice(1)]
+  const rising = [4, ...Array.from({ length: 3199 }, (_, i) => { const t = i / 3200; return 128 + (1 - t) * 90 * Math.sign(Math.sin(i * (0.1 + 0.3 * t))) })]
   assert.match(verdict(error, bytes, run(rising)).want, /slide down/)
   assert.equal(verdict(error, bytes, run(tone.map((x, i) => (i ? x : 9)))).want, 'first number should be 4')
   assert.match(verdict(error, bytes, run([4, 230, 30])).want, /at least 1000/)
@@ -168,6 +168,24 @@ test('payload moves: the checker judges the character, a hit carries the bytes (
   const blob = [4, ...Array.from({ length: 4096 }, (_, i) => { const f = i >> 10, k = i % 1024, r = Math.hypot((k & 31) - 15.5, (k >> 5) - 15.5); return r < 5 + f ? Math.max(1, 15 - Math.round(r)) : 0 })]
   assert.equal(verdict(flash, bytes, run(blob)).hit, true) // a glowing ball that grows is a flash…
   assert.match(verdict(spark, bytes, run(blob)).want, /top rows/) // …not a bolt
+  // voices (2026-10-13): one cycle of a wave, the instrument the move's own FireRed sound effects play with
+  const dim = byName.DIM, feedback = byName.FEEDBACK, buzz = byName.BUZZ
+  const voice = verdict(dim, bytes, run(dim.ref(bytes)))
+  assert.equal(voice.payload.kind, 'voice'); assert.equal(voice.payload.bytes.length, 64)
+  const sine = [4, ...Array.from({ length: 64 }, (_, i) => 128 + 70 * Math.sin((2 * Math.PI * i) / 64))]
+  const pulse = [4, ...Array.from({ length: 64 }, (_, i) => (i < 8 ? 230 : 113))]
+  const grit = [4, ...Array.from({ length: 64 }, (_, i) => 128 + 60 * Math.sin((2 * Math.PI * i * 9) / 64))]
+  assert.equal(verdict(dim, bytes, run(sine)).hit, true)
+  assert.match(verdict(dim, bytes, run(pulse)).want, /smooth and round/)
+  assert.equal(verdict(feedback, bytes, run(pulse)).hit, true)
+  assert.match(verdict(feedback, bytes, run(sine)).want, /thin pulse/)
+  assert.equal(verdict(buzz, bytes, run(grit)).hit, true)
+  assert.match(verdict(buzz, bytes, run(sine)).want, /gritty/)
+  assert.match(verdict(dim, bytes, run([4, ...sine.slice(1).map(x => x + 60)])).want, /around 128/)
+  assert.match(verdict(dim, bytes, run([4, ...sine.slice(1).map(x => 128 + (x - 128) / 4)])).want, /too quiet/)
+  assert.match(verdict(dim, bytes, run([4, ...new Array(300).fill(128)])).want, /at most 256/)
+  assert.match(verdict(dim, bytes, run([4, 1, 2, 3])).want, /at least 17/)
+  assert.match(turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: dim, type: 'NORMAL', budget: 300 }).user, /one cycle of a wave/)
   const { user } = turnPrompt({ self: { name: 'A', level: 5 }, target: { name: 'B', level: 5, types: ['NORMAL'] }, move: error, type: 'NORMAL', budget: 300 })
   assert.match(user, /phase p/); assert.match(user, /make it your own/); assert.match(user, /function error\(data\)\{const nums=/)
   assert.ok(user.length < 1800, String(user.length))

@@ -33,7 +33,7 @@ const describe = (i: TurnInfo, decoder = false) => {
   const knows = i.recalls?.length ? ` · recalls ${i.recalls.join(', ')}` : ''
   const doubt = i.doubt ? ` · doubted your ${i.doubt.called ?? 'call'}` : ''
   const mood = i.notch < 0 ? ` · shaken ${i.notch}` : i.notch > 0 ? ` · steady +${i.notch}` : ''
-  const makes = i.makes === 'sound' ? ' · makes a sound' : i.makes === 'image' ? ' · draws a picture' : ''
+  const makes = i.makes === 'sound' ? ' · makes a sound' : i.makes === 'voice' ? ' · makes a voice' : i.makes === 'image' ? ' · draws a picture' : ''
   const room = i.memoryCost ? `≤${i.budget - i.memoryCost} chars (${i.budget} − ${i.memoryCost} memory)` : `≤${i.budget} chars`
   return { who, line: `${i.move} → ${data}${doubt}${knows}${mood}${makes} · ${room}` }
 }
