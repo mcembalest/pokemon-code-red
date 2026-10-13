@@ -1,5 +1,7 @@
 # Workers AI model probe — starter moves (2026-10-06)
 
+> The code these notes describe was removed on 2026-10-13 (it is in git history before that date); the findings stand.
+
 `models/` (probe.mjs, probe.json) · workflow `.github/workflows/models.yml` · raw results: release `model-probe`
 - each model writes one JS block per move; scored in pi-codemode (game sandbox) on held-out random foes; 16 samples × 4 moves; level 5 prompt; temp 0.8
 - contracts are provisional (rl/notes); SCRATCH = sort indices (hardest), TACKLE = sum, GROWL/TAIL WHIP = arithmetic on one stat

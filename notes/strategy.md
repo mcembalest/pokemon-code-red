@@ -1,5 +1,7 @@
 # Strategy lab, 2026-10-08
 
+> The code these notes describe was removed on 2026-10-13 (it is in git history before that date); the findings stand.
+
 Briefing for the owner: Claude Docs "Code Red: battle strategy briefing" (https://claude.ai/code/artifact/136f94a3-fc6a-4962-a22f-94673d20c99b).
 Code: `models/strategy/` (engine, policies, planner, tiny net). Real-model move table: `models/lab/moves.mjs` → `models/strategy/move-table.json`.
 

@@ -66,20 +66,6 @@ jobs:
           python3 player/tests/agent_battle.py
       - name: PokÉEG (owned Pokémon from RAM, hot memory, recent code)
         run: python3 player/tests/pokeeg.py
-      - name: Touch input + 10x toggle (iPhone emulation, Chromium)
-        run: python3 player/tests/mobile.py --engine chromium --out build/mobile-chromium
-      - name: iPhone Safari diagnostics (WebKit)
-        if: always()
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python3 -m playwright install --with-deps webkit
-          python3 player/tests/mobile.py --engine webkit > build/mobile-summary.txt 2>&1 || true
-          head -c 3000 build/mobile-summary.txt | tr '\n' ' ' | sed 's/^/::notice title=mobile::/' ; echo
-          TAG="debug-${GITHUB_REF_NAME//\//-}"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease --title "$TAG (CI diagnostics)" --notes "Screenshots from CI. Safe to delete."
-          gh release upload "$TAG" build/mobile/*.png build/mobile/report.json build/mobile-summary.txt --clobber
       - uses: actions/upload-artifact@v4
         if: always()
         with:

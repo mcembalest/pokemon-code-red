@@ -52,15 +52,24 @@ def main() -> int:
     g = World()
     i = routes.LEG_NAMES.index(args.leg)
     start = routes.LEG_NAMES[i - 1] if i else None
-    if start:
-        routes.load_checkpoint(g, start)
-        print(f'from checkpoint {start}: {g.map()} {g.pos()} frame {g.frame}', flush=True)
+    routes.fresh_checkpoints()  # a new ROM build drops the old checkpoints
     host = BrainHost(g, ROOT / 'build/sim/leg-turns.jsonl', mock=not args.real, env={'RUNES': '1'} if args.runes else None)
     host.attach()
     if args.trace:
         g.trace = routes.progress_trace(ROOT / 'build/sim/trace.png')
     t0 = time.time()
     try:
+        if start and not routes.checkpoint_path(start).exists():  # no checkpoint for this build yet: play up to it first (stand-in model)
+            first = next((n for n in routes.LEG_NAMES[:i] if not routes.checkpoint_path(n).exists()), start)
+            k = routes.LEG_NAMES.index(first)
+            before = routes.LEG_NAMES[k - 1] if k else None
+            print(f'no checkpoint {start} for this ROM build: playing {first} → {start} first', flush=True)
+            if before:
+                routes.load_checkpoint(g, before)
+            routes.play(g, start=before, to=start, seed=args.seed)
+        elif start:
+            routes.load_checkpoint(g, start)
+            print(f'from checkpoint {start}: {g.map()} {g.pos()} frame {g.frame}', flush=True)
         routes.play(g, start=start, to=args.to or args.leg, seed=args.seed)
     except RuntimeError as e:
         print(f'{e} after {time.time() - t0:.0f}s: {g.map()} {g.pos()} frame {g.frame}; see {routes.CHECKPOINTS}/fail-*.png')

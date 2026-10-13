@@ -16,7 +16,7 @@ kernel/     the model client (Workers AI) shared by the page's backend and the l
 worker/     the backend (Cloudflare Worker): invites, accounts, cloud saves, the model proxy with a daily token cap
 runner/     QuickJS/WASM sandbox for player code (fresh VM per run)
 sim/        headless playthroughs (power-on → Erika) for CI and the rehearsals that measure a change with the real models
-models/     model probes and labs (which model, which prompt)
+models/     the move lab (lab/moves.mjs: a move with the real model), the rune experiment, the readable move list
 core/       emulator core adapter + patches; built by CI, pinned in core/release.json
 scripts/    dev.py (setup/build), regen_patches.py, move_names.py, rom_bundle.py, symbols.py, serve_player.py, ...
 tests/      unit + native (headless mGBA) tests; player/tests/e2e.py (Chromium)

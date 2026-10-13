@@ -158,10 +158,10 @@ index bb66a01..e567758 100644
      {
 diff --git a/src/code_red_battle.c b/src/code_red_battle.c
 new file mode 100644
-index 0000000..a5c33a8
+index 0000000..e017f16
 --- /dev/null
 +++ b/src/code_red_battle.c
-@@ -0,0 +1,238 @@
+@@ -0,0 +1,314 @@
 +#include "global.h"
 +#include "battle.h"
 +#include "battle_scripts.h"
@@ -175,6 +175,11 @@ index 0000000..a5c33a8
 +#include "event_data.h"
 +#include "constants/flags.h"
 +#include "random.h"
++#include "sound.h"
++#include "task.h"
++#include "util.h"
++#include "constants/songs.h"
++#include "constants/rgb.h"
 +
 +// Code moves (Code Red battle rule): when a Pokémon gets to use a move, the host
 +// (browser) has it write the move's code, runs the code on the target's bytes and
@@ -249,6 +254,67 @@ index 0000000..a5c33a8
 +void CodeRedPayloadShow(void);
 +void CodeRedPayloadDisarm(void);
 +
++// Battle beats (playtest 1, 2026-10-12: "we see no animations … users are going to easily confuse code crash vs
++// move miss"). While a Pokémon writes its code, its sprite breathes a mint glow (the code panel's colour) so the
++// turn reads in the game itself: whose turn it is, and that it is thinking. A crash has its own beat: the sprite
++// glitches (jitters, flashes red and white) with an error buzz; a wrong answer or a too-long program misses the
++// plain FireRed way. Neither touches the battle RNG.
++#define THINK_COLOR RGB(10, 31, 24)
++#define THINK_PERIOD 48
++#define CRASH_COLOR RGB(31, 6, 6)
++#define CRASH_START 22   // frames after the verdict: "X used Y!" is on screen
++#define CRASH_FRAMES 44
++
++static u16 AttackerPalette(u8 battler)
++{
++    u8 spriteId = gBattlerSpriteIds[battler];
++    if (spriteId >= MAX_SPRITES || !gSprites[spriteId].inUse)
++        return 0;
++    return 0x100 + gSprites[spriteId].oam.paletteNum * 16;
++}
++
++static void Think(u16 waited)
++{
++    u16 pal = AttackerPalette(gBattlerAttacker), t = waited % THINK_PERIOD;
++    if (pal)
++        BlendPalette(pal, 16, (t < THINK_PERIOD / 2 ? t : THINK_PERIOD - t) / 3, THINK_COLOR); // 0 … 8 … 0 of 16
++}
++
++static void StopThinking(void)
++{
++    u16 pal = AttackerPalette(gBattlerAttacker);
++    if (pal)
++        BlendPalette(pal, 16, 0, 0); // back to its own colours
++}
++
++static const s8 sCrashJitter[] = { 3, -2, 1, -3, 2, 0, -1, 3, -3, 1 };
++
++// data[0] battler, data[1] frames
++static void Task_CodeRedCrash(u8 taskId)
++{
++    s16 *data = gTasks[taskId].data;
++    u8 spriteId = gBattlerSpriteIds[data[0]];
++    u16 pal = AttackerPalette(data[0]), t = ++data[1];
++    bool8 alive = spriteId < MAX_SPRITES && gSprites[spriteId].inUse;
++    if (t < CRASH_START)
++        return;
++    if (t == CRASH_START)
++        PlaySE(SE_FAILURE);
++    if (t < CRASH_START + CRASH_FRAMES)
++    {
++        if (alive && (t & 1))
++            gSprites[spriteId].x2 = sCrashJitter[(t / 2) % ARRAY_COUNT(sCrashJitter)];
++        if (pal)
++            BlendPalette(pal, 16, (t / 3) % 3 == 0 ? 12 : (t / 3) % 3 == 1 ? 0 : 6, (t / 6) & 1 ? RGB_WHITE : CRASH_COLOR);
++        return;
++    }
++    if (alive)
++        gSprites[spriteId].x2 = 0;
++    if (pal)
++        BlendPalette(pal, 16, 0, 0);
++    DestroyTask(taskId);
++}
++
 +bool8 CodeRedMovePending(void)
 +{
 +    return sAsked;
@@ -299,7 +365,10 @@ index 0000000..a5c33a8
 +    {
 +    case 1:
 +        if (m->enabled && ++m->waited < CRM_WAIT_FRAMES)
++        {
++            Think(m->waited);
 +            return; // still writing
++        }
 +        break;      // host gone or too slow: plain FireRed
 +    case 2:
 +        verdict = m->verdict;
@@ -309,8 +378,15 @@ index 0000000..a5c33a8
 +    }
 +    m->state = 0;
 +    sAsked = FALSE;
++    StopThinking();
 +    if (verdict == CODE_RED_MISS)
 +    {
++        if (m->reason == 0) // crashed: its own beat (Task_CodeRedCrash), not a FireRed miss
++        {
++            u8 taskId = CreateTask(Task_CodeRedCrash, 10);
++            gTasks[taskId].data[0] = gBattlerAttacker;
++            gTasks[taskId].data[1] = 0;
++        }
 +        CancelMultiTurnMoves(gBattlerAttacker);
 +        gMoveResultFlags |= MOVE_RESULT_MISSED;
 +        gLastLandedMoves[gBattlerTarget] = 0;

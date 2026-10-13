@@ -120,6 +120,7 @@ def main():
 
 
 if __name__ == '__main__':
+    sys.path.insert(0, str(ROOT / 'sim')); __import__('make_states').ensure()  # fixtures for this ROM build (made only if missing)
     try:
         main()
     except BaseException as problem:
