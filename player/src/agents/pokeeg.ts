@@ -1,5 +1,6 @@
-// The PokÉEG (owner, 2026-10-08; brain scan 2026-10-10): a look inside the mind of every Pokémon you own, party and
-// PC boxes, laid out like the in-game screen (code_red_eeg.c): a brain scan (agents/scan.ts) over seven tabs.
+// The PokÉEG (owner, 2026-10-08; brain scan 2026-10-10; a tool in the sidebar 2026-10-13): a look inside the mind of
+// every Pokémon you own, party and PC boxes. First what you act on (form, what it misses most and why, what it
+// remembers, your note), then the brain scan (agents/scan.ts) over seven tabs, laid out like the in-game screen.
 //   NATURE, WIRING (IVs), TRAINING (EVs), BOND (friendship: how much it listens to your calls) come from FireRed itself;
 //   CODE (its type's data format, budget), MEMORY (the helpers it keeps, last turns, recent code), NOTE (hot memory) from its code brain.
 // The toolbar button opens it; the in-game PokÉEG (bedroom PC) opens it too and moves its cursor.
@@ -127,6 +128,28 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
     const stats = (v: number[]) => `<p class="code-red-eeg-stats">${STATS.map((n, i) => `<span>${n} <b>${v[i] ?? 0}</b></span>`).join('')}</p>`
     const doubt = doubtPercent(m.friendship)
     const hits = last.filter(t => t.verdict === 'hit').length
+    // The tool part (owner, playtest 1: "a proper utility and functional purposeful tool, not just a pretty
+    // pixellation"): how it is doing, what it keeps missing and why, what it remembers, and your note, first.
+    const all = o.minds.recent?.(m.personality) ?? []
+    const pairs = new Map<string, { move: string; type: string; n: number; hit: number; why: Map<string, number> }>()
+    for (const t of all) {
+      const k = `${t.move}|${t.type}`
+      const p = pairs.get(k) ?? pairs.set(k, { move: t.move, type: t.type, n: 0, hit: 0, why: new Map() }).get(k)!
+      p.n++; if (t.verdict === 'hit') p.hit++; else p.why.set(t.reason ?? 'crashed', (p.why.get(t.reason ?? 'crashed') ?? 0) + 1)
+    }
+    const trouble = [...pairs.values()].filter(p => p.n >= 3 && p.hit / p.n < 0.5).sort((a, b) => a.hit / a.n - b.hit / b.n || b.n - a.n).slice(0, 3)
+    const form = last.map(t => `<i class="${t.verdict === 'hit' ? 'is-hit' : 'is-miss'}" title="${esc(t.move)} → ${esc(t.target)}: ${t.verdict === 'hit' ? 'hit' : esc(t.reason ?? 'crashed')}"></i>`).join('')
+    const summary = `
+      <section class="code-red-eeg-now" aria-label="How it is doing">
+        <p><span class="code-red-eeg-label">Form</span>${last.length ? `<span class="code-red-eeg-form" aria-hidden="true">${form}</span> ${last.length === 1 ? (hits ? 'its one turn so far hit' : 'its one turn so far missed') : `${hits} of its last ${last.length} turns hit`}` : '<span class="code-red-muted">No code written yet: battle, then come back.</span>'}</p>
+        <p><span class="code-red-eeg-label">Misses most</span>${trouble.length ? trouble.map(p => `<b>${esc(p.move)}</b> on ${esc(p.type)} data: ${p.hit} of ${p.n} <span class="code-red-muted">(${[...p.why].map(([w, n]) => `${esc(w)} ×${n}`).join(', ')})</span>`).join('<br>') : `<span class="code-red-muted">${all.length >= 3 ? 'Nothing it keeps missing.' : 'Not enough turns yet.'}</span>`}</p>
+        <p><span class="code-red-eeg-label">Remembers</span>${chips(libShown.map(h => h.name), 'is-learned')} <span class="code-red-muted">${libBytes} of ${cap} bytes</span></p>
+        <label class="code-red-eeg-hot"><span class="code-red-eeg-label">Your note</span>
+          <textarea data-hot rows="2" maxlength="200" placeholder="${trouble.length ? `A tip for ${esc(trouble[0]!.move)} on ${esc(trouble[0]!.type)} data, e.g. how that data reads` : 'A note it always sees, e.g. “always return a plain number”'}">${esc(hot)}</textarea>
+          <small>In every prompt: ${hot.trim().length} chars = ${cost} bytes off its ${budget}. Pin one before a gym; keep it short.</small>
+        </label>
+        <p><button class="code-red-button" type="button" data-save-hot ${hot === o.minds.hot(m.personality) ? 'disabled' : ''}>Pin note</button></p>
+      </section>`
     const body: Record<(typeof TABS)[number], string> = {
       NATURE: `<p><b>${NATURES[m.nature]}</b> nature</p>` + (up === down
         ? '<p>Raises and lowers nothing: every lobe glows alike.</p>'
@@ -142,13 +165,11 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
         <p>${last.length ? `Last ${last.length} turns: ${hits} hit, ${last.length - hits} miss` : 'No code written yet.'}</p>
         <h5>Recent code (${recent.length})</h5>
         ${recent.length ? recent.map(t => `<details class="code-red-eeg-turn" data-verdict="${t.verdict}"><summary><b>${esc(t.move)}</b> → ${esc(t.target)} · ${t.verdict === 'hit' ? 'hit' : `missed (${esc(t.reason ?? 'crashed')})`}${t.notch ? ` · ${t.notch < 0 ? 'shaken' : 'steady'} ${t.notch}` : ''} <small>${when(t.at)}</small></summary><pre><code>${esc(t.code)}</code></pre></details>`).join('') : '<p class="code-red-muted">Nothing written yet: battle, then come back.</p>'}`,
-      NOTE: `<label class="code-red-eeg-hot">Hot memory <small>(in every prompt · ${hot.trim().length} chars = ${cost} bytes off its ${budget})</small>
-          <textarea data-hot rows="3" maxlength="200" placeholder="A note it always sees, e.g. “always return a plain number”">${esc(hot)}</textarea>
-        </label>
-        <p><button class="code-red-button" type="button" data-save-hot ${hot === o.minds.hot(m.personality) ? 'disabled' : ''}>Pin</button> <span class="code-red-muted">Comments cost bytes too: keep it short.</span></p>`,
+      NOTE: `<p>${hot.trim() ? `Your note: <i>${esc(hot.trim())}</i>` : 'No note pinned.'}</p><p class="code-red-muted">Write and pin it at the top of this panel (the in-game PokÉEG's NOTE tab opens the same note).</p>`,
     }
     mind.innerHTML = `
       <h3>${esc(m.nickname || m.name)} <small>${esc(m.name)} · L${m.level} · ${esc(m.types.join('/'))}${m.where === 'party' ? ' · party' : ` · box ${m.box + 1}`}</small></h3>
+      ${summary}
       <div class="code-red-eeg-scan">
         <canvas width="${SCAN_W}" height="${SCAN_H}" aria-label="Brain scan of ${esc(m.nickname || m.name)}"></canvas>
         ${channelLabels().map(l => `<span data-channel="${l.tab}" style="left:${(l.x / SCAN_W) * 100}%;top:${(l.y / SCAN_H) * 100}%">${l.name}</span>`).join('')}
@@ -177,7 +198,7 @@ export function createPokeeg(host: HTMLElement, o: PokeegOptions): Pokeeg {
       hotDraft = { pid: m.personality, text: area.value }
       save.disabled = area.value === o.minds.hot(m.personality)
       const label = mind.querySelector<HTMLElement>('.code-red-eeg-hot small')!
-      label.textContent = `(in every prompt · ${area.value.trim().length} chars = ${contextCost({ hot: area.value.trim() })} bytes off its ${budget})`
+      label.textContent = `In every prompt: ${area.value.trim().length} chars = ${contextCost({ hot: area.value.trim() })} bytes off its ${budget}. Pin one before a gym; keep it short.`
     }
     save.onclick = () => { o.minds.setHot(m.personality, area.value); o.onHot?.(m.personality, area.value); hotDraft = null; renderMind() }
   }

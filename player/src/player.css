@@ -74,17 +74,25 @@
 }
 
 /* PokÉEG: the mind of every owned Pokémon */
-.code-red-eeg { margin-top: .75rem; border-radius: 10px; background: #101418; color: #d8dee4; font: 13px/1.45 system-ui, sans-serif; overflow: hidden; }
+.code-red-eeg { border-radius: 10px; background: #101418; color: #d8dee4; font: 13px/1.45 system-ui, sans-serif; overflow: hidden; }
 .code-red-eeg[hidden] { display: none; }
 .code-red-eeg > header { padding: .4rem .7rem; background: #1c232b; }
 .code-red-eeg > header small { color: #9aa7b3; margin-left: .4rem; }
-.code-red-eeg-body { display: grid; grid-template-columns: minmax(9rem, 14rem) 1fr; min-height: 12rem; }
-.code-red-eeg-list { border-right: 1px solid #1c232b; padding: .4rem; max-height: 32rem; overflow: auto; }
-.code-red-eeg-list h4 { margin: .4rem .3rem .2rem; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #9aa7b3; }
-.code-red-eeg-list button { display: block; width: 100%; text-align: left; padding: .3rem .4rem; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.code-red-eeg-body { display: grid; min-height: 12rem; }
+/* in the sidebar: the Pokémon as a row of chips over the mind */
+.code-red-eeg-list { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; border-bottom: 1px solid #1c232b; padding: .4rem; max-height: 9rem; overflow: auto; }
+.code-red-eeg-list h4 { flex-basis: 100%; margin: .2rem .2rem 0; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #9aa7b3; }
+.code-red-eeg-list button { text-align: left; padding: .25rem .45rem; border: 1px solid #243040; border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .code-red-eeg-list button small { display: block; color: #9aa7b3; }
 .code-red-eeg-list button[aria-pressed="true"] { background: #243040; }
-.code-red-eeg-mind { padding: .5rem .8rem .8rem; max-height: 32rem; overflow: auto; }
+.code-red-eeg-mind { padding: .5rem .8rem .8rem; max-height: 40rem; overflow: auto; min-width: 0; }
+.code-red-eeg-now { display: grid; gap: .3rem; padding: .5rem .6rem; margin: .2rem 0 .5rem; background: #141a22; border-radius: 8px; }
+.code-red-eeg-now p { margin: 0; }
+.code-red-eeg-label { display: inline-block; min-width: 6.5rem; color: #9aa7b3; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.code-red-eeg-form { display: inline-flex; gap: 2px; vertical-align: middle; margin-right: .4rem; }
+.code-red-eeg-form i { width: 7px; height: 12px; border-radius: 2px; }
+.code-red-eeg-form i.is-hit { background: #5fd38d; }
+.code-red-eeg-form i.is-miss { background: #ff7a82; }
 .code-red-eeg-mind h3 { margin: .2rem 0 .4rem; font-size: 16px; }
 .code-red-eeg-mind h3 small, .code-red-eeg-mind h4 small { font-weight: 400; color: #9aa7b3; }
 .code-red-eeg-mind h4 { margin: .8rem 0 .3rem; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #9aa7b3; }
